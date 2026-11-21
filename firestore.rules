@@ -1,0 +1,65 @@
+rules_version = '2';
+// Source of truth for Firestore security rules.
+// Deploy: firebase deploy --only firestore:rules
+// (or paste this whole file into Firebase console -> Firestore -> Rules -> Publish)
+// Keep numbers in sync with town.js: STAGE_GOAL (500) and MAX_POINTS (300).
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    // Each player's island: only they can read/write it.
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    match /towns/{code} {
+      function isMember() {
+        return request.auth != null && resource.data.members.keys().hasAny([request.auth.uid]);
+      }
+      // fallback for towns created before projects existed
+      function oldP() { return resource.data.get('project', {'stage': 0, 'progress': 0, 'goal': 500}); }
+      function validProject() {
+        let o = oldP();
+        let n = request.resource.data.project;
+        return n.goal == o.goal && (
+          // normal contribution: progress goes up by at most 300
+          (n.stage == o.stage && n.progress > o.progress && n.progress - o.progress <= 300)
+          // stage-up: one stage, and the old progress was close enough to finish it
+          || (n.stage == o.stage + 1 && o.progress + 300 >= o.goal && n.progress >= 0 && n.progress < n.goal)
+        );
+      }
+
+      // anyone signed in can look up a town by its code (needed to join); no listing all towns
+      allow get: if request.auth != null;
+
+      // founder must be the only member, and the doc ID must match the code
+      allow create: if request.auth != null
+        && request.resource.data.code == code
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.members.keys().hasOnly([request.auth.uid]);
+
+      allow update: if request.auth != null && (
+        // join / rename / leave: only your own member entry
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members'])
+          && request.resource.data.members.diff(resource.data.members).affectedKeys().hasOnly([request.auth.uid]))
+        // contribute: members only, small increments
+        || (isMember()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['project'])
+          && validProject())
+      );
+
+      // Town news feed
+      match /feed/{id} {
+        function member() {
+          return request.auth != null &&
+            get(/databases/$(db)/documents/towns/$(code)).data.members.keys().hasAny([request.auth.uid]);
+        }
+        allow read: if member();
+        allow create: if member()
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.points is int
+          && request.resource.data.points > 0 && request.resource.data.points <= 300
+          && request.resource.data.text is string && request.resource.data.text.size() <= 120;
+      }
+    }
+  }
+}
