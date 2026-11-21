@@ -124,7 +124,7 @@
   // otherwise the screen shows a "coming soon" note.
   document.getElementById('dailyStar').addEventListener('click', e => {
     if (typeof window.startDailyStar === 'function') return window.startDailyStar();
-    note.textContent = '⭐ The Daily Star is twinkling soon! Check back tomorrow.';
+    note.innerHTML = pi('star') + ' The Daily Star is twinkling soon! Check back tomorrow.';
     note.classList.remove('show'); void note.offsetWidth; note.classList.add('show');
     e.currentTarget.classList.remove('wiggle'); void e.currentTarget.offsetWidth; e.currentTarget.classList.add('wiggle');
   });

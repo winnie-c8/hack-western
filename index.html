@@ -15,14 +15,14 @@
       <h2 class="intro-title" data-text="Future Me Island" aria-label="Future Me Island"></h2>
     </div>
     <div class="intro-buttons">
-      <button id="enterWorld" class="intro-btn go">🏝️ Enter my world!</button>
-      <button id="dailyStar" class="intro-btn star">⭐ Play the Daily Star</button>
+      <button id="enterWorld" class="intro-btn go"><i data-pi="island"></i> Enter my world!</button>
+      <button id="dailyStar" class="intro-btn star"><i data-pi="star"></i> Play the Daily Star</button>
     </div>
     <p id="introNote" class="intro-note" aria-live="polite"></p>
 
     <section id="starCard" class="star-card" hidden aria-labelledby="starTitle">
       <div class="star-head">
-        <span id="starTitle">⭐ Daily Star · <span id="starNum"></span></span>
+        <span id="starTitle"><i data-pi="star"></i> Daily Star · <span id="starNum"></span></span>
         <button type="button" class="star-x" data-star-back aria-label="Back">✕</button>
       </div>
       <div class="star-body">
@@ -34,7 +34,7 @@
           <form id="starForm">
             <label for="starGuess">How do you think it ended?</label>
             <textarea id="starGuess" rows="3" placeholder="Type your guess for the happy ending..."></textarea>
-            <button class="primary star-go">✨ Catch the star!</button>
+            <button class="primary star-go"><i data-pi="sparkle"></i> Catch the star!</button>
           </form>
         </div>
 
@@ -46,7 +46,7 @@
           <p id="starDoneMsg" class="star-done-msg"></p>
           <p id="starDoneTimer" class="star-done-timer"></p>
           <div class="star-actions">
-            <button type="button" id="starDoneEnter" class="primary">🏝️ Enter my world!</button>
+            <button type="button" id="starDoneEnter" class="primary"><i data-pi="island"></i> Enter my world!</button>
             <button type="button" class="star-back" data-star-back>← Back</button>
           </div>
         </div>
@@ -63,10 +63,10 @@
           <p id="starEnding" class="star-setup"></p>
           <ul id="starBeats" class="star-beats"></ul>
           <div class="star-actions">
-            <button type="button" id="starEnter" class="primary">🏝️ Enter my world!</button>
+            <button type="button" id="starEnter" class="primary"><i data-pi="island"></i> Enter my world!</button>
             <button type="button" class="star-back" data-star-back>← Back</button>
           </div>
-          <p class="star-src">📰 Real story, paraphrased from: <a id="starSource" target="_blank" rel="noopener"></a></p>
+          <p class="star-src"><i data-pi="news"></i> Real story, paraphrased from: <a id="starSource" target="_blank" rel="noopener"></a></p>
         </div>
       </div>
     </section>
@@ -100,17 +100,17 @@
       <span>Future Me Island</span>
     </button></h1>
     <div class="stats" aria-live="polite">
-    <div class="stat"><span class="stat-ico">🪙</span><div><b id="coins">0</b><small>coins</small></div></div>
-    <div class="stat"><span class="stat-ico">💰</span><div><b id="saved">$0</b><small>real $ saved</small></div></div>
-    <div class="stat"><span class="stat-ico">🔥</span><div><b id="streak">0</b><small>day streak</small></div></div>
+    <div class="stat"><span class="stat-ico"><i data-pi="coin"></i></span><div><b id="coins">0</b><small>coins</small></div></div>
+    <div class="stat"><span class="stat-ico"><i data-pi="piggy"></i></span><div><b id="saved">$0</b><small>real $ saved</small></div></div>
+    <div class="stat"><span class="stat-ico"><i data-pi="flame"></i></span><div><b id="streak">0</b><small>day streak</small></div></div>
     </div>
   </div>
 
   <nav class="hud hud-right" aria-label="Menu">
-    <button class="menu-btn" data-open="bank"><span class="ico">🏦</span>bank</button>
-    <button class="menu-btn" data-open="daily"><span class="ico">🔥</span>daily</button>
-    <button class="menu-btn" data-open="jars"><span class="ico">🫙</span>jars</button>
-    <button class="menu-btn" data-open="history"><span class="ico">📜</span>history</button>
+    <button class="menu-btn" data-open="bank"><span class="ico"><i data-pi="bank"></i></span>bank</button>
+    <button class="menu-btn" data-open="daily"><span class="ico"><i data-pi="flame"></i></span>daily</button>
+    <button class="menu-btn" data-open="jars"><span class="ico"><i data-pi="jar"></i></span>jars</button>
+    <button class="menu-btn" data-open="history"><span class="ico"><i data-pi="scroll"></i></span>history</button>
     <button class="help-dot" id="helpBtn" aria-label="Controls" aria-controls="helpPop">?</button>
   </nav>
   <div id="helpPop" class="help-pop hidden" role="dialog" aria-label="Controls">
@@ -132,7 +132,7 @@
 
   <div class="hud hud-bottom">
     <div class="bag">
-      <span class="bag-label">🎒 Bag</span>
+      <span class="bag-label"><i data-pi="backpack"></i> Bag</span>
       <div id="inventory" class="bag-items"></div>
     </div>
   </div>
@@ -141,7 +141,7 @@
 <!-- ===== Pop-up windows ===== -->
 <div class="modal hidden" id="panel-bank" role="dialog" aria-labelledby="bankTitle">
   <div class="window">
-    <div class="window-head"><h2 id="bankTitle">🏦 Bank</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-head"><h2 id="bankTitle"><i data-pi="bank"></i> Bank</h2><button class="close" data-close aria-label="Close">✕</button></div>
     <div class="window-body">
       <div>
         <p class="bank-hello">Welcome back!</p>
@@ -163,7 +163,7 @@
         <button class="secondary" data-close>Not today, go to my island</button>
       </div>
       <details class="earn">
-        <summary><span class="q">?</span> How you earn 🪙 <span class="arrow">▸</span></summary>
+        <summary><span class="q">?</span> How you earn <i data-pi="coin"></i> <span class="arrow">▸</span></summary>
         <div class="card">
           <p class="muted">Coins reward the <b>habit</b>, not the amount. $5 every week beats $5,000 once.</p>
           <ul id="rules" class="checklist"></ul>
@@ -175,7 +175,7 @@
 
 <div class="modal hidden" id="panel-shop" role="dialog" aria-labelledby="shopTitle">
   <div class="window wide">
-    <div class="window-head"><h2 id="shopTitle">🛍️ Island Shop</h2><span class="chip small" id="shopCoins"></span><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-head"><h2 id="shopTitle"><i data-pi="shopbag"></i> Island Shop</h2><span class="chip small" id="shopCoins"></span><button class="close" data-close aria-label="Close">✕</button></div>
     <div class="window-body">
       <p class="muted">Things you buy go in your <b>bag</b> at the bottom of the screen. Click one there, then click a spot on your island.</p>
       <div id="shop" class="shop-grid"></div>
@@ -185,7 +185,7 @@
 
 <div class="modal hidden" id="panel-jars" role="dialog" aria-labelledby="jarsTitle">
   <div class="window jars-window">
-    <div class="window-head"><h2 id="jarsTitle">🫙 Wish Jars</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-head"><h2 id="jarsTitle"><i data-pi="jar"></i> Wish Jars</h2><button class="close" data-close aria-label="Close">✕</button></div>
     <div class="window-body">
       <p class="muted">Your dream-life goals. Real dollars fill the jar, and filling one earns a big coin bonus.</p>
       <div id="goals" class="jar-gallery"></div>
@@ -195,7 +195,7 @@
 
 <div class="modal side hidden" id="panel-daily" role="dialog" aria-labelledby="dailyTitle">
   <div class="window">
-    <div class="window-head"><h2 id="dailyTitle">🔥 Daily Missions</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-head"><h2 id="dailyTitle"><i data-pi="flame"></i> Daily Missions</h2><button class="close" data-close aria-label="Close">✕</button></div>
     <div class="window-body">
       <p id="streakInfo" class="lead"></p>
       <ul id="missions" class="checklist"></ul>
@@ -206,7 +206,7 @@
 
 <div class="modal hidden" id="panel-history" role="dialog" aria-labelledby="historyTitle">
   <div class="window">
-    <div class="window-head"><h2 id="historyTitle">📜 Savings History</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-head"><h2 id="historyTitle"><i data-pi="scroll"></i> Savings History</h2><button class="close" data-close aria-label="Close">✕</button></div>
     <div class="window-body">
       <div class="hist-tools">
         <label for="histSort">Sort by</label>
@@ -224,11 +224,11 @@
 
 <div class="modal hidden" id="panel-town" role="dialog" aria-labelledby="townTitleHead">
   <div class="window wide">
-    <div class="window-head"><h2 id="townTitleHead">🏘️ Towns</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-head"><h2 id="townTitleHead"><i data-pi="town"></i> Towns</h2><button class="close" data-close aria-label="Close">✕</button></div>
     <div class="window-body">
       <!-- corkboard newsfeed: recent updates pinned up like posters -->
       <section class="newsboard" aria-labelledby="boardTitle">
-        <h3 class="board-title" id="boardTitle">📌 Town News</h3>
+        <h3 class="board-title" id="boardTitle"><i data-pi="pin"></i> Town News</h3>
         <div id="townBoard" class="board"></div>
       </section>
       <p id="townStatus" class="muted">Connecting…</p>
@@ -263,7 +263,7 @@
       <div class="window-head"><h2 id="townTitle"></h2><button id="townBack" class="close" type="button" aria-label="Close">✕</button></div>
       <div class="window-body">
         <section class="newsboard small" aria-label="This town's news">
-          <h3 class="board-title">📌 Town News</h3>
+          <h3 class="board-title"><i data-pi="pin"></i> Town News</h3>
           <div id="townDetailBoard" class="board"></div>
         </section>
         <div id="projActive">
@@ -275,10 +275,10 @@
           <h3 id="projIntro">What should your town build first?</h3>
           <div class="proj-form">
             <label>Project name<input id="projName" maxlength="40" placeholder="e.g. Community Garden"></label>
-            <label>Goal (🔨 points)<input id="projGoal" type="number" min="100" max="50000" step="50" value="500"></label>
+            <label>Goal (<i data-pi="hammer"></i> points)<input id="projGoal" type="number" min="100" max="50000" step="50" value="500"></label>
             <button id="projStart" class="primary">Start project</button>
           </div>
-          <p class="muted">Everyone's saving habits add 🔨 points. Your town builds one project at a time, and you'll see it go up on your island as points come in.</p>
+          <p class="muted">Everyone's saving habits add <i data-pi="hammer"></i> points. Your town builds one project at a time, and you'll see it go up on your island as points come in.</p>
         </div>
         <h3>Built so far</h3>
         <ul id="builtList" class="list built-list"></ul>
@@ -297,13 +297,14 @@
 
 <div id="chat" class="modal bottom hidden" role="dialog" aria-label="Chat with Maple">
   <div class="chat-box">
-    <div class="chat-head">🦊 Maple the Money Fox <button id="closeChat" aria-label="Close">✕</button></div>
+    <div class="chat-head"><i data-pi="fox"></i> Maple the Money Fox <button id="closeChat" aria-label="Close">✕</button></div>
     <div id="chatLog"></div>
     <form id="chatForm"><input id="chatInput" placeholder="Ask Maple anything about money..." autocomplete="off"><button>Send</button></form>
   </div>
 </div>
 
 <div id="toast" role="status"></div>
+<script src="icons.js"></script>
 <script src="intro.js"></script>
 <script src="game.js?v=4"></script>
 <script type="module" src="cloud.js"></script>

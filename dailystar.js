@@ -286,7 +286,7 @@ const STARS = [
       const stars = d.stars ?? Math.max(1, Math.round(((d.coins - 10) / 90) * 5));
       $('starStatus').textContent = '';
       drawMeter($('starDoneMeter'), stars);
-      $('starDoneCoins').textContent = `+${d.coins} 🪙`;
+      $('starDoneCoins').innerHTML = `+${d.coins} ${pi('coin')}`;
       $('starDoneMsg').textContent = `You already completed today's Daily Star and got +${d.coins} coins. Come back tomorrow!`;
       $('starDoneTimer').textContent = `New story in ${timeLeft()}`;
       show('done');
@@ -295,7 +295,7 @@ const STARS = [
       return;
     }
     story = STARS[dayIndex()];
-    $('starStatus').textContent = 'Up to 100 🪙';
+    $('starStatus').innerHTML = `Up to 100 ${pi('coin')}`;
     $('starGuess').value = '';
     show('guess');
     popCard();
@@ -329,7 +329,7 @@ const STARS = [
     drawMeter($('starMeter'), stars);
     $('starStatus').textContent = '';
     $('starVerdict').textContent = ['', 'A little twinkle!', 'Getting warmer!', 'Nice guess!', 'So close!', 'You saw it coming!'][stars];
-    $('starCoins').textContent = `+${coins} 🪙`;
+    $('starCoins').innerHTML = `+${coins} ${pi('coin')}`;
     $('starYours').textContent = `“${guess}”`;
     $('starEnding').textContent = story.ending;
     const beats = $('starBeats'); beats.innerHTML = '';

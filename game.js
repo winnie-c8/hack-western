@@ -4,18 +4,18 @@ const TILE = 40, COLS = 20, ROWS = 14;
 const REWARDS = { dailyLog: 10, firstThisWeek: 50, weekStreak: 150, jarFilled: 300 };
 
 const SHOP = [
-  { id: 'flower', emoji: '🌷', name: 'Tulip', price: 30 },
-  { id: 'tree', emoji: '🌳', name: 'Oak Tree', price: 80 },
-  { id: 'palm', emoji: '🌴', name: 'Palm Tree', price: 100 },
-  { id: 'bench', emoji: '🪑', name: 'Chair', price: 120 },
-  { id: 'lamp', emoji: '🏮', name: 'Lantern', price: 150 },
-  { id: 'fountain', emoji: '⛲', name: 'Fountain', price: 400 },
-  { id: 'tent', emoji: '⛺', name: 'Tent', price: 250 },
-  { id: 'house', emoji: '🏡', name: 'Dream Home', price: 2000 },
-  { id: 'car', emoji: '🚗', name: 'First Car', price: 1200 },
-  { id: 'plane', emoji: '✈️', name: 'Travel Fund', price: 800 },
-  { id: 'grad', emoji: '🎓', name: 'Diploma', price: 600 },
-  { id: 'castle', emoji: '🏰', name: 'Castle', price: 5000 },
+  { id: 'flower', name: 'Tulip', price: 30 },
+  { id: 'tree', name: 'Oak Tree', price: 80 },
+  { id: 'palm', name: 'Palm Tree', price: 100 },
+  { id: 'bench', name: 'Chair', price: 120 },
+  { id: 'lamp', name: 'Lantern', price: 150 },
+  { id: 'fountain', name: 'Fountain', price: 400 },
+  { id: 'tent', name: 'Tent', price: 250 },
+  { id: 'house', name: 'Dream Home', price: 2000 },
+  { id: 'car', name: 'First Car', price: 1200 },
+  { id: 'plane', name: 'Travel Fund', price: 800 },
+  { id: 'grad', name: 'Diploma', price: 600 },
+  { id: 'castle', name: 'Castle', price: 5000 },
 ];
 
 const MISSIONS = [
@@ -259,19 +259,10 @@ function shadow(cx, bottom, w = 6) {
   ctx.fillRect(x + PX, bottom + PX, (w - 2) * PX, PX);
 }
 
-// Shop items: emoji rendered at 16×16, alpha-snapped, then scaled up crisp → pixel-art look
+// Shop items: hand-made 16×16 pixel sprites from icons.js, scaled up crisp
 const iconCache = {};
 function icon(id) {
-  if (iconCache[id]) return iconCache[id];
-  const c = document.createElement('canvas'); c.width = c.height = 16;
-  const g = c.getContext('2d');
-  g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.font = '14px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",serif';
-  g.fillText(SHOP.find(s => s.id === id).emoji, 8, 9);
-  const img = g.getImageData(0, 0, 16, 16);
-  for (let i = 3; i < img.data.length; i += 4) img.data[i] = img.data[i] > 110 ? 255 : 0;
-  g.putImageData(img, 0, 0);
-  return iconCache[id] = c;
+  return iconCache[id] || (iconCache[id] = pixelSprite(id));
 }
 // single-colour silhouette of an icon (for outlines and cast shadows)
 const silCache = {};
@@ -283,7 +274,8 @@ function silhouette(id, color) {
   g.drawImage(icon(id), 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = color; g.fillRect(0, 0, 16, 16);
   return silCache[k] = c;
 }
-const iconURL = id => icon(id).toDataURL();
+const urlCache = {};
+const iconURL = id => urlCache[id] || (urlCache[id] = pixelSprite(id, true).toDataURL()); // outlined for the shop/bag
 const BIG = new Set(['tree', 'palm', 'house', 'castle', 'fountain']);
 function drawItem(id, x, y, alpha = 1) {
   const size = BIG.has(id) ? 56 : 36, cx = x * TILE + TILE / 2, bottom = y * TILE + TILE - 2;
@@ -608,12 +600,12 @@ cv.addEventListener('click', e => {
 
 // ---------- UI helpers ----------
 const $ = id => document.getElementById(id);
-function toast(msg) { const el = $('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 2000); }
+function toast(msg) { const el = $('toast'); el.innerHTML = pit(msg); el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 2000); }
 function renderStats() {
   $('coins').textContent = S.coins.toLocaleString();
   $('saved').textContent = `$${S.saved.toLocaleString()}`;
   $('streak').textContent = S.streak;
-  $('shopCoins').textContent = `🪙 ${S.coins.toLocaleString()}`;
+  $('shopCoins').innerHTML = `${pi('coin')} ${S.coins.toLocaleString()}`;
 }
 // ---------- Pop-up windows ----------
 // "side" panels (daily) sit on the right and don't block walking; the rest are centred pop-ups
@@ -668,7 +660,7 @@ function logSaving(amt, type, jarIdx) {
   S.coins += coins;
   S.history.unshift({ amt, type, date: today(), jar: g?.name, coins });
   save(); renderAll();
-  toast(coins ? `+${coins} 🪙 · ${rewards.map(r => r[0]).join(' · ')}` : `$${amt} added to your progress. Coins come from showing up — see you tomorrow!`);
+  toast(coins ? `+${coins} :coin: · ${rewards.map(r => r[0]).join(' · ')}` : `$${amt} added to your progress. Coins come from showing up — see you tomorrow!`);
   // share the habit (never the amount or jar name) with the town
   if (coins) window.onHabit?.(rewards.map(r => r[0].startsWith('Wish Jar') ? 'filled a Wish Jar' : r[0].toLowerCase()).join(' · '), coins);
   completeMission('deposit');
@@ -679,7 +671,7 @@ let lastAcct = null;
 function renderAccounts() {
   const sel = $('depType'), cur = lastAcct ?? sel.value;
   sel.innerHTML = S.accounts.map(a => `<option value="${esc(a)}">${esc(a)}</option>`).join('')
-    + '<option value="__config">⚙ Configure accounts…</option>';
+    + '<option value="__config">Configure accounts…</option>';
   sel.value = S.accounts.includes(cur) ? cur : S.accounts[0];
   lastAcct = sel.value;
   $('acctList').innerHTML = S.accounts.map((a, i) => `<li><span>${esc(a)}</span>
@@ -717,10 +709,10 @@ $('depositBtn').onclick = () => {
 function renderRules() {
   const ws = weekStreak();
   $('rules').innerHTML = `
-    <li><span>${S.lastDepositDay === today() ? '✅' : '⬜'} Save anything today</span><b>+${REWARDS.dailyLog}🪙</b></li>
-    <li><span>${S.weeks.includes(weekKey()) ? '✅' : '⬜'} First deposit this week</span><b>+${REWARDS.firstThisWeek}🪙</b></li>
-    <li><span>${ws >= 3 ? '✅' : '⬜'} 3+ weeks in a row (now ${ws})</span><b>+${REWARDS.weekStreak}🪙/wk</b></li>
-    <li><span>🫙 Fill a Wish Jar</span><b>+${REWARDS.jarFilled}🪙</b></li>`;
+    <li><span>${pi(S.lastDepositDay === today() ? 'check' : 'box')} Save anything today</span><b>+${REWARDS.dailyLog}${pi('coin')}</b></li>
+    <li><span>${pi(S.weeks.includes(weekKey()) ? 'check' : 'box')} First deposit this week</span><b>+${REWARDS.firstThisWeek}${pi('coin')}</b></li>
+    <li><span>${pi(ws >= 3 ? 'check' : 'box')} 3+ weeks in a row (now ${ws})</span><b>+${REWARDS.weekStreak}${pi('coin')}/wk</b></li>
+    <li><span>${pi('jar')} Fill a Wish Jar</span><b>+${REWARDS.jarFilled}${pi('coin')}</b></li>`;
 }
 function renderHistory() {
   const mode = $('histSort').value, grouped = mode === 'type' || mode === 'jar';
@@ -734,12 +726,12 @@ function renderHistory() {
     if (grouped && key(h) !== last) {
       last = key(h);
       const total = rows.filter(r => key(r) === last).reduce((t, r) => t + r.amt, 0);
-      head = `<li class="group"><span>${mode === 'jar' ? '🫙' : '🏦'} ${esc(last)}</span><b>$${total.toLocaleString()}</b></li>`;
+      head = `<li class="group"><span>${pi(mode === 'jar' ? 'jar' : 'bank')} ${esc(last)}</span><b>$${total.toLocaleString()}</b></li>`;
     }
     return head + `<li>
       <span class="date">${h.date}</span>
-      <span><span class="amt">$${h.amt}</span> → ${esc(h.type || 'Savings')}${h.jar ? ' · 🫙 ' + esc(h.jar) : ''}</span>
-      <span class="coins">+${h.coins ?? 0} 🪙</span></li>`;
+      <span><span class="amt">$${h.amt}</span> → ${esc(h.type || 'Savings')}${h.jar ? ' · ' + pi('jar') + ' ' + esc(h.jar) : ''}</span>
+      <span class="coins">+${h.coins ?? 0} ${pi('coin')}</span></li>`;
   }).join('') || '<li><span class="empty">No savings logged yet. Open the bank to log your first!</span></li>';
 }
 $('histSort').onchange = renderHistory;
@@ -747,11 +739,11 @@ $('histSort').onchange = renderHistory;
 // ---------- Shop / Inventory ----------
 function renderShop() {
   $('shop').innerHTML = SHOP.map(s => `<button class="item ${S.coins < s.price ? 'locked' : ''}" data-id="${s.id}">
-      <img src="${iconURL(s.id)}" alt=""><span class="name">${s.name}</span><span class="price">🪙 ${s.price}</span>
+      <img src="${iconURL(s.id)}" alt=""><span class="name">${s.name}</span><span class="price">${pi('coin')} ${s.price}</span>
       ${S.coins < s.price ? `<span class="need">need ${s.price - S.coins} more</span>` : ''}</button>`).join('');
   $('shop').querySelectorAll('.item').forEach(el => el.onclick = () => {
     const s = SHOP.find(i => i.id === el.dataset.id);
-    if (S.coins < s.price) return toast(`Need ${s.price - S.coins} more 🪙 — keep your saving streak going!`);
+    if (S.coins < s.price) return toast(`Need ${s.price - S.coins} more :coin: — keep your saving streak going!`);
     S.coins -= s.price; S.inventory[s.id] = (S.inventory[s.id] || 0) + 1;
     save(); renderAll(); toast(`Bought ${s.name}! It's in your bag at the bottom.`);
   });
@@ -826,10 +818,10 @@ function renderGoals() {
     const color = g.color || JAR_COLORS[i % JAR_COLORS.length];
     return `<div class="jar-card ${pct >= 100 ? 'full' : ''}" style="--jar:${color}">
       <img class="jar-img" src="${jarPixelURL(pct, color)}" alt="">
-      <div class="jar-name">${esc(g.name)} ${pct >= 100 ? '🎉' : ''}</div>
+      <div class="jar-name">${esc(g.name)} ${pct >= 100 ? pi('party') : ''}</div>
       <div class="bar"><div style="width:${pct}%"></div></div>
       <div class="jar-amt">$${g.saved.toLocaleString()} / $${g.target.toLocaleString()} · ${Math.floor(pct)}%</div>
-      <span class="muted">${loggedToday ? '✅ added today' : 'not added today'}</span>
+      <span class="muted">${loggedToday ? pi('check') + ' added today' : 'not added today'}</span>
       <button class="primary jar-fill" data-i="${i}">+ Add money</button>
     </div>`;
   }).join('') + (draftJar
@@ -847,7 +839,7 @@ function renderGoals() {
     $('goalTarget').onkeydown = $('goalName').onkeydown = e => { if (e.key === 'Enter') addJar(); };
   } else $('newJarBtn').onclick = () => { draftJar = true; renderGoals(); };
   const cur = $('depJar').value;
-  $('depJar').innerHTML = '<option value="">General savings</option>' + S.goals.map((g, i) => `<option value="${i}">🫙 ${esc(g.name)}</option>`).join('');
+  $('depJar').innerHTML = '<option value="">General savings</option>' + S.goals.map((g, i) => `<option value="${i}">${esc(g.name)}</option>`).join('');
   $('depJar').value = cur;
   // "Add money" jumps to the bank pop-up with this jar already picked
   $('goals').querySelectorAll('button[data-i]').forEach(b => b.onclick = () => {
@@ -869,7 +861,7 @@ function completeMission(id) {
   if (S.lastStreakDay !== today()) {
     S.streak += 1; S.lastStreakDay = today();
     bonus = Math.min(S.streak, 30) * 5;
-    setTimeout(() => toast(`🔥 ${S.streak}-day streak! +${bonus} bonus 🪙`), 2100);
+    setTimeout(() => toast(`:flame: ${S.streak}-day streak! +${bonus} bonus :coin:`), 2100);
   }
   S.coins += m.reward + bonus;
   save(); renderAll();
@@ -881,13 +873,13 @@ function renderMissions() {
   $('missions').innerHTML = order.map(m => {
     const done = isDone(m);
     return `<li class="mission ${done ? 'done' : ''}" data-id="${m.id}" role="checkbox" aria-checked="${done}" tabindex="${done ? -1 : 0}">
-      <i class="box" aria-hidden="true"></i><span class="text">${m.text}</span><b>+${m.reward}🪙</b></li>`;
+      <i class="box" aria-hidden="true"></i><span class="text">${m.text}</span><b>+${m.reward}${pi('coin')}</b></li>`;
   }).join('');
   $('missions').querySelectorAll('li:not(.done)').forEach(li => {
     li.onclick = () => tickMission(li);
     li.onkeydown = e => { if (e.key === 'Enter') tickMission(li); };
   });
-  $('streakInfo').innerHTML = `🔥 Current streak: <b>${S.streak} day${S.streak === 1 ? '' : 's'}</b>. ${S.lastStreakDay === today() ? 'Streak secured for today!' : 'Complete a mission to keep it going!'}`;
+  $('streakInfo').innerHTML = `${pi('flame')} Current streak: <b>${S.streak} day${S.streak === 1 ? '' : 's'}</b>. ${S.lastStreakDay === today() ? 'Streak secured for today!' : 'Complete a mission to keep it going!'}`;
 }
 
 // Ticking a task: tasks that need a real action take you there; the rest tick off with a strike-through.
@@ -897,7 +889,7 @@ function tickMission(li) {
   if (m.auto) {
     if (id === 'deposit') { toast('Log any amount in the bank to tick this off'); return openPanel('bank'); }
     if (id === 'goal') { toast('Add money to a Wish Jar to tick this off'); return openPanel('jars'); }
-    if (id === 'chat') return toast('Walk up to Maple 🦊 and press Space to ask a question');
+    if (id === 'chat') return toast('Walk up to Maple :fox: and press Space to ask a question');
   }
   li.classList.add('striking');
   setTimeout(() => completeMission(id), 600); // let the strike animation play, then it drops to the bottom
@@ -906,7 +898,7 @@ function tickMission(li) {
 // ---------- Villager chatbot (stub — wire to an LLM later) ----------
 const TIPS = [
   "Pay yourself first! Move savings out on payday before you spend.",
-  "A TFSA lets your investments grow tax-free in Canada. 🍁",
+  "A TFSA lets your investments grow tax-free in Canada. :leaf:",
   "An FHSA can help you save up to $40,000 tax-free for your first home!",
   "Try the 50/30/20 rule: needs, wants, savings.",
   "Small amounts add up — $5 a day is over $1,800 a year!",
@@ -924,11 +916,11 @@ async function askVillager(question) {
   if (q.includes('streak')) return `You're on a ${S.streak}-day streak! Do any daily mission to keep it alive.`;
   return TIPS[Math.floor(Math.random() * TIPS.length)];
 }
-function addMsg(text, who) { const d = document.createElement('div'); d.className = 'msg ' + who; d.textContent = text; $('chatLog').append(d); $('chatLog').scrollTop = 1e9; }
+function addMsg(text, who) { const d = document.createElement('div'); d.className = 'msg ' + who; d.innerHTML = pit(text); $('chatLog').append(d); $('chatLog').scrollTop = 1e9; }
 function openChat() {
   closePanels(); Object.keys(keys).forEach(k => keys[k] = false);
   $('chat').classList.remove('hidden');
-  if (!$('chatLog').children.length) addMsg(`Hey there! I'm Maple 🦊. You've saved $${S.saved} so far — future you is cheering! Ask me about TFSAs, budgeting, FHSAs...`, 'bot');
+  if (!$('chatLog').children.length) addMsg(`Hey there! I'm Maple :fox:. You've saved $${S.saved} so far — future you is cheering! Ask me about TFSAs, budgeting, FHSAs...`, 'bot');
   $('chatInput').focus();
 }
 function closeChat() { closePanels(); }
