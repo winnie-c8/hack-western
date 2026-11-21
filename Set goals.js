@@ -25,6 +25,7 @@ function renderPersonalGoals() {
       </details>
     </div>`;
   }).join('') || '<p class="muted">Add a goal to start tracking your progress.</p>';
+  window.renderGoalPick?.(); // the bank's "goal?" picker lists these too
 
   $('personalGoals').querySelectorAll('[data-save-goal]').forEach(button => {
     button.onclick = () => {
