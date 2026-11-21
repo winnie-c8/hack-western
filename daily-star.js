@@ -2,15 +2,15 @@
 (() => {
   const $ = id => document.getElementById(id);
   const state = () => window.getState();
-  const ROUNDS_PER_DAY = 7;
+  const ROUNDS_PER_DAY = 5;
 
   const games = [
-    { id: 'clock', name: 'Stop the clock', description: 'A hidden timer is running. Stop it when you think exactly 5 seconds have passed.' },
+    { id: 'clock', name: 'Stop the clock', description: 'Stop the hidden clock when you think the random target time has passed.' },
     { id: 'middle', name: 'Find the middle', description: 'Tap the exact midpoint between the two dots.' },
     { id: 'fill', name: 'Fill percentage', description: 'Estimate what percentage of the shape is filled.' },
     { id: 'color', name: 'Color match', description: 'Remember the color, then recreate it with the red, green, and blue sliders.' },
     { id: 'line', name: 'Line length', description: 'Memorize the line, then draw one of the same length.' },
-    { id: 'recall', name: 'Flash recall', description: 'Remember the dots that flash in the grid, then tap their spots.' },
+    { id: 'recall', name: 'Flash recall', description: 'Remember the 10 squares that light up in the grid, then tap their spots.' },
     { id: 'upright', name: 'Make it upright', description: 'Rotate the tilted shape until it looks level.' },
     { id: 'speed', name: 'Speed guess', description: 'Watch the car cross the screen and estimate its speed.' },
     { id: 'shades', name: 'Shade ranking', description: 'Arrange the five gray squares from lightest to darkest.' },
@@ -42,7 +42,7 @@
   }
 
   function resetCountdownMessage() {
-    return `The Daily Star resets in ${countdownText()} (midnight local time).`;
+    return `The Daily Star resets in ${countdownText()}.`;
   }
 
   function updateCountdown() {
@@ -64,7 +64,7 @@
     const message = countdownText();
     const note = $('introNote');
     if (note.dataset.dailyLocked === 'true') {
-      note.textContent = `Sorry, the daily star has twinkled already. Check back in ${message} (midnight local time).`;
+      note.textContent = `Sorry, the daily star has twinkled already. Check back in ${message}.`;
     }
     const modalCountdown = $('starCountdown');
     if (modalCountdown) modalCountdown.textContent = resetCountdownMessage();
@@ -109,15 +109,18 @@
     }
     $('dailyStarModal').classList.remove('hidden');
     if (!run || run.day !== localDay()) {
-      const savedRun = s.dailyStar.date === localDay() &&
-        Array.isArray(s.dailyStar.games) && s.dailyStar.games.length === ROUNDS_PER_DAY &&
-        new Set(s.dailyStar.games).size === ROUNDS_PER_DAY &&
+      const savedGames = s.dailyStar.date === localDay() &&
+        Array.isArray(s.dailyStar.games) &&
+        new Set(s.dailyStar.games).size === s.dailyStar.games.length &&
         s.dailyStar.games.every(id => gameById[id]);
-      const ids = savedRun ? s.dailyStar.games : randomGames();
-      const scores = savedRun && Array.isArray(s.dailyStar.rounds) &&
-        s.dailyStar.rounds.length <= ROUNDS_PER_DAY &&
+      const savedRun = savedGames && s.dailyStar.games.length === ROUNDS_PER_DAY;
+      const migrateLongerRun = savedGames && s.dailyStar.games.length > ROUNDS_PER_DAY;
+      const ids = savedRun ? s.dailyStar.games : migrateLongerRun
+        ? s.dailyStar.games.slice(0, ROUNDS_PER_DAY) : randomGames();
+      const scores = (savedRun || migrateLongerRun) && Array.isArray(s.dailyStar.rounds) &&
+        s.dailyStar.rounds.length <= s.dailyStar.games.length &&
         s.dailyStar.rounds.every(score => Number.isFinite(score) && score >= 0 && score <= 100)
-        ? s.dailyStar.rounds.slice() : [];
+        ? s.dailyStar.rounds.slice(0, ROUNDS_PER_DAY) : [];
       run = { day: localDay(), ids, index: scores.length, scores };
       if (!savedRun) {
         s.dailyStar = { date: run.day, games: ids, completed: false, score: null, rounds: [] };
@@ -133,7 +136,7 @@
     $('starRoundMount').innerHTML = `<div class="star-result">
       <div class="result-score">${Number(result.score).toFixed(1)}<small> / 10</small></div>
       <p>Accuracy: ${Math.round(result.score * 10)}%</p>
-      <p>You completed all seven games today. Come back tomorrow for a new challenge!</p>
+      <p>You completed all ${ROUNDS_PER_DAY} games today. Come back tomorrow for a new challenge!</p>
       <p id="starCountdown">${resetCountdownMessage()}</p>
     </div>`;
     $('starNext').classList.add('hidden');
@@ -174,7 +177,9 @@
   function renderMiniGame(id) {
     const work = $('starWork');
     if (id === 'clock') {
-      work.innerHTML = '<p>Start the hidden clock, then stop it when you think five seconds have passed.</p><button id="clockButton" class="primary" type="button">Start hidden timer</button><p id="clockStatus" class="muted" aria-live="polite"></p>';
+      const targetSeconds = Math.floor(Math.random() * 9) + 2;
+      const targetMs = targetSeconds * 1000;
+      work.innerHTML = `<p>When you are ready, start the hidden clock. Stop it when you think ${targetSeconds} seconds have passed.</p><button id="clockButton" class="primary" type="button">Start hidden timer</button><p id="clockStatus" class="muted" aria-live="polite"></p>`;
       let startedAt = null;
       let finished = false;
       $('clockButton').onclick = () => {
@@ -187,16 +192,16 @@
             if (finished || run?.ids[run.index] !== 'clock') return;
             finished = true;
             button.disabled = true;
-            scoreRound(0, 'The timer ran past 10 seconds.');
-          }, 10000);
+            scoreRound(0, 'The timer ran more than five seconds past the target.');
+          }, targetMs + 5000);
           return;
         }
         finished = true;
         const elapsed = performance.now() - startedAt;
-        const accuracy = Math.max(0, 100 - Math.abs(elapsed - 5000) / 5000 * 100);
+        const accuracy = Math.max(0, 100 - Math.abs(elapsed - targetMs) / targetMs * 100);
         button.disabled = true;
         $('clockStatus').textContent = `You stopped at ${(elapsed / 1000).toFixed(2)} seconds.`;
-        scoreRound(accuracy, `You stopped at ${(elapsed / 1000).toFixed(2)} seconds; the target was 5.00.`);
+        scoreRound(accuracy, `You stopped at ${(elapsed / 1000).toFixed(2)} seconds; the target was ${targetSeconds}.00.`);
       };
       return;
     }
@@ -240,7 +245,7 @@
 
     if (id === 'color') {
       const target = Array.from({ length: 3 }, () => Math.floor(Math.random() * 256));
-      work.innerHTML = `<p id="colorWait">Look closely — the color disappears in two seconds.</p><div id="targetColor" class="color-swatch" role="img" aria-label="Color to remember"></div><div id="colorControls" class="color-controls hidden"><label>Red <output id="redValue">128</output><input data-channel="0" type="range" min="0" max="255" value="128"></label><label>Green <output id="greenValue">128</output><input data-channel="1" type="range" min="0" max="255" value="128"></label><label>Blue <output id="blueValue">128</output><input data-channel="2" type="range" min="0" max="255" value="128"></label><div id="colorGuess" class="color-swatch" aria-label="Your color"></div><button id="colorSubmit" class="primary" type="button">Compare colors</button></div>`;
+      work.innerHTML = `<p id="colorWait">You will see a color for two seconds, then recreate it with the sliders. Press start when you are ready.</p><button id="colorStart" class="primary" type="button">Start color preview</button><div id="targetColor" class="color-swatch hidden" role="img" aria-label="Color to remember"></div><div id="colorControls" class="color-controls hidden"><label>Red <output id="redValue">128</output><input data-channel="0" type="range" min="0" max="255" value="128"></label><label>Green <output id="greenValue">128</output><input data-channel="1" type="range" min="0" max="255" value="128"></label><label>Blue <output id="blueValue">128</output><input data-channel="2" type="range" min="0" max="255" value="128"></label><div id="colorGuess" class="color-swatch" aria-label="Your color"></div><button id="colorSubmit" class="primary" type="button">Compare colors</button></div>`;
       const swatch = $('targetColor');
       swatch.style.backgroundColor = `rgb(${target.join(',')})`;
       const guess = [128, 128, 128];
@@ -254,23 +259,30 @@
           updateGuess();
         };
       });
-      setTimeout(() => {
-        if (run?.ids[run.index] !== 'color' || run.scores.length > run.index) return;
-        swatch.classList.add('color-hidden');
-        $('colorWait').textContent = 'Recreate the color from memory.';
-        $('colorControls').classList.remove('hidden');
-      }, 2000);
+      $('colorStart').onclick = () => {
+        $('colorStart').classList.add('hidden');
+        swatch.classList.remove('hidden');
+        $('colorWait').textContent = 'Memorize the color. It will disappear in two seconds.';
+        setTimeout(() => {
+          if (run?.ids[run.index] !== 'color' || run.scores.length > run.index) return;
+          swatch.classList.add('color-hidden');
+          $('colorWait').textContent = 'Recreate the color from memory.';
+          $('colorControls').classList.remove('hidden');
+        }, 2000);
+      };
       $('colorSubmit').onclick = () => {
         $('colorSubmit').disabled = true;
         const distance = Math.sqrt(target.reduce((sum, channel, index) => sum + (channel - guess[index]) ** 2, 0));
         const accuracy = 100 * (1 - distance / Math.sqrt(3 * 255 ** 2));
+        swatch.classList.remove('color-hidden');
+        $('colorWait').textContent = `The correct color was RGB ${target.join(', ')}.`;
         scoreRound(accuracy, `The target was RGB ${target.join(', ')}.`);
       };
       return;
     }
 
     if (id === 'line') {
-      work.innerHTML = '<p id="lineWait">Memorize the line length. It disappears in a moment.</p><canvas id="lineCanvas" class="draw-canvas" width="320" height="120" aria-label="Draw a line"></canvas><div class="line-actions"><button id="lineClear" class="secondary-btn" type="button" disabled>Clear</button><button id="lineSubmit" class="primary" type="button" disabled>Check my line</button></div>';
+      work.innerHTML = '<p id="lineWait">You will see a line for two seconds, then draw one of the same length. Press start when you are ready.</p><button id="lineStart" class="primary" type="button">Start line preview</button><canvas id="lineCanvas" class="draw-canvas hidden" width="320" height="120" aria-label="Draw a line"></canvas><div class="line-actions"><button id="lineClear" class="secondary-btn" type="button" disabled>Clear</button><button id="lineSubmit" class="primary" type="button" disabled>Check my line</button></div>';
       const canvas = $('lineCanvas');
       const ctx = canvas.getContext('2d');
       const targetLength = 55 + Math.random() * 190;
@@ -323,22 +335,27 @@
         scoreRound(Math.max(0, 100 - Math.abs(length - targetLength) / targetLength * 100),
           `Your line was ${Math.round(length)} units; the target was ${Math.round(targetLength)}.`);
       };
-      setTimeout(() => {
-        if (run?.ids[run.index] !== 'line' || run.scores.length > run.index) return;
-        ready = true;
-        draw(null);
-        $('lineWait').textContent = 'Draw a line of the same length.';
-      }, 1200);
+      $('lineStart').onclick = () => {
+        $('lineStart').classList.add('hidden');
+        canvas.classList.remove('hidden');
+        $('lineWait').textContent = 'Memorize the line length.';
+        setTimeout(() => {
+          if (run?.ids[run.index] !== 'line' || run.scores.length > run.index) return;
+          ready = true;
+          draw(null);
+          $('lineWait').textContent = 'Draw a line of the same length.';
+        }, 2000);
+      };
       return;
     }
 
     if (id === 'recall') {
       const targets = new Set();
-      while (targets.size < 5) targets.add(Math.floor(Math.random() * 25));
-      work.innerHTML = '<p id="recallWait">Remember the five dots.</p><div id="recallGrid" class="recall-grid flash"></div><button id="recallSubmit" class="primary hidden" type="button">Check my recall</button>';
+      while (targets.size < 10) targets.add(Math.floor(Math.random() * 36));
+      work.innerHTML = '<p id="recallWait">Ten squares will light up briefly. Memorize their positions, then tap those spots. Press start when you are ready.</p><button id="recallStart" class="primary" type="button">Start memory challenge</button><div id="recallGrid" class="recall-grid flash hidden"></div><button id="recallSubmit" class="primary hidden" type="button">Check my recall</button>';
       const grid = $('recallGrid');
       const selections = new Set();
-      for (let i = 0; i < 25; i++) {
+      for (let i = 0; i < 36; i++) {
         const cell = document.createElement('button');
         cell.type = 'button';
         cell.className = 'recall-cell';
@@ -351,20 +368,25 @@
         };
         grid.append(cell);
       }
-      setTimeout(() => {
-        if (run?.ids[run.index] !== 'recall' || run.scores.length > run.index) return;
-        grid.classList.remove('flash');
-        grid.querySelectorAll('.target').forEach(cell => cell.classList.remove('target'));
-        $('recallWait').textContent = 'Tap the five places where you saw dots.';
-        $('recallSubmit').classList.remove('hidden');
-      }, 1000);
+      $('recallStart').onclick = () => {
+        $('recallStart').classList.add('hidden');
+        grid.classList.remove('hidden');
+        $('recallWait').textContent = 'Memorize the ten lit squares.';
+        setTimeout(() => {
+          if (run?.ids[run.index] !== 'recall' || run.scores.length > run.index) return;
+          grid.classList.remove('flash');
+          grid.querySelectorAll('.target').forEach(cell => cell.classList.remove('target'));
+          $('recallWait').textContent = 'Tap the ten squares that lit up.';
+          $('recallSubmit').classList.remove('hidden');
+        }, 1000);
+      };
       $('recallSubmit').onclick = () => {
         const hits = [...selections].filter(index => targets.has(index)).length;
         const misses = selections.size - hits;
         const accuracy = Math.max(0, (hits - misses) / targets.size * 100);
         $('recallSubmit').disabled = true;
         grid.querySelectorAll('button').forEach(cell => { cell.disabled = true; });
-        scoreRound(accuracy, `You found ${hits} of 5 dots with ${misses} extra pick${misses === 1 ? '' : 's'}.`);
+        scoreRound(accuracy, `You found ${hits} of 10 squares with ${misses} extra pick${misses === 1 ? '' : 's'}.`);
       };
       return;
     }
@@ -390,7 +412,7 @@
       const speed = 80 + Math.floor(Math.random() * 121);
       const distance = 220;
       const duration = distance / speed * 1000;
-      work.innerHTML = `<p id="speedStatus">Start the car and watch it cross the track.</p><div class="speed-track"><span id="speedCar" aria-hidden="true">🚗</span></div><button id="speedStart" class="primary" type="button">Go!</button><div id="speedControls" class="hidden"><label for="speedGuess">Your estimate: <output id="speedValue">120</output> units/second</label><input id="speedGuess" type="range" min="20" max="250" value="120"><button id="speedSubmit" class="primary" type="button" disabled>Check my estimate</button></div>`;
+      work.innerHTML = `<p id="speedStatus">When you are ready, start the car and watch it cross the track. Then estimate its speed.</p><div class="speed-track"><span id="speedCar" aria-hidden="true">🚗</span></div><button id="speedStart" class="primary" type="button">Start speed challenge</button><div id="speedControls" class="hidden"><label for="speedGuess">Your estimate: <output id="speedValue">120</output> units/second</label><input id="speedGuess" type="range" min="20" max="250" value="120"><button id="speedSubmit" class="primary" type="button" disabled>Check my estimate</button></div>`;
       $('speedGuess').oninput = event => { $('speedValue').value = event.target.value; };
       $('speedStart').onclick = () => {
         $('speedStart').disabled = true;
@@ -508,7 +530,7 @@
     $('starRoundMount').innerHTML = `<div class="star-result">
       <div class="result-score">${score.toFixed(1)}<small> / 10</small></div>
       <p>Accuracy: ${Math.round(score * 10)}%</p>
-      <p>You completed all seven games today. Come back tomorrow for a new challenge!</p>
+      <p>You completed all ${ROUNDS_PER_DAY} games today. Come back tomorrow for a new challenge!</p>
     </div>`;
     $('starNext').classList.add('hidden');
     run = null;

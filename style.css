@@ -242,7 +242,7 @@ button.primary:active, button.secondary:active { transform: translateY(2px); box
 .draw-canvas { width: 100%; max-width: 320px; height: auto; margin: 10px 0; border: 3px solid var(--wood-dark); outline: none; box-shadow: none; touch-action: none; }
 .line-actions { display: flex; gap: 8px; }
 .line-actions > * { flex: 1; }
-.recall-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: min(300px, 100%); margin: 12px auto; }
+.recall-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; width: min(300px, 100%); margin: 12px auto; }
 .recall-cell { aspect-ratio: 1; background: #d9e8d2; border: 3px solid var(--wood); cursor: pointer; }
 .recall-grid.flash .recall-cell.target { background: var(--sun); box-shadow: inset 0 0 0 8px var(--paper); }
 .recall-cell.selected { background: var(--teal); border-color: var(--teal-dark); }
