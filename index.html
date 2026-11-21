@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Future Me Island</title>
 <link rel="preload" href="fonts/VCR_OSD_MONO.ttf" as="font" type="font/ttf" crossorigin>
-<link rel="stylesheet" href="style.css?v=23">
+<link rel="stylesheet" href="style.css?v=25">
 </head>
 <body>
 <div id="intro" class="intro" role="dialog" aria-label="Welcome to Future Me Island">
@@ -15,10 +15,11 @@
       <h2 class="intro-title" data-text="Future Me Island" aria-label="Future Me Island"></h2>
     </div>
     <div class="intro-buttons">
-      <button id="enterWorld" class="intro-btn go">🏝️ Enter my world!</button>
-      <button id="dailyStar" class="intro-btn star">⭐ Play the Daily Star</button>
+      <button id="enterWorld" class="intro-btn go"><i data-pi="island"></i> Enter my world!</button>
+      <button id="dailyStar" class="intro-btn star"><i data-pi="star"></i> Play the Daily Star</button>
     </div>
     <p id="introNote" class="intro-note" aria-live="polite"></p>
+
   </div>
 </div>
 
@@ -26,20 +27,42 @@
 <main class="stage" id="stage">
   <canvas id="game" width="800" height="560" aria-label="Your island. Use arrow keys to walk."></canvas>
 
-  <div class="hud hud-left stats" aria-live="polite">
-    <div class="stat"><span class="stat-ico">🪙</span><div><b id="coins">0</b><small>coins</small></div></div>
-    <div class="stat"><span class="stat-ico">💰</span><div><b id="saved">$0</b><small>real $ saved</small></div></div>
-    <div class="stat"><span class="stat-ico">🔥</span><div><b id="streak">0</b><small>day streak</small></div></div>
+  <div class="hud hud-left">
+    <h1 class="home-title"><button id="homeBtn" class="home-btn" type="button" title="Back to the Future Me Island home screen">
+      <svg class="pixel-palm" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+        <rect x="0" y="13" width="16" height="3" fill="#6cc3c8"/>
+        <rect x="1" y="15" width="3" height="1" fill="#a6e2dc"/><rect x="11" y="14" width="4" height="1" fill="#a6e2dc"/>
+        <rect x="2" y="12" width="12" height="1" fill="#d4f3ea"/>
+        <rect x="3" y="11" width="10" height="2" fill="#f3dcaa"/>
+        <rect x="4" y="10" width="8" height="1" fill="#a5ca8c"/>
+        <rect x="5" y="12" width="1" height="1" fill="#e5c48d"/><rect x="10" y="12" width="1" height="1" fill="#e5c48d"/>
+        <g class="palm-top">
+          <rect x="8" y="8" width="1" height="2" fill="#b98b5c"/><rect x="8" y="7" width="1" height="1" fill="#8d6440"/>
+          <rect x="7" y="5" width="1" height="2" fill="#b98b5c"/><rect x="7" y="4" width="1" height="1" fill="#8d6440"/>
+          <rect x="3" y="3" width="4" height="1" fill="#6f9a63"/><rect x="2" y="4" width="2" height="1" fill="#6f9a63"/><rect x="1" y="5" width="1" height="2" fill="#6f9a63"/>
+          <rect x="8" y="3" width="4" height="1" fill="#6f9a63"/><rect x="12" y="4" width="2" height="1" fill="#6f9a63"/><rect x="14" y="5" width="1" height="2" fill="#6f9a63"/>
+          <rect x="5" y="2" width="5" height="1" fill="#a5ca8c"/><rect x="6" y="1" width="3" height="1" fill="#6f9a63"/>
+          <rect x="4" y="4" width="2" height="1" fill="#a5ca8c"/><rect x="9" y="4" width="2" height="1" fill="#a5ca8c"/>
+          <rect x="6" y="4" width="1" height="1" fill="#8d6440"/><rect x="8" y="4" width="1" height="1" fill="#8d6440"/>
+        </g>
+      </svg>
+      <span>Future Me Island</span>
+    </button></h1>
+    <div class="stats" aria-live="polite">
+    <div class="stat"><span class="stat-ico"><i data-pi="coin"></i></span><div><b id="coins">0</b><small>coins</small></div></div>
+    <div class="stat"><span class="stat-ico"><i data-pi="piggy"></i></span><div><b id="saved">$0</b><small>real $ saved</small></div></div>
+    <div class="stat"><span class="stat-ico"><i data-pi="flame"></i></span><div><b id="streak">0</b><small>day streak</small></div></div>
+    </div>
   </div>
 
   <nav class="hud hud-right" aria-label="Menu">
-    <button class="menu-btn" id="editBtn" aria-pressed="false"><span class="ico">✏️</span>edit</button>
-    <button class="menu-btn" data-open="bank"><span class="ico">🏦</span>bank</button>
-    <button class="menu-btn" data-open="daily"><span class="ico">🔥</span>daily</button>
-    <button class="menu-btn" data-open="goals"><span class="ico">🎯</span>goals</button>
-    <button class="menu-btn" data-open="history"><span class="ico">📜</span>history</button>
-    <button class="menu-btn" data-open="vision"><span class="ico">🌠</span>vision</button>
-    <button class="menu-btn" id="mainMenuBtn"><span class="ico">🏠</span>home</button>
+    <button class="menu-btn" id="editBtn" aria-pressed="false"><span class="ico"><i data-pi="pencil"></i></span>edit</button>
+    <button class="menu-btn" data-open="bank"><span class="ico"><i data-pi="bank"></i></span>bank</button>
+    <button class="menu-btn" data-open="daily"><span class="ico"><i data-pi="flame"></i></span>daily</button>
+    <button class="menu-btn" data-open="goals"><span class="ico"><i data-pi="target"></i></span>goals</button>
+    <button class="menu-btn" data-open="history"><span class="ico"><i data-pi="scroll"></i></span>history</button>
+    <button class="menu-btn" data-open="vision"><span class="ico"><i data-pi="shooting"></i></span>vision</button>
+    <button class="menu-btn" id="mainMenuBtn"><span class="ico"><i data-pi="home"></i></span>home</button>
     <button class="help-dot" id="helpBtn" aria-label="Controls" aria-controls="helpPop">?</button>
   </nav>
   <div id="helpPop" class="help-pop hidden" role="dialog" aria-label="Controls">
@@ -61,21 +84,21 @@
 
   <div class="hud hud-bottom">
     <div class="bag">
-      <span class="bag-label">🎒 Bag</span>
+      <span class="bag-label"><i data-pi="backpack"></i> Bag</span>
       <div id="inventory" class="bag-items"></div>
     </div>
   </div>
 </main>
 
 <div id="editBar" class="edit-bar hidden" role="status">
-  <div class="edit-top"><b>✏️ Edit mode</b><span id="editHint" class="edit-hint"></span><button id="editDone" type="button">Done</button></div>
+  <div class="edit-top"><b><i data-pi="pencil"></i> Edit mode</b><span id="editHint" class="edit-hint"></span><button id="editDone" type="button">Done</button></div>
   <div id="editTools" class="edit-tools" role="toolbar" aria-label="Edit tools"></div>
 </div>
 
 <!-- ===== Pop-up windows ===== -->
 <div class="modal hidden" id="panel-bank" role="dialog" aria-labelledby="bankTitle">
   <div class="window bank-window">
-    <div class="window-head"><h2 id="bankTitle">🏦 Bank</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-head"><h2 id="bankTitle"><i data-pi="bank"></i> Bank</h2><button class="close" data-close aria-label="Close">✕</button></div>
     <div class="window-body bank-body">
       <!-- the big, obvious part: how much + LOG! (Figma Desktop-3) -->
       <h3 class="bank-q"><label for="depAmount">how much <span class="real">real money</span> did you save today?</label></h3>
@@ -99,11 +122,11 @@
         <input type="hidden" id="depGoal" value="">
       </div>
 
-      <button id="depositBtn" class="log-btn">💰 LOG MY SAVINGS</button>
+      <button id="depositBtn" class="log-btn"><i data-pi="piggy"></i> LOG MY SAVINGS</button>
       <button class="link-btn" data-close>not today</button>
 
       <details class="earn">
-        <summary><span class="q">?</span> How you earn 🪙 <span class="arrow">▸</span></summary>
+        <summary><span class="q">?</span> How you earn <i data-pi="coin"></i> <span class="arrow">▸</span></summary>
         <div class="card">
           <p class="muted">Coins reward the <b>habit</b>, not the amount. $5 every week beats $5,000 once.</p>
           <ul id="rules" class="checklist"></ul>
@@ -115,7 +138,7 @@
 
 <div class="modal hidden" id="panel-shop" role="dialog" aria-labelledby="shopTitle">
   <div class="window wide">
-    <div class="window-head"><h2 id="shopTitle">🛍️ Island Shop</h2><span class="chip small" id="shopCoins"></span><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-head"><h2 id="shopTitle"><i data-pi="shopbag"></i> Island Shop</h2><span class="chip small" id="shopCoins"></span><button class="close" data-close aria-label="Close">✕</button></div>
     <div class="window-body">
       <p class="muted">Things you buy go in your <b>bag</b> at the bottom of the screen. Click one there, then click a spot on your island.</p>
       <div id="shopTabs" class="shop-tabs" role="tablist" aria-label="Shop categories"></div>
@@ -126,7 +149,7 @@
 
 <div class="modal side hidden" id="panel-daily" role="dialog" aria-labelledby="dailyTitle">
   <div class="window">
-    <div class="window-head"><h2 id="dailyTitle">🔥 Daily Missions</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-head"><h2 id="dailyTitle"><i data-pi="flame"></i> Daily Missions</h2><button class="close" data-close aria-label="Close">✕</button></div>
     <div class="window-body">
       <p id="streakInfo" class="lead"></p>
       <ul id="missions" class="checklist"></ul>
@@ -137,7 +160,7 @@
 
 <div class="modal hidden" id="panel-goals" role="dialog" aria-labelledby="goalsTitle">
   <div class="window">
-    <div class="window-head"><h2 id="goalsTitle">🎯 Goals</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-head"><h2 id="goalsTitle"><i data-pi="target"></i> Goals</h2><button class="close" data-close aria-label="Close">✕</button></div>
     <div class="window-body">
       <p class="muted">Create a savings goal, track progress, star important goals, and mark them complete.</p>
       <label>Goal name<input id="personalGoalName" placeholder="e.g. Save for a bike"></label>
@@ -150,7 +173,7 @@
 
 <div class="modal hidden" id="panel-history" role="dialog" aria-labelledby="historyTitle">
   <div class="window wide">
-    <div class="window-head"><h2 id="historyTitle">📈 History &amp; Future</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-head"><h2 id="historyTitle"><i data-pi="chart"></i> History &amp; Future</h2><button class="close" data-close aria-label="Close">✕</button></div>
     <div class="window-body future-body">
       <div id="futureStats" class="future-stats"></div>
 
@@ -175,18 +198,18 @@
 
       <section class="preview">
         <div class="preview-head">
-          <h3>🔮 Your island in <span id="pvYears">10 yrs</span></h3>
+          <h3><i data-pi="crystal"></i> Your island in <span id="pvYears">10 yrs</span></h3>
           <div id="horizonPick" class="horizon-pick" role="group" aria-label="How far ahead"></div>
         </div>
         <div class="postcard">
           <canvas id="previewIsland" width="560" height="440" aria-label="Preview of your island in the future"></canvas>
-          <span class="postcard-stamp">✨ future you</span>
+          <span class="postcard-stamp"><i data-pi="sparkle"></i> future you</span>
         </div>
         <ul id="pvText" class="pv-list"></ul>
       </section>
 
       <details class="hist-log">
-        <summary>🏗️ Show my savings log</summary>
+        <summary><i data-pi="scroll"></i> Show my savings log</summary>
         <div class="hist-tools">
           <label for="histSort">Sort by</label>
           <select id="histSort">
@@ -204,14 +227,14 @@
 
 <div class="modal hidden" id="panel-build" role="dialog" aria-labelledby="buildTitle">
   <div class="window">
-    <div class="window-head"><h2 id="buildTitle">🏗️ Town build</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-head"><h2 id="buildTitle"><i data-pi="crane"></i> Town build</h2><button class="close" data-close aria-label="Close">✕</button></div>
     <div class="window-body">
       <p id="buildSub" class="muted"></p>
       <div class="town-bar big"><div id="buildFill" class="fill"></div></div>
       <h3>Who's helping</h3>
       <ul id="buildContrib" class="contrib-list"></ul>
       <section class="newsboard small" aria-label="Recent news for this build">
-        <h3 class="board-title">📌 Recent News</h3>
+        <h3 class="board-title"><i data-pi="pin"></i> Recent News</h3>
         <div id="buildNews" class="board"></div>
       </section>
     </div>
@@ -220,12 +243,12 @@
 
 <div class="modal hidden" id="panel-vision" role="dialog" aria-labelledby="visionTitle">
   <div class="window wide">
-    <div class="window-head"><h2 id="visionTitle">🌠 My Vision Board</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-head"><h2 id="visionTitle"><i data-pi="shooting"></i> My Vision Board</h2><button class="close" data-close aria-label="Close">✕</button></div>
     <div class="window-body">
       <p id="visionBoardProgress" class="muted"></p>
       <div id="visionBoardGrid" class="vision-grid" aria-live="polite"></div>
       <div class="vision-actions">
-        <button id="playDailyStarFromBoard" class="primary" type="button">⭐ Play the Daily Star</button>
+        <button id="playDailyStarFromBoard" class="primary" type="button"><i data-pi="star"></i> Play the Daily Star</button>
         <button id="editVisionBoard" class="secondary" type="button">Edit my dreams</button>
       </div>
     </div>
@@ -234,16 +257,16 @@
 
 <div class="modal hidden" id="panel-town" role="dialog" aria-labelledby="townTitleHead">
   <div class="window wide">
-    <div class="window-head"><h2 id="townTitleHead">🏘️ Towns</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-head"><h2 id="townTitleHead"><i data-pi="town"></i> Towns</h2><button class="close" data-close aria-label="Close">✕</button></div>
     <div class="window-body">
       <!-- corkboard newsfeed: recent updates pinned up like posters -->
       <section class="newsboard" aria-labelledby="boardTitle">
-        <h3 class="board-title" id="boardTitle">📌 Town News</h3>
+        <h3 class="board-title" id="boardTitle"><i data-pi="pin"></i> Town News</h3>
         <div id="townBoard" class="board"></div>
         <form class="note-form" id="noteForm">
           <select id="noteTown" aria-label="Which town to post in"></select>
-          <input id="noteText" maxlength="100" placeholder="Pin a note to cheer your town on! 💪" aria-label="Encouragement note">
-          <button class="primary">📌 Pin</button>
+          <input id="noteText" maxlength="100" placeholder="Pin a note to cheer your town on!" aria-label="Encouragement note">
+          <button class="primary"><i data-pi="pin"></i> Pin</button>
         </form>
       </section>
       <p id="townStatus" class="muted">Connecting…</p>
@@ -278,11 +301,11 @@
       <div class="window-head"><h2 id="townTitle"></h2><button id="townBack" class="close" type="button" aria-label="Close">✕</button></div>
       <div class="window-body">
         <section class="newsboard small" aria-label="This town's news">
-          <h3 class="board-title">📌 Town News</h3>
+          <h3 class="board-title"><i data-pi="pin"></i> Town News</h3>
           <div id="townDetailBoard" class="board"></div>
           <form class="note-form" id="noteFormDetail">
-            <input id="noteTextDetail" maxlength="100" placeholder="Pin a note to cheer your town on! 💪" aria-label="Encouragement note">
-            <button class="primary">📌 Pin</button>
+            <input id="noteTextDetail" maxlength="100" placeholder="Pin a note to cheer your town on!" aria-label="Encouragement note">
+            <button class="primary"><i data-pi="pin"></i> Pin</button>
           </form>
         </section>
         <div id="projActive">
@@ -294,10 +317,10 @@
           <h3 id="projIntro">What should your town build first?</h3>
           <div class="proj-form">
             <label>Project name<input id="projName" maxlength="40" placeholder="e.g. Community Garden"></label>
-            <label>Goal (🔨 points)<input id="projGoal" type="number" min="100" max="50000" step="50" value="500"></label>
+            <label>Goal (<i data-pi="hammer"></i> points)<input id="projGoal" type="number" min="100" max="50000" step="50" value="500"></label>
             <button id="projStart" class="primary">Start project</button>
           </div>
-          <p class="muted">Everyone's saving habits add 🔨 points. Your town builds one project at a time, and you'll see it go up on your island as points come in.</p>
+          <p class="muted">Everyone's saving habits add <i data-pi="hammer"></i> points. Your town builds one project at a time, and you'll see it go up on your island as points come in.</p>
         </div>
         <h3>Built so far</h3>
         <ul id="builtList" class="list built-list"></ul>
@@ -316,7 +339,7 @@
 
 <div id="chat" class="modal bottom hidden" role="dialog" aria-label="Chat with Maple">
   <div class="chat-box">
-    <div class="chat-head">🦊 Maple the Money Fox <button id="closeChat" aria-label="Close">✕</button></div>
+    <div class="chat-head"><i data-pi="fox"></i> Maple the Money Fox <button id="closeChat" aria-label="Close">✕</button></div>
     <div id="chatLog"></div>
     <form id="chatForm"><input id="chatInput" placeholder="Ask Maple anything about money..." autocomplete="off"><button>Send</button></form>
   </div>
@@ -341,7 +364,7 @@
 <div id="dailyStarModal" class="modal hidden layered-modal" role="dialog" aria-modal="true" aria-labelledby="dailyStarTitle">
   <section class="game-dialog daily-dialog">
     <div class="dialog-heading">
-      <h2 id="dailyStarTitle">⭐ Daily Star</h2>
+      <h2 id="dailyStarTitle"><i data-pi="star"></i> Daily Star</h2>
       <button type="button" id="closeDailyStar" class="dialog-close" aria-label="Close Daily Star">✕</button>
     </div>
     <p id="starRoundProgress" class="muted"></p>
@@ -352,11 +375,12 @@
   </section>
 </div>
 
+<script src="icons.js?v=26"></script>
 <script src="intro.js"></script>
-<script src="game.js?v=23"></script>
-<script src="Set%20goals.js?v=23"></script>
+<script src="game.js?v=25"></script>
+<script src="Set%20goals.js?v=25"></script>
 <script src="daily-star.js"></script>
 <script type="module" src="cloud.js"></script>
-<script type="module" src="town.js?v=23"></script>
+<script type="module" src="town.js?v=25"></script>
 </body>
 </html>

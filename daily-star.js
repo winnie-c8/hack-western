@@ -6,11 +6,11 @@
   const ROUNDS_PER_DAY = 7;
 
   const dreams = [
-    { id: 'place', title: 'Dream place to live', placeholder: 'e.g. Tokyo, Japan', emoji: '🌍' },
-    { id: 'job', title: 'Dream job', placeholder: 'e.g. wildlife photographer', emoji: '💼' },
-    { id: 'car', title: 'Dream car', placeholder: 'e.g. electric road-trip van', emoji: '🚗' },
-    { id: 'home', title: 'Dream home', placeholder: 'e.g. a cabin by a lake', emoji: '🏡' },
-    { id: 'adventure', title: 'Dream experience', placeholder: 'e.g. travel around the world', emoji: '✨' },
+    { id: 'place', title: 'Dream place to live', placeholder: 'e.g. Tokyo, Japan', icon: 'globe' },
+    { id: 'job', title: 'Dream job', placeholder: 'e.g. wildlife photographer', icon: 'briefcase' },
+    { id: 'car', title: 'Dream car', placeholder: 'e.g. electric road-trip van', icon: 'car' },
+    { id: 'home', title: 'Dream home', placeholder: 'e.g. a cabin by a lake', icon: 'house' },
+    { id: 'adventure', title: 'Dream experience', placeholder: 'e.g. travel around the world', icon: 'sparkle' },
   ];
 
   const games = [
@@ -57,7 +57,7 @@
       const note = $('introNote');
       if (note.dataset.dailyLocked === 'true') {
         note.dataset.dailyLocked = 'false';
-        note.textContent = '⭐ The Daily Star is ready to twinkle again!';
+        note.innerHTML = pi('star') + ' The Daily Star is ready to twinkle again!';
         note.classList.remove('show');
         void note.offsetWidth;
         note.classList.add('show');
@@ -92,6 +92,7 @@
     if (!s.visionBoard) s.visionBoard = { selections: null, unlocked: 0 };
     if (!Number.isInteger(s.visionBoard.unlocked)) s.visionBoard.unlocked = 0;
     s.visionBoard.unlocked = Math.max(0, Math.min(MAX_TILES, s.visionBoard.unlocked));
+    if (s.dailyStar && !('date' in s.dailyStar)) s.dailyStar = null; // old hope-story save shape
     if (!s.dailyStar) s.dailyStar = { date: null, games: [], completed: false, score: null, reward: 0, rounds: [] };
     return s;
   }
@@ -141,7 +142,7 @@
       if (index >= unlocked || !board.selections) {
         tile.classList.add('locked');
         tile.setAttribute('aria-label', `Locked vision tile ${index + 1}`);
-        tile.innerHTML = '<span class="tile-lock" aria-hidden="true">🔒</span><span>Tile ' +
+        tile.innerHTML = '<span class="tile-lock" aria-hidden="true">' + pi('lock') + '</span><span>Tile ' +
           String(index + 1).padStart(2, '0') + '</span>';
         return tile;
       }
@@ -151,7 +152,7 @@
       tile.setAttribute('aria-label', `Revealed tile ${index + 1}: ${dream.title}, ${name}`);
       const icon = document.createElement('span');
       icon.className = 'tile-emoji';
-      icon.textContent = dream.emoji;
+      icon.innerHTML = pi(dream.icon);
       const title = document.createElement('span');
       title.className = 'tile-title';
       title.textContent = name;
@@ -472,7 +473,7 @@
       const speed = 80 + Math.floor(Math.random() * 121);
       const distance = 220;
       const duration = distance / speed * 1000;
-      work.innerHTML = `<p id="speedStatus">Start the car and watch it cross the track.</p><div class="speed-track"><span id="speedCar" aria-hidden="true">🚗</span></div><button id="speedStart" class="primary" type="button">Go!</button><div id="speedControls" class="hidden"><label for="speedGuess">Your estimate: <output id="speedValue">120</output> units/second</label><input id="speedGuess" type="range" min="20" max="250" value="120"><button id="speedSubmit" class="primary" type="button" disabled>Check my estimate</button></div>`;
+      work.innerHTML = `<p id="speedStatus">Start the car and watch it cross the track.</p><div class="speed-track"><span id="speedCar" aria-hidden="true">${pi('car')}</span></div><button id="speedStart" class="primary" type="button">Go!</button><div id="speedControls" class="hidden"><label for="speedGuess">Your estimate: <output id="speedValue">120</output> units/second</label><input id="speedGuess" type="range" min="20" max="250" value="120"><button id="speedSubmit" class="primary" type="button" disabled>Check my estimate</button></div>`;
       $('speedGuess').oninput = event => { $('speedValue').value = event.target.value; };
       $('speedStart').onclick = () => {
         $('speedStart').disabled = true;
@@ -542,7 +543,7 @@
 
     if (id === 'pitch') {
       const target = Math.round(220 + Math.random() * 660);
-      work.innerHTML = '<p id="pitchStatus">Play the tone, then match it by ear. You can listen again if needed.</p><button id="pitchPlay" class="secondary-btn" type="button">▶ Play tone</button><label for="pitchGuess">Your pitch: <output id="pitchValue">440</output> Hz</label><input id="pitchGuess" type="range" min="220" max="880" value="440"><button id="pitchSubmit" class="primary" type="button">Check my pitch</button>';
+      work.innerHTML = '<p id="pitchStatus">Play the tone, then match it by ear. You can listen again if needed.</p><button id="pitchPlay" class="secondary-btn" type="button">' + pi('play') + ' Play tone</button><label for="pitchGuess">Your pitch: <output id="pitchValue">440</output> Hz</label><input id="pitchGuess" type="range" min="220" max="880" value="440"><button id="pitchSubmit" class="primary" type="button">Check my pitch</button>';
       $('pitchGuess').oninput = event => { $('pitchValue').value = event.target.value; };
       $('pitchPlay').onclick = async () => {
         try {
@@ -596,7 +597,7 @@
       <div class="result-score">${score.toFixed(1)}<small> / 10</small></div>
       <p>Accuracy: ${Math.round(score * 10)}%</p>
       <p>You revealed ${unlocked} vision-board tile${unlocked === 1 ? '' : 's'}.</p>
-      ${s.visionBoard.unlocked === MAX_TILES ? '<p>🎉 Your whole Vision Board is revealed!</p>' : ''}
+      ${s.visionBoard.unlocked === MAX_TILES ? `<p>${pi('party')} Your whole Vision Board is revealed!</p>` : ''}
     </div>`;
     $('starNext').classList.add('hidden');
     run = null;

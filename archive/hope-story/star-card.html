@@ -1,0 +1,50 @@
+    <section id="starCard" class="star-card" hidden aria-labelledby="starTitle">
+      <div class="star-head">
+        <span id="starTitle"><i data-pi="star"></i> Daily Star · <span id="starNum"></span></span>
+        <button type="button" class="star-x" data-star-back aria-label="Back">✕</button>
+      </div>
+      <div class="star-body">
+        <p id="starStatus" class="star-status"></p>
+
+        <div data-view="guess">
+          <h3>How it started</h3>
+          <p id="starSetup" class="star-setup"></p>
+          <form id="starForm">
+            <label for="starGuess">How do you think it ended?</label>
+            <textarea id="starGuess" rows="3" placeholder="Type your guess for the happy ending..."></textarea>
+            <button class="primary star-go"><i data-pi="sparkle"></i> Catch the star!</button>
+          </form>
+        </div>
+
+        <div data-view="done" hidden>
+          <div class="star-score">
+            <div id="starDoneMeter" class="star-meter" role="img"></div>
+            <p id="starDoneCoins" class="star-coins"></p>
+          </div>
+          <p id="starDoneMsg" class="star-done-msg"></p>
+          <p id="starDoneTimer" class="star-done-timer"></p>
+          <div class="star-actions">
+            <button type="button" id="starDoneEnter" class="primary"><i data-pi="island"></i> Enter my world!</button>
+            <button type="button" class="star-back" data-star-back>← Back</button>
+          </div>
+        </div>
+
+        <div data-view="reveal" hidden>
+          <div class="star-score">
+            <div id="starMeter" class="star-meter" role="img"></div>
+            <p id="starVerdict" class="star-verdict"></p>
+            <p id="starCoins" class="star-coins"></p>
+          </div>
+          <h3>Your guess</h3>
+          <p id="starYours" class="star-yours"></p>
+          <h3>What really happened</h3>
+          <p id="starEnding" class="star-setup"></p>
+          <ul id="starBeats" class="star-beats"></ul>
+          <div class="star-actions">
+            <button type="button" id="starEnter" class="primary"><i data-pi="island"></i> Enter my world!</button>
+            <button type="button" class="star-back" data-star-back>← Back</button>
+          </div>
+          <p class="star-src"><i data-pi="news"></i> Real story, paraphrased from: <a id="starSource" target="_blank" rel="noopener"></a></p>
+        </div>
+      </div>
+    </section>

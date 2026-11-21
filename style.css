@@ -822,6 +822,74 @@ body.intro-open { overflow: hidden; }
   box-shadow: 3px 3px 0 rgba(90,70,54,.25);
 }
 
+/* ===== Header title = home button ===== */
+.intro[hidden] { display: none; }
+.home-btn {
+  display: inline-flex; align-items: center; gap: 10px; padding: 0; margin: 0; cursor: pointer;
+  background: none; border: none; font: inherit; color: inherit; text-shadow: inherit; letter-spacing: inherit;
+}
+.pixel-palm {
+  width: 44px; height: 44px; flex: none; image-rendering: pixelated;
+  filter: drop-shadow(3px 3px 0 var(--wood-dark));
+}
+.pixel-palm .palm-top { transform-origin: 8px 10px; animation: palmSway 3s ease-in-out infinite; }
+@keyframes palmSway { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+.home-btn:hover .pixel-palm { animation: palmHop .4s cubic-bezier(.3,1.8,.5,1); }
+@keyframes palmHop { 40% { translate: 0 -5px; } }
+.home-btn:hover span { color: #fff; }
+.home-btn:focus-visible { outline: var(--px) dashed var(--paper); outline-offset: 4px; }
+@media (prefers-reduced-motion: reduce) {
+  .pixel-palm .palm-top, .home-btn:hover .pixel-palm { animation: none; }
+}
+
+/* Home title sign above the stats card (top-left HUD) */
+.hud-left .stats { display: flex; }
+.home-title { margin: 0; font-size: 1.25rem; font-weight: 400; }
+.home-title .home-btn {
+  gap: 8px; padding: 6px 12px 6px 8px; color: var(--paper); text-shadow: 2px 2px 0 var(--wood-dark); letter-spacing: 1px;
+  background: var(--wood); border: var(--px) solid var(--wood-dark); box-shadow: 4px 4px 0 rgba(28,52,44,.38);
+  background-image: repeating-linear-gradient(0deg, transparent 0 10px, rgba(141,100,64,.35) 10px 13px);
+}
+.home-title .pixel-palm { width: 32px; height: 32px; filter: drop-shadow(2px 2px 0 var(--wood-dark)); }
+.home-title .home-btn:hover { transform: translateY(-2px); }
+@media (max-width: 600px) { .home-title span { display: none; } }
+
+/* ===== Pixel icons (icons.js) — no emojis anywhere ===== */
+.pi {
+  display: inline-block; width: 1.2em; height: 1.2em; vertical-align: -.22em; flex: none;
+  overflow: visible; image-rendering: pixelated; transform-origin: 50% 90%;
+  animation-duration: 2.4s; animation-iteration-count: infinite; animation-timing-function: ease-in-out;
+}
+.pa-spin    { animation-name: pi-spin; animation-duration: 3.2s; transform-origin: 50% 50%; }
+.pa-hop     { animation-name: pi-hop; animation-duration: 2.2s; }
+.pa-flicker { animation-name: pi-flicker; animation-duration: .9s; animation-timing-function: steps(1); transform-origin: 50% 100%; }
+.pa-bob     { animation-name: pi-bob; }
+.pa-twinkle { animation-name: pi-twinkle; animation-duration: 2s; transform-origin: 50% 50%; }
+.pa-sway    { animation-name: pi-sway; animation-duration: 3s; }
+.pa-swing   { animation-name: pi-swing; animation-duration: 1.8s; }
+.pa-tap     { animation-name: pi-tap; animation-duration: 1.6s; }
+.pa-tilt    { animation-name: pi-tilt; animation-duration: 3.4s; }
+.pa-wiggle  { animation-name: pi-wiggle; animation-duration: 2.2s; }
+.pa-pop     { animation: pi-pop .4s cubic-bezier(.3,1.8,.5,1) both; }
+.pa-none    { animation: none; }
+@keyframes pi-spin    { 0%, 62%, 100% { transform: scaleX(1); } 70% { transform: scaleX(.35); } 78% { transform: scaleX(-1); } 86% { transform: scaleX(.35); } }
+@keyframes pi-hop     { 0%, 55%, 100% { transform: none; } 70% { transform: translateY(-18%); } 80% { transform: translateY(0) scale(1.06, .94); } }
+@keyframes pi-flicker { 0% { transform: none; } 33% { transform: scale(.94, 1.06) skewX(-4deg); } 66% { transform: scale(1.04, .96) skewX(3deg); } }
+@keyframes pi-bob     { 0%, 100% { transform: none; } 50% { transform: translateY(-9%); } }
+@keyframes pi-twinkle { 0%, 100% { transform: none; filter: none; } 50% { transform: scale(1.14) rotate(8deg); filter: brightness(1.12); } }
+@keyframes pi-sway    { 0%, 100% { transform: rotate(-6deg); } 50% { transform: rotate(6deg); } }
+@keyframes pi-swing   { 0%, 50%, 100% { transform: rotate(0); } 15% { transform: rotate(-16deg); } 30% { transform: rotate(8deg); } }
+@keyframes pi-tap     { 0%, 60%, 100% { transform: none; } 75% { transform: translateY(-14%); } 85% { transform: translateY(4%); } }
+@keyframes pi-tilt    { 0%, 40%, 100% { transform: rotate(0); } 55% { transform: rotate(-10deg); } 70% { transform: rotate(6deg); } }
+@keyframes pi-wiggle  { 0%, 55%, 100% { transform: rotate(0); } 65% { transform: rotate(-12deg); } 75% { transform: rotate(10deg); } 85% { transform: rotate(-4deg); } }
+@keyframes pi-pop     { from { transform: scale(0); } 60% { transform: scale(1.25); } to { transform: none; } }
+/* shop + bag item sprites get a gentle idle bob too */
+.shop-grid .item img, .bag-items .item img { animation: pi-bob 2.6s ease-in-out infinite; image-rendering: pixelated; }
+.bag-items .item:nth-child(2n) img, .shop-grid .item:nth-child(2n) img { animation-delay: -1.3s; }
+@media (prefers-reduced-motion: reduce) {
+  .pi, .shop-grid .item img, .bag-items .item img { animation: none !important; }
+}
+
 /* town build info pop-up */
 .contrib-list { list-style: none; padding: 0; margin: 0 0 22px; }
 .contrib-list .contrib { display: grid; grid-template-columns: 1fr auto; gap: 4px 10px; padding: 6px 0; }

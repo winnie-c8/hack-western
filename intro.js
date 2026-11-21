@@ -84,45 +84,47 @@
 
   // ---------- Buttons ----------
   const note = document.getElementById('introNote');
-  const enterWorld = document.getElementById('enterWorld');
+  const enterBtn = document.getElementById('enterWorld');
 
-  function finishLeaving() {
+  // Hide (not delete) the intro, so the title sign / home button can bring it back
+  const finish = () => {
+    if (!intro.classList.contains('leaving')) return;
+    cancelAnimationFrame(raf);
     intro.hidden = true;
     intro.classList.remove('leaving');
-    enterWorld.classList.remove('picked');
+    enterBtn.classList.remove('picked');
     document.getElementById('dailyStar').classList.remove('wiggle');
     document.body.classList.remove('intro-open');
-    cancelAnimationFrame(raf);
     document.activeElement?.blur?.();
     window.onEnterWorld?.();
-  }
+  };
+  intro.addEventListener('animationend', ev => { if (ev.target === intro) finish(); });
 
-  enterWorld.addEventListener('click', e => {
+  enterBtn.addEventListener('click', e => {
     if (intro.classList.contains('leaving')) return;
     e.currentTarget.classList.add('picked');
     intro.classList.add('leaving');
-    if (reduce) setTimeout(finishLeaving, 300);
-    else {
-      const onLeave = ev => {
-        if (ev.target !== intro) return;
-        intro.removeEventListener('animationend', onLeave);
-        finishLeaving();
-      };
-      intro.addEventListener('animationend', onLeave);
-    }
+    if (reduce) setTimeout(finish, 300);
   });
 
-  document.getElementById('mainMenuBtn').addEventListener('click', () => {
-    intro.hidden = false;
-    intro.classList.remove('leaving');
+  // Go back to the entrance screen (title sign + "home" menu button). Unhiding it
+  // restarts all the CSS animations, so the sign drops in again.
+  window.showIntro = () => {
+    if (!intro.hidden) return;
+    document.querySelectorAll('.intro-btn').forEach(b => b.classList.remove('picked', 'wiggle'));
+    note.textContent = ''; note.classList.remove('show');
     document.body.classList.add('intro-open');
+    intro.hidden = false;
+    cancelAnimationFrame(raf);
     raf = requestAnimationFrame(frame);
-  });
+    enterBtn.focus({ preventScroll: true });
+  };
+  document.getElementById('mainMenuBtn')?.addEventListener('click', () => window.showIntro());
 
-  // Daily Star is provided by daily-star.js; keep a fallback if that script is unavailable.
+  // Daily Star: if window.startDailyStar exists it runs, otherwise show a "coming soon" note.
   document.getElementById('dailyStar').addEventListener('click', e => {
     if (typeof window.startDailyStar === 'function') return window.startDailyStar({ fromMenu: true });
-    note.textContent = '⭐ The Daily Star is twinkling soon! Check back tomorrow.';
+    note.innerHTML = pi('star') + ' The Daily Star is twinkling soon! Check back tomorrow.';
     note.classList.remove('show'); void note.offsetWidth; note.classList.add('show');
     e.currentTarget.classList.remove('wiggle'); void e.currentTarget.offsetWidth; e.currentTarget.classList.add('wiggle');
   });
