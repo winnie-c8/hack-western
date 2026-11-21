@@ -44,9 +44,10 @@ try {
   S = Object.assign(defaultState(), JSON.parse(raw) || {});
 } catch { S = defaultState(); }
 // stamp=false for automatic housekeeping (e.g. daily reset) so it doesn't count as "newer" than the cloud
+const saveLocal = () => { try { localStorage.setItem('fmi', JSON.stringify(S)); } catch {} };
 const save = (stamp = true) => {
   if (stamp) S.updatedAt = Date.now();
-  try { localStorage.setItem('fmi', JSON.stringify(S)); } catch {}
+  saveLocal();
   window.cloudSave?.(S); // set by cloud.js once signed in
 };
 
@@ -286,7 +287,7 @@ function update() {
     if (keys.ArrowLeft) { dx = -1; P.dir = 'left'; } else if (keys.ArrowRight) { dx = 1; P.dir = 'right'; }
     else if (keys.ArrowUp) { dy = -1; P.dir = 'up'; } else if (keys.ArrowDown) { dy = 1; P.dir = 'down'; }
     P.moving = !!(dx || dy);
-    if (P.moving && walkable(P.x + dx, P.y + dy)) { P.x += dx; P.y += dy; S.player = { x: P.x, y: P.y }; save(); }
+    if (P.moving && walkable(P.x + dx, P.y + dy)) { P.x += dx; P.y += dy; S.player = { x: P.x, y: P.y }; saveLocal(); } // walking: browser only, no cloud write
   } else {
     P.rx += Math.sign(P.x - P.rx) * Math.min(.2, Math.abs(P.x - P.rx));
     P.ry += Math.sign(P.y - P.ry) * Math.min(.2, Math.abs(P.y - P.ry));
