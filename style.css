@@ -86,7 +86,7 @@ kbd { font: inherit; background: var(--paper); border: 2px solid var(--wood-dark
 /* "?" controls: small, quiet circle in the top-right corner */
 .hud-right { align-items: flex-start; }
 .help-dot {
-  width: 30px; height: 30px; border-radius: 50%; padding: 0; cursor: pointer; align-self: flex-start;
+  width: 36px; height: 36px; border-radius: 50%; padding: 0; cursor: pointer; align-self: flex-start;
   font-size: 1rem; line-height: 1; color: var(--ink); background: var(--paper);
   border: 3px solid var(--wood-dark); opacity: .5; transition: opacity .15s;
 }
