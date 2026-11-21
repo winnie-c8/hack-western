@@ -43,6 +43,7 @@
       <button data-tab="shop">🛍️ Shop</button>
       <button data-tab="goals">🫙 Jars</button>
       <button data-tab="daily">🔥 Daily</button>
+      <button data-tab="town">🏘️ Town</button>
     </nav>
 
     <div class="panel active" id="tab-bank">
@@ -87,6 +88,35 @@
       <ul id="missions" class="list"></ul>
       <p id="streakInfo"></p>
     </div>
+
+    <div class="panel" id="tab-town">
+      <h2>Town</h2>
+      <p id="townStatus" class="muted">Connecting…</p>
+      <label>Your name<input id="playerName" maxlength="20" placeholder="e.g. Maya"></label>
+
+      <div id="townNone" class="hidden">
+        <p class="muted">Team up with friends! Build something together by keeping your saving habits. Only habits are shared, never dollar amounts.</p>
+        <h3>Start a town</h3>
+        <label>Town name<input id="townName" maxlength="30" placeholder="e.g. Maple Bay"></label>
+        <button id="createTown" class="primary">Create town</button>
+        <h3>Join a town</h3>
+        <label>Town code<input id="townCode" maxlength="6" placeholder="ABC123" style="text-transform:uppercase"></label>
+        <button id="joinTown" class="primary">Join town</button>
+      </div>
+
+      <div id="townHas" class="hidden">
+        <h3 id="townTitle"></h3>
+        <p>Invite code: <b id="townCodeShow" class="town-code"></b> <button id="copyCode">Copy</button></p>
+        <h3 id="projectTitle">Town Project</h3>
+        <div class="town-bar"><div id="projectFill"></div></div>
+        <p id="projectText" class="muted"></p>
+        <h3>Town news</h3>
+        <ul id="townFeed" class="list feed"></ul>
+        <h3>Townsfolk</h3>
+        <ul id="townMembers" class="list"></ul>
+        <button id="leaveTown">Leave town</button>
+      </div>
+    </div>
   </aside>
 </main>
 
@@ -102,5 +132,6 @@
 <script src="intro.js"></script>
 <script src="game.js"></script>
 <script type="module" src="cloud.js"></script>
+<script type="module" src="town.js"></script>
 </body>
 </html>
