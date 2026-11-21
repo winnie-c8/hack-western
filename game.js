@@ -353,6 +353,8 @@ function logSaving(amt, type, jarIdx) {
   S.history.unshift({ amt, type, date: today(), jar: g?.name, coins });
   save(); renderAll();
   toast(coins ? `+${coins} 🪙 · ${rewards.map(r => r[0]).join(' · ')}` : `$${amt} added to your progress. Coins come from showing up — see you tomorrow!`);
+  // share the habit (never the amount or jar name) with the town
+  if (coins) window.onHabit?.(rewards.map(r => r[0].startsWith('Wish Jar') ? 'filled a Wish Jar' : r[0].toLowerCase()).join(' · '), coins);
   completeMission('deposit');
   if (g) completeMission('goal');
 }
@@ -434,6 +436,7 @@ function completeMission(id) {
   }
   S.coins += m.reward + bonus;
   save(); renderAll();
+  window.onHabit?.(bonus ? `kept a ${S.streak}-day streak` : 'finished a daily mission', m.reward + bonus);
 }
 function renderMissions() {
   $('missions').innerHTML = MISSIONS.map(m => {
@@ -494,3 +497,5 @@ window.loadCloudState = data => {
 };
 window.getState = () => S;
 window.hasLocalSave = () => hadLocalSave;
+window.saveGame = () => save();
+window.toast = toast;
