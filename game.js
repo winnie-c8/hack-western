@@ -1439,17 +1439,22 @@ const TIPS = [
   "Small amounts add up — $5 a day is over $1,800 a year!",
   "An emergency fund of 3–6 months of expenses = peace of mind.",
 ];
+const chatHistory = [];
 async function askVillager(question) {
-  // TODO: replace with a real API call, e.g.
-  // const res = await fetch('/api/chat', { method: 'POST', body: JSON.stringify({ question, state: S }) });
-  // return (await res.json()).reply;
-  const q = question.toLowerCase();
-  if (q.includes('tfsa')) return TIPS[1];
-  if (q.includes('fhsa') || q.includes('home') || q.includes('house')) return TIPS[2];
-  if (q.includes('budget')) return TIPS[3];
-  if (q.includes('emergency')) return TIPS[5];
-  if (q.includes('streak')) return `You're on a ${S.streak}-day streak! Do any daily mission to keep it alive.`;
-  return TIPS[Math.floor(Math.random() * TIPS.length)];
+  const goals = (S.personalGoals || []).map(g => `${g.name}: $${g.saved}/$${g.target}`).join(', ') || 'none yet';
+  const context = `(Player info: saved $${S.saved} total, ${S.streak}-day streak, goals: ${goals})`;
+  try {
+    const res = await fetch('http://localhost:3001/api/fox', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ history: chatHistory, message: `${question}\n${context}` }),
+    });
+    const { reply } = await res.json();
+    chatHistory.push({ role: 'user', text: question }, { role: 'model', text: reply });
+    return reply.replace(/[<>]/g, '');
+  } catch {
+    return TIPS[Math.floor(Math.random() * TIPS.length)];
+  }
 }
 function addMsg(text, who) { const d = document.createElement('div'); d.className = 'msg ' + who; d.innerHTML = pit(text); $('chatLog').append(d); $('chatLog').scrollTop = 1e9; }
 function openChat() {
@@ -1464,7 +1469,8 @@ $('chatForm').onsubmit = async e => {
   e.preventDefault();
   const q = $('chatInput').value.trim(); if (!q) return;
   $('chatInput').value = ''; addMsg(q, 'me');
-  addMsg(await askVillager(q), 'bot');
+  addMsg('...', 'bot'); const typing = $('chatLog').lastChild;
+  typing.innerHTML = pit(await askVillager(q));
   completeMission('chat');
 };
 $('chatInput').addEventListener('keydown', e => { if (e.key === 'Escape') closeChat(); });
