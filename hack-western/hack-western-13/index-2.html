@@ -1,0 +1,255 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Future Me Island</title>
+<link rel="preload" href="fonts/VCR_OSD_MONO.ttf" as="font" type="font/ttf" crossorigin>
+<link rel="stylesheet" href="style-2.css?v=5">
+</head>
+<body>
+<div id="intro" class="intro" role="dialog" aria-label="Welcome to Future Me Island">
+  <canvas id="introScene" width="320" height="180" aria-hidden="true"></canvas>
+  <div class="intro-stage">
+    <div class="intro-sign">
+      <h2 class="intro-title" data-text="Future Me Island" aria-label="Future Me Island"></h2>
+    </div>
+    <div class="intro-buttons">
+      <button id="enterWorld" class="intro-btn go">🏝️ Enter my world!</button>
+      <button id="dailyStar" class="intro-btn star">⭐ Play the Daily Star</button>
+    </div>
+    <p id="introNote" class="intro-note" aria-live="polite"></p>
+  </div>
+</div>
+
+<!-- ===== The island: full screen ===== -->
+<canvas id="sea" aria-hidden="true"></canvas>
+<main class="stage" id="stage">
+  <canvas id="game" width="800" height="560" aria-label="Your island. Use arrow keys to walk."></canvas>
+
+  <div class="hud hud-left stats" aria-live="polite">
+    <div class="stat"><span class="stat-ico">🪙</span><div><b id="coins">0</b><small>coins</small></div></div>
+    <div class="stat"><span class="stat-ico">💰</span><div><b id="saved">$0</b><small>real $ saved</small></div></div>
+    <div class="stat"><span class="stat-ico">🔥</span><div><b id="streak">0</b><small>day streak</small></div></div>
+  </div>
+
+  <nav class="hud hud-right" aria-label="Menu">
+    <button class="menu-btn" data-open="bank"><span class="ico">🏦</span>bank</button>
+    <button class="menu-btn" data-open="daily"><span class="ico">🔥</span>daily</button>
+    <button class="menu-btn" data-open="goals"><span class="ico">🎯</span>goals</button>
+    <button class="menu-btn" data-open="history"><span class="ico">📜</span>history</button>
+    <button class="help-dot" id="helpBtn" aria-label="Controls" aria-controls="helpPop">?</button>
+  </nav>
+  <div id="helpPop" class="help-pop hidden" role="dialog" aria-label="Controls">
+    <h3>Controls</h3>
+    <dl>
+      <dt><kbd>←↑↓→</kbd> or <kbd>WASD</kbd></dt><dd>Walk</dd>
+      <dt><kbd>Space</kbd></dt><dd>Talk to Maple / enter the shop</dd>
+      <dt>Click bag item, then island</dt><dd>Place it</dd>
+      <dt><kbd>Shift</kbd> + click</dt><dd>Pick an item back up</dd>
+      <dt>Click the town island</dt><dd>Visit your town</dd>
+      <dt><kbd>Esc</kbd></dt><dd>Close a window / cancel</dd>
+    </dl>
+  </div>
+
+  <button class="town-isle" data-open="town" aria-label="Visit your town">
+    <canvas id="townIsle" width="120" height="80" aria-hidden="true"></canvas>
+    <span class="town-label">TOWN</span>
+  </button>
+
+  <div class="hud hud-bottom">
+    <div class="bag">
+      <span class="bag-label">🎒 Bag</span>
+      <div id="inventory" class="bag-items"></div>
+    </div>
+  </div>
+</main>
+
+<!-- ===== Pop-up windows ===== -->
+<div class="modal hidden" id="panel-bank" role="dialog" aria-labelledby="bankTitle">
+  <div class="window">
+    <div class="window-head"><h2 id="bankTitle">🏦 Bank</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-body">
+      <div>
+        <p class="bank-hello">Welcome back!</p>
+        <label for="depAmount" class="bank-ask">How much <span class="real">real money</span> did you save?</label>
+        <div class="quick-add">
+          <button type="button" data-add="1">+$1</button>
+          <button type="button" data-add="5">+$5</button>
+          <button type="button" data-add="10">+$10</button>
+        </div>
+        <input id="depAmount" type="number" min="1" placeholder="or type an amount" inputmode="numeric">
+        <label>Where did it go?<select id="depType"></select></label>
+        <div id="acctEditor" class="acct-editor hidden">
+          <div class="acct-head"><span>Your savings accounts</span><button type="button" id="acctDone">Done</button></div>
+          <ul id="acctList" class="acct-list"></ul>
+          <div class="acct-add"><input id="acctName" maxlength="30" placeholder="e.g. Emergency fund"><button type="button" id="acctAdd">+ Add</button></div>
+        </div>
+        <button id="depositBtn" class="primary">Log my savings</button>
+        <button class="secondary" data-close>Not today, go to my island</button>
+      </div>
+      <details class="earn">
+        <summary><span class="q">?</span> How you earn 🪙 <span class="arrow">▸</span></summary>
+        <div class="card">
+          <p class="muted">Coins reward the <b>habit</b>, not the amount. $5 every week beats $5,000 once.</p>
+          <ul id="rules" class="checklist"></ul>
+        </div>
+      </details>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="panel-shop" role="dialog" aria-labelledby="shopTitle">
+  <div class="window wide">
+    <div class="window-head"><h2 id="shopTitle">🛍️ Island Shop</h2><span class="chip small" id="shopCoins"></span><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-body">
+      <p class="muted">Things you buy go in your <b>bag</b> at the bottom of the screen. Click one there, then click a spot on your island.</p>
+      <div class="shop-toolbar">
+        <label class="shop-category-control" for="shopCategory">Category
+          <select id="shopCategory">
+            <option value="all">All items</option>
+            <option value="nature">Nature</option>
+            <option value="vehicle">Vehicle</option>
+            <option value="shelter">Shelter</option>
+            <option value="miscellaneous">Miscellaneous</option>
+          </select>
+        </label>
+      </div>
+      <div id="shop" class="shop-grid"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="panel-goals" role="dialog" aria-labelledby="goalsTitle">
+  <div class="window goals-window">
+    <div class="window-head"><h2 id="goalsTitle">🎯 Goals</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-body">
+      <p class="muted">Track savings for each goal, star important ones, and check them off when complete.</p>
+      <div class="goal-form">
+        <label>Goal name<input id="personalGoalName" placeholder="e.g. Save for a bike"></label>
+        <label>Target ($)<input id="personalGoalTarget" type="number" min="1" placeholder="500"></label>
+        <button id="addPersonalGoal" class="primary" type="button">Add goal</button>
+      </div>
+      <div id="personalGoals" class="goal-list"></div>
+    </div>
+  </div>
+</div>
+
+<div class="modal side hidden" id="panel-daily" role="dialog" aria-labelledby="dailyTitle">
+  <div class="window">
+    <div class="window-head"><h2 id="dailyTitle">🔥 Daily Missions</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-body">
+      <p id="streakInfo" class="lead"></p>
+      <ul id="missions" class="checklist"></ul>
+      <p class="muted">Finish any one mission each day to keep your streak. The bonus grows the longer it lasts.</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="panel-history" role="dialog" aria-labelledby="historyTitle">
+  <div class="window">
+    <div class="window-head"><h2 id="historyTitle">📜 Savings History</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-body">
+      <div class="hist-tools">
+        <label for="histSort">Sort by</label>
+        <select id="histSort">
+          <option value="new">Date (newest first)</option>
+          <option value="old">Date (oldest first)</option>
+          <option value="type">Account</option>
+        </select>
+      </div>
+      <ul id="history" class="history"></ul>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="panel-town" role="dialog" aria-labelledby="townTitleHead">
+  <div class="window wide">
+    <div class="window-head"><h2 id="townTitleHead">🏘️ Towns</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-body">
+      <!-- corkboard newsfeed: recent updates pinned up like posters -->
+      <section class="newsboard" aria-labelledby="boardTitle">
+        <h3 class="board-title" id="boardTitle">📌 Town News</h3>
+        <div id="townBoard" class="board"></div>
+      </section>
+      <p id="townStatus" class="muted">Connecting…</p>
+
+      <!-- gallery of all your towns -->
+      <div id="townGallery">
+        <div id="townCards" class="town-cards"></div>
+        <div id="townNone" class="hidden town-form">
+          <p class="muted">Team up with friends! Build something together by keeping your saving habits. Only habits are shared, never dollar amounts.</p>
+          <div class="town-form-cols">
+            <div>
+              <h3>Start a town</h3>
+              <label>Town name<input id="townName" maxlength="30" placeholder="e.g. Maple Bay"></label>
+              <button id="createTown" class="primary">Create town</button>
+            </div>
+            <div>
+              <h3>Join a town</h3>
+              <label>Town code<input id="townCode" maxlength="6" placeholder="ABC123" style="text-transform:uppercase"></label>
+              <button id="joinTown" class="primary">Join town</button>
+            </div>
+          </div>
+        </div>
+        <label class="town-name-field">Your name in towns<input id="playerName" maxlength="20" placeholder="e.g. Maya"></label>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- one town, in its own pop-up on top of the gallery -->
+  <div id="townDetail" class="sub-modal hidden" role="dialog" aria-labelledby="townTitle">
+    <div class="window">
+      <div class="window-head"><h2 id="townTitle"></h2><button id="townBack" class="close" type="button" aria-label="Close">✕</button></div>
+      <div class="window-body">
+        <section class="newsboard small" aria-label="This town's news">
+          <h3 class="board-title">📌 Town News</h3>
+          <div id="townDetailBoard" class="board"></div>
+        </section>
+        <div id="projActive">
+          <h3 id="projectTitle">Town Project</h3>
+          <div class="town-bar big"><div id="projectFill" class="fill"></div></div>
+          <p id="projectText" class="muted"></p>
+        </div>
+        <div id="projNew" class="proj-new hidden">
+          <h3 id="projIntro">What should your town build first?</h3>
+          <div class="proj-form">
+            <label>Project name<input id="projName" maxlength="40" placeholder="e.g. Community Garden"></label>
+            <label>Goal (🔨 points)<input id="projGoal" type="number" min="100" max="50000" step="50" value="500"></label>
+            <button id="projStart" class="primary">Start project</button>
+          </div>
+          <p class="muted">Everyone's saving habits add 🔨 points. Your town builds one project at a time, and you'll see it go up on your island as points come in.</p>
+        </div>
+        <h3>Built so far</h3>
+        <ul id="builtList" class="list built-list"></ul>
+        <div class="invite">
+          <span>Invite friends with code</span>
+          <b id="townCodeShow" class="town-code"></b>
+          <button id="copyCode">Copy</button>
+        </div>
+        <h3>Townsfolk</h3>
+        <ul id="townMembers" class="checklist members"></ul>
+        <button id="leaveTown">Leave town</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="chat" class="modal bottom hidden" role="dialog" aria-label="Chat with Maple">
+  <div class="chat-box">
+    <div class="chat-head">🦊 Maple the Money Fox <button id="closeChat" aria-label="Close">✕</button></div>
+    <div id="chatLog"></div>
+    <form id="chatForm"><input id="chatInput" placeholder="Ask Maple anything about money..." autocomplete="off"><button>Send</button></form>
+  </div>
+</div>
+
+<div id="toast" role="status"></div>
+<script src="intro.js"></script>
+<script src="Shop%20categories%20%2B%20names.js"></script>
+<script src="game-2.js?v=9"></script>
+<script src="Set%20goals.js"></script>
+<script type="module" src="cloud.js"></script>
+<script type="module" src="town-2.js?v=4"></script>
+</body>
+</html>
