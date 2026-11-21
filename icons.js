@@ -171,6 +171,30 @@
       P(c.G, [[2, 4], [3, 3], [4, 3], [5, 3], [8, 3], [9, 3], [10, 3], [11, 4], [12, 5], [1, 5], [6, 2], [7, 2]]);
       P(c.g, [[4, 4], [5, 4], [8, 4], [9, 4], [6, 1], [7, 1]]); P(c.B, [[6, 4], [7, 4]]);
     }],
+    target: ['tap', ({ E, R, P }, c) => {
+      E(c.R, 7.5, 8.5, 7); E(c.w, 7.5, 8.5, 5.2); E(c.R, 7.5, 8.5, 3.4); E(c.w, 7.5, 8.5, 1.6);
+      P(c.B, [[8, 8], [9, 7], [10, 6], [11, 5], [12, 4]]); P(c.y, [[13, 1], [13, 2], [14, 3], [15, 3], [12, 2], [14, 2]]);
+    }],
+    shooting: ['twinkle', ({ Y, P }, c) => {
+      P(c.r, [[0, 15], [1, 14], [2, 13], [3, 12], [1, 15], [2, 14], [3, 13]]);
+      P(c.p, [[4, 11], [5, 10], [4, 12], [5, 11], [6, 10], [3, 11]]);
+      Y(c.y, star(10.5, 5.5, 5.5, 2.4)); P(c.w, [[10, 3], [9, 5]]);
+    }],
+    globe: ['spin', ({ E, Y, P }, c) => {
+      E(c.t, 8, 8, 7.5);
+      Y(c.g, [[3, 3], [7, 2], [8, 5], [6, 7], [6, 10], [4, 9], [2, 6]]);
+      Y(c.g, [[9, 8], [13, 7], [14, 10], [11, 14], [9, 12]]);
+      P(c.l, [[4, 12], [5, 13], [12, 3]]); P(c.w, [[11, 2], [12, 2]]);
+    }],
+    briefcase: ['bob', ({ R, P }, c) => {
+      R(c.B, 5, 2, 6, 1); P(c.B, [[5, 3], [10, 3]]);
+      R(c.b, 1, 4, 14, 11); R(c.B, 1, 8, 14, 1); R(c.y, 7, 7, 2, 3); P(c.n, [[2, 5], [2, 6]]);
+    }],
+    lock: ['wiggle', ({ R, P }, c) => {
+      R(c.S, 4, 1, 8, 2); R(c.S, 4, 3, 2, 4); R(c.S, 10, 3, 2, 4); P(c.s, [[5, 1], [4, 3]]);
+      R(c.y, 2, 7, 12, 8); R(c.Y, 2, 13, 12, 2); R(c.k, 7, 9, 2, 2); R(c.k, 7, 11, 2, 2); P(c.w, [[3, 8]]);
+    }],
+    play: ['tap', ({ Y }, c) => { Y(c.G, [[3, 1], [14, 8], [3, 15]]); Y(c.g, [[4, 3], [11, 8], [4, 13]]); }],
     check: ['pop', ({ R, P }, c) => {
       R(c.g, 1, 1, 14, 14); R(c.G, 1, 13, 14, 2);
       P(c.w, [[3, 8], [4, 9], [5, 10], [6, 11], [7, 10], [8, 9], [9, 8], [10, 7], [11, 6], [12, 5], [4, 8], [5, 9], [6, 10], [7, 9], [8, 8], [9, 7], [10, 6], [11, 5], [12, 4]]);
@@ -258,7 +282,7 @@
   const svgCache = {};
   function svgBody(name) {
     if (svgCache[name]) return svgCache[name];
-    const px = grid(name, true); if (!px) return '';
+    const px = grid(name, true) || grid(name, true, true); if (!px) return '';
     let out = '';
     for (let y = 0; y < N; y++) for (let x = 0; x < N;) {
       const c = px[y][x]; let w = 1;
@@ -277,7 +301,7 @@
     return `<svg class="pi pa-${anim} ${cls}" style="animation-delay:${delay}s" viewBox="-1 -1 18 18" shape-rendering="crispEdges" aria-hidden="true">${svgBody(name)}</svg>`;
   };
   const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
-  window.pit = text => esc(text).replace(/:([a-z]+):/g, (m, n) => ICONS[n] ? window.pi(n) : m);
+  window.pit = text => esc(text).replace(/:([a-z]+):/g, (m, n) => (ICONS[n] || ITEMS[n]) ? window.pi(n) : m);
 
   window.pixelSprite = (name, withOutline = false) => {
     const px = grid(name, withOutline, true); if (!px) return null;

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Future Me Island</title>
 <link rel="preload" href="fonts/VCR_OSD_MONO.ttf" as="font" type="font/ttf" crossorigin>
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 <div id="intro" class="intro" role="dialog" aria-label="Welcome to Future Me Island">
@@ -20,56 +20,6 @@
     </div>
     <p id="introNote" class="intro-note" aria-live="polite"></p>
 
-    <section id="starCard" class="star-card" hidden aria-labelledby="starTitle">
-      <div class="star-head">
-        <span id="starTitle"><i data-pi="star"></i> Daily Star · <span id="starNum"></span></span>
-        <button type="button" class="star-x" data-star-back aria-label="Back">✕</button>
-      </div>
-      <div class="star-body">
-        <p id="starStatus" class="star-status"></p>
-
-        <div data-view="guess">
-          <h3>How it started</h3>
-          <p id="starSetup" class="star-setup"></p>
-          <form id="starForm">
-            <label for="starGuess">How do you think it ended?</label>
-            <textarea id="starGuess" rows="3" placeholder="Type your guess for the happy ending..."></textarea>
-            <button class="primary star-go"><i data-pi="sparkle"></i> Catch the star!</button>
-          </form>
-        </div>
-
-        <div data-view="done" hidden>
-          <div class="star-score">
-            <div id="starDoneMeter" class="star-meter" role="img"></div>
-            <p id="starDoneCoins" class="star-coins"></p>
-          </div>
-          <p id="starDoneMsg" class="star-done-msg"></p>
-          <p id="starDoneTimer" class="star-done-timer"></p>
-          <div class="star-actions">
-            <button type="button" id="starDoneEnter" class="primary"><i data-pi="island"></i> Enter my world!</button>
-            <button type="button" class="star-back" data-star-back>← Back</button>
-          </div>
-        </div>
-
-        <div data-view="reveal" hidden>
-          <div class="star-score">
-            <div id="starMeter" class="star-meter" role="img"></div>
-            <p id="starVerdict" class="star-verdict"></p>
-            <p id="starCoins" class="star-coins"></p>
-          </div>
-          <h3>Your guess</h3>
-          <p id="starYours" class="star-yours"></p>
-          <h3>What really happened</h3>
-          <p id="starEnding" class="star-setup"></p>
-          <ul id="starBeats" class="star-beats"></ul>
-          <div class="star-actions">
-            <button type="button" id="starEnter" class="primary"><i data-pi="island"></i> Enter my world!</button>
-            <button type="button" class="star-back" data-star-back>← Back</button>
-          </div>
-          <p class="star-src"><i data-pi="news"></i> Real story, paraphrased from: <a id="starSource" target="_blank" rel="noopener"></a></p>
-        </div>
-      </div>
-    </section>
   </div>
 </div>
 
@@ -110,7 +60,10 @@
     <button class="menu-btn" data-open="bank"><span class="ico"><i data-pi="bank"></i></span>bank</button>
     <button class="menu-btn" data-open="daily"><span class="ico"><i data-pi="flame"></i></span>daily</button>
     <button class="menu-btn" data-open="jars"><span class="ico"><i data-pi="jar"></i></span>jars</button>
+    <button class="menu-btn" data-open="goals"><span class="ico"><i data-pi="target"></i></span>goals</button>
     <button class="menu-btn" data-open="history"><span class="ico"><i data-pi="scroll"></i></span>history</button>
+    <button class="menu-btn" data-open="vision"><span class="ico"><i data-pi="shooting"></i></span>vision</button>
+    <button class="menu-btn" id="mainMenuBtn"><span class="ico"><i data-pi="home"></i></span>home</button>
     <button class="help-dot" id="helpBtn" aria-label="Controls" aria-controls="helpPop">?</button>
   </nav>
   <div id="helpPop" class="help-pop hidden" role="dialog" aria-label="Controls">
@@ -204,6 +157,19 @@
   </div>
 </div>
 
+<div class="modal hidden" id="panel-goals" role="dialog" aria-labelledby="goalsTitle">
+  <div class="window">
+    <div class="window-head"><h2 id="goalsTitle"><i data-pi="target"></i> Goals</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-body">
+      <p class="muted">Create a savings goal, track progress, star important goals, and mark them complete.</p>
+      <label>Goal name<input id="personalGoalName" placeholder="e.g. Save for a bike"></label>
+      <label>Target ($)<input id="personalGoalTarget" type="number" min="1" placeholder="500"></label>
+      <button id="addPersonalGoal" class="primary">Add goal</button>
+      <div id="personalGoals"></div>
+    </div>
+  </div>
+</div>
+
 <div class="modal hidden" id="panel-history" role="dialog" aria-labelledby="historyTitle">
   <div class="window">
     <div class="window-head"><h2 id="historyTitle"><i data-pi="scroll"></i> Savings History</h2><button class="close" data-close aria-label="Close">✕</button></div>
@@ -218,6 +184,20 @@
         </select>
       </div>
       <ul id="history" class="history"></ul>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="panel-vision" role="dialog" aria-labelledby="visionTitle">
+  <div class="window wide">
+    <div class="window-head"><h2 id="visionTitle"><i data-pi="shooting"></i> My Vision Board</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-body">
+      <p id="visionBoardProgress" class="muted"></p>
+      <div id="visionBoardGrid" class="vision-grid" aria-live="polite"></div>
+      <div class="vision-actions">
+        <button id="playDailyStarFromBoard" class="primary" type="button"><i data-pi="star"></i> Play the Daily Star</button>
+        <button id="editVisionBoard" class="secondary" type="button">Edit my dreams</button>
+      </div>
     </div>
   </div>
 </div>
@@ -304,11 +284,41 @@
 </div>
 
 <div id="toast" role="status"></div>
+<div id="visionSetupModal" class="modal hidden layered-modal" role="dialog" aria-modal="true" aria-labelledby="visionSetupTitle">
+  <section class="game-dialog setup-dialog">
+    <h2 id="visionSetupTitle">Build your Vision Board</h2>
+    <p>Write down five dreams to guide your 50-tile board. Each Daily Star challenge reveals more of your future.</p>
+    <form id="visionSetupForm">
+      <div id="visionChoices" class="vision-choices"></div>
+      <p class="muted">Your first challenge unlocks 1–3 tiles. Score above 6/10 to unlock 3, above 5/10 to unlock 2.</p>
+      <div class="dialog-actions">
+        <button type="submit" class="primary">Save my Vision Board</button>
+        <button type="button" id="visionSetupCancel" class="secondary-btn">Cancel</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<div id="dailyStarModal" class="modal hidden layered-modal" role="dialog" aria-modal="true" aria-labelledby="dailyStarTitle">
+  <section class="game-dialog daily-dialog">
+    <div class="dialog-heading">
+      <h2 id="dailyStarTitle"><i data-pi="star"></i> Daily Star</h2>
+      <button type="button" id="closeDailyStar" class="dialog-close" aria-label="Close Daily Star">✕</button>
+    </div>
+    <p id="starRoundProgress" class="muted"></p>
+    <div id="starRoundMount"></div>
+    <div class="dialog-actions">
+      <button type="button" id="starNext" class="primary hidden">Next round</button>
+    </div>
+  </section>
+</div>
+
 <script src="icons.js"></script>
 <script src="intro.js"></script>
-<script src="game.js?v=4"></script>
+<script src="game.js?v=5"></script>
+<script src="Set%20goals.js"></script>
+<script src="daily-star.js"></script>
 <script type="module" src="cloud.js"></script>
 <script type="module" src="town.js?v=4"></script>
-<script src="dailystar.js"></script>
 </body>
 </html>
