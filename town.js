@@ -9,7 +9,8 @@ import {
 // Step 2: shared project. Habits earn points; every GOAL points the project grows a stage.
 // towns/{CODE}.project = { stage, progress, goal }   towns/{CODE}/feed/{id} = { uid, name, text, points, createdAt }
 const STAGE_GOAL = 500;
-const MAX_POINTS = 300; // per contribution, must match the Firestore rules
+// If you change STAGE_GOAL or MAX_POINTS, update firestore.rules to match and redeploy it.
+const MAX_POINTS = 300; // per contribution
 const defaultProject = () => ({ stage: 0, progress: 0, goal: STAGE_GOAL });
 
 const $ = id => document.getElementById(id);
