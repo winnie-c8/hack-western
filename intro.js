@@ -85,6 +85,40 @@
   // ---------- Buttons ----------
   const note = document.getElementById('introNote');
   const enterWorld = document.getElementById('enterWorld');
+  const music = document.getElementById('backgroundMusic');
+  const musicToggle = document.getElementById('musicToggle');
+  const musicIcon = musicToggle?.querySelector('.ico');
+
+  function updateMusicButton(playing, unavailable = false) {
+    if (!musicToggle) return;
+    musicIcon.textContent = unavailable ? '⚠️' : playing ? '🔊' : '🔇';
+    musicToggle.setAttribute('aria-pressed', String(playing));
+    musicToggle.title = unavailable
+      ? 'Background music is unavailable'
+      : playing ? 'Mute background music' : 'Play background music';
+  }
+
+  async function playMusic() {
+    if (!music) return;
+    try {
+      music.volume = 0.25;
+      await music.play();
+      updateMusicButton(true);
+    } catch (error) {
+      updateMusicButton(false, true);
+      console.warn('[music] Could not start background music.', error);
+    }
+  }
+
+  musicToggle?.addEventListener('click', () => {
+    if (music?.paused) {
+      void playMusic();
+    } else {
+      music?.pause();
+      updateMusicButton(false);
+    }
+  });
+  music?.addEventListener('error', () => updateMusicButton(false, true));
 
   function finishLeaving() {
     intro.hidden = true;
@@ -99,6 +133,7 @@
 
   enterWorld.addEventListener('click', e => {
     if (intro.classList.contains('leaving')) return;
+    void playMusic();
     e.currentTarget.classList.add('picked');
     intro.classList.add('leaving');
     if (reduce) setTimeout(finishLeaving, 300);

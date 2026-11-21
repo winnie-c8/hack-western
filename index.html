@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Future Me Island</title>
 <link rel="preload" href="fonts/VCR_OSD_MONO.ttf" as="font" type="font/ttf" crossorigin>
-<link rel="stylesheet" href="style.css?v=22">
+<link rel="stylesheet" href="style.css?v=23">
 </head>
 <body>
 <div id="intro" class="intro" role="dialog" aria-label="Welcome to Future Me Island">
@@ -41,6 +41,7 @@
     <button class="menu-btn" data-open="history"><span class="ico">📜</span>history</button>
     <button class="menu-btn" data-open="vision"><span class="ico">🌠</span>vision</button>
     <button class="menu-btn" id="mainMenuBtn"><span class="ico">🏠</span>home</button>
+    <button class="menu-btn" id="musicToggle" type="button" aria-label="Background music" aria-pressed="false" title="Play background music"><span class="ico" aria-hidden="true">🔇</span><span id="musicLabel">music</span></button>
     <button class="help-dot" id="helpBtn" aria-label="Controls" aria-controls="helpPop">?</button>
   </nav>
   <div id="helpPop" class="help-pop hidden" role="dialog" aria-label="Controls">
@@ -53,6 +54,7 @@
       <dt>Click the town island</dt><dd>Visit your town</dd>
       <dt><kbd>Esc</kbd></dt><dd>Close a window / cancel</dd>
     </dl>
+    <p class="music-credit">Background music: “Daydream” by Massobeats via <a href="https://freetouse.com" target="_blank" rel="noopener noreferrer">Free To Use</a>.</p>
   </div>
 
   <button class="town-isle" data-open="town" aria-label="Visit your town">
@@ -363,7 +365,8 @@
   </section>
 </div>
 
-<script src="intro.js"></script>
+<audio id="backgroundMusic" src="audio/island-theme.mp3" loop preload="none"></audio>
+<script src="intro.js?v=23"></script>
 <script src="game.js?v=22"></script>
 <script src="Set%20goals.js"></script>
 <script src="daily-star.js"></script>
