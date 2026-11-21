@@ -61,7 +61,6 @@
     <button class="menu-btn" data-open="daily"><span class="ico"><i data-pi="flame"></i></span>daily</button>
     <button class="menu-btn" data-open="goals"><span class="ico"><i data-pi="target"></i></span>goals</button>
     <button class="menu-btn" data-open="history"><span class="ico"><i data-pi="scroll"></i></span>history</button>
-    <button class="menu-btn" data-open="vision"><span class="ico"><i data-pi="shooting"></i></span>vision</button>
     <button class="menu-btn" id="mainMenuBtn"><span class="ico"><i data-pi="home"></i></span>home</button>
     <button class="help-dot" id="helpBtn" aria-label="Controls" aria-controls="helpPop">?</button>
   </nav>
@@ -241,20 +240,6 @@
   </div>
 </div>
 
-<div class="modal hidden" id="panel-vision" role="dialog" aria-labelledby="visionTitle">
-  <div class="window wide">
-    <div class="window-head"><h2 id="visionTitle"><i data-pi="shooting"></i> My Vision Board</h2><button class="close" data-close aria-label="Close">✕</button></div>
-    <div class="window-body">
-      <p id="visionBoardProgress" class="muted"></p>
-      <div id="visionBoardGrid" class="vision-grid" aria-live="polite"></div>
-      <div class="vision-actions">
-        <button id="playDailyStarFromBoard" class="primary" type="button"><i data-pi="star"></i> Play the Daily Star</button>
-        <button id="editVisionBoard" class="secondary" type="button">Edit my dreams</button>
-      </div>
-    </div>
-  </div>
-</div>
-
 <div class="modal hidden" id="panel-town" role="dialog" aria-labelledby="townTitleHead">
   <div class="window wide">
     <div class="window-head"><h2 id="townTitleHead"><i data-pi="town"></i> Towns</h2><button class="close" data-close aria-label="Close">✕</button></div>
@@ -346,21 +331,6 @@
 </div>
 
 <div id="toast" role="status"></div>
-<div id="visionSetupModal" class="modal hidden layered-modal" role="dialog" aria-modal="true" aria-labelledby="visionSetupTitle">
-  <section class="game-dialog setup-dialog">
-    <h2 id="visionSetupTitle">Build your Vision Board</h2>
-    <p>Write down five dreams to guide your 50-tile board. Each Daily Star challenge reveals more of your future.</p>
-    <form id="visionSetupForm">
-      <div id="visionChoices" class="vision-choices"></div>
-      <p class="muted">Your first challenge unlocks 1–3 tiles. Score above 6/10 to unlock 3, above 5/10 to unlock 2.</p>
-      <div class="dialog-actions">
-        <button type="submit" class="primary">Save my Vision Board</button>
-        <button type="button" id="visionSetupCancel" class="secondary-btn">Cancel</button>
-      </div>
-    </form>
-  </section>
-</div>
-
 <div id="dailyStarModal" class="modal hidden layered-modal" role="dialog" aria-modal="true" aria-labelledby="dailyStarTitle">
   <section class="game-dialog daily-dialog">
     <div class="dialog-heading">

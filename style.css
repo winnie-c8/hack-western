@@ -201,26 +201,6 @@ button.primary:active, button.secondary:active { transform: translateY(2px); box
 .feed li { font-size: .85rem; }
 .town-code { letter-spacing: 3px; font-size: 1.2rem; color: var(--teal-dark); }
 
-.vision-grid { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; margin: 12px 0; }
-.vision-actions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
-.vision-actions button { margin-top: 0; }
-.vision-tile {
-  min-width: 0; min-height: 78px; display: flex; flex-direction: column; justify-content: center; align-items: center;
-  gap: 3px; padding: 5px; text-align: center; overflow: hidden;
-  border: 2px solid var(--wood); background: #e8f3dc; box-shadow: inset 0 -4px 0 rgba(0,0,0,.06);
-}
-.vision-tile.locked { background: #eadfc9; color: var(--ink-soft); font-size: .7rem; }
-.tile-lock { font-size: 1.3rem; }
-.tile-emoji { font-size: 1.35rem; }
-.tile-title { max-width: 100%; font-size: .65rem; line-height: 1.15; overflow-wrap: anywhere; }
-.tile-category { color: var(--ink-soft); font-size: .55rem; line-height: 1.1; }
-.dream-job { background: #e5f0e2; }
-.dream-car { background: #f9e9d8; }
-.dream-home { background: #e5eff0; }
-.dream-adventure { background: #f8edc8; }
-.vision-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px 12px; }
-.vision-choice { margin: 6px 0; }
-.vision-choice input { font-size: .85rem; }
 .game-dialog {
   width: min(620px, 100%); max-height: 90vh; overflow-y: auto; padding: 18px;
   color: var(--ink); background: var(--paper); border: 6px solid var(--wood-dark);
@@ -262,7 +242,7 @@ button.primary:active, button.secondary:active { transform: translateY(2px); box
 .draw-canvas { width: 100%; max-width: 320px; height: auto; margin: 10px 0; border: 3px solid var(--wood-dark); outline: none; box-shadow: none; touch-action: none; }
 .line-actions { display: flex; gap: 8px; }
 .line-actions > * { flex: 1; }
-.recall-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; width: min(300px, 100%); margin: 12px auto; }
+.recall-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; width: min(300px, 100%); margin: 12px auto; }
 .recall-cell { aspect-ratio: 1; background: #d9e8d2; border: 3px solid var(--wood); cursor: pointer; }
 .recall-grid.flash .recall-cell.target { background: var(--sun); box-shadow: inset 0 0 0 8px var(--paper); }
 .recall-cell.selected { background: var(--teal); border-color: var(--teal-dark); }
@@ -791,10 +771,6 @@ body.intro-open { overflow: hidden; }
 @media (max-width: 480px) {
   .intro-sign { padding: 14px 16px; }
   .intro-btn { width: 100%; font-size: 1.05rem; }
-  .vision-choices { grid-template-columns: 1fr; }
-  .vision-tile { min-height: 68px; padding: 3px; }
-  .tile-title { font-size: .58rem; }
-  .tile-category { font-size: .48rem; }
   .game-dialog { padding: 12px; }
   .color-controls { grid-template-columns: 1fr; }
   .color-controls .color-swatch, .color-controls .primary { grid-column: 1; }

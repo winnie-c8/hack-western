@@ -121,7 +121,7 @@
   };
   document.getElementById('mainMenuBtn')?.addEventListener('click', () => window.showIntro());
 
-  // Daily Star: if window.startDailyStar exists it runs, otherwise show a "coming soon" note.
+  // Daily Star is provided by daily-star.js; keep a fallback if that script is unavailable.
   document.getElementById('dailyStar').addEventListener('click', e => {
     if (typeof window.startDailyStar === 'function') return window.startDailyStar({ fromMenu: true });
     note.innerHTML = pi('star') + ' The Daily Star is twinkling soon! Check back tomorrow.';
