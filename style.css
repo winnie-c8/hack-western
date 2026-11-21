@@ -109,7 +109,13 @@ button.primary:active { transform: translateY(2px); box-shadow: none; }
   background-image: repeating-linear-gradient(90deg, transparent 0 8px, rgba(255,255,255,.25) 8px 12px);
 }
 .goal-row { display: flex; gap: 6px; } .goal-row input { margin: 0; }
-.goal-row button, .mission button, #chatForm button {
+.town-bar { height: 18px; background: var(--paper); border: var(--px) solid var(--wood); }
+#projectFill { height: 100%; width: 0; background: var(--sage); transition: width .6s; }
+.feed { max-height: 220px; overflow-y: auto; }
+.feed li { font-size: .85rem; }
+.town-code { letter-spacing: 3px; font-size: 1.2rem; color: var(--teal-dark); }
+#copyCode, #leaveTown { padding: 4px 12px; margin-top: 8px; }
+.goal-row button, .mission button, #chatForm button, #copyCode, #leaveTown {
   font: 600 .95rem var(--font); color: #fff; cursor: pointer; padding: 0 12px;
   background: var(--sun); border: var(--px) solid #c79a45; text-shadow: 1px 1px 0 #c79a45;
 }

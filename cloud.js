@@ -12,8 +12,12 @@ const app = initializeApp({
   messagingSenderId: '316016111125',
   appId: '1:316016111125:web:86df309c07abc0dd00e81c',
 });
-const auth = getAuth(app);
-const db = getFirestore(app);
+export const auth = getAuth(app);
+export const db = getFirestore(app);
+
+// Resolves with the signed-in user once the island has been synced (or sync failed).
+let markReady;
+export const ready = new Promise(r => (markReady = r));
 
 let timer = null;
 function makeSaver(ref) {
@@ -45,6 +49,7 @@ onAuthStateChanged(auth, async user => {
   } catch (e) {
     console.warn('[cloud] offline or blocked, using local save only', e);
   }
+  markReady(user);
 });
 
-signInAnonymously(auth).catch(e => console.warn('[cloud] sign-in failed', e));
+signInAnonymously(auth).catch(e => { console.warn('[cloud] sign-in failed', e); markReady(null); });
