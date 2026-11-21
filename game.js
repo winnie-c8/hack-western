@@ -5,47 +5,47 @@ const TILE = 40, COLS = 40, ROWS = 28;
 const REWARDS = { dailyLog: 10, firstThisWeek: 50, weekStreak: 150, goalReached: 300 };
 
 const SHOP = [
-  { id: 'flower', emoji: '🌷', name: 'Tulip', price: 30, category: 'nature' },
-  { id: 'tree', emoji: '🌳', name: 'Oak Tree', price: 80, category: 'nature' },
-  { id: 'palm', emoji: '🌴', name: 'Palm Tree', price: 100, category: 'nature' },
-  { id: 'bench', emoji: '🪑', name: 'Chair', price: 120, category: 'miscellaneous' },
-  { id: 'lamp', emoji: '🏮', name: 'Lantern', price: 150, category: 'miscellaneous' },
-  { id: 'fountain', emoji: '⛲', name: 'Fountain', price: 400, category: 'miscellaneous' },
-  { id: 'tent', emoji: '⛺', name: 'Tent', price: 250, category: 'shelter' },
-  { id: 'house', emoji: '🏡', name: 'Dream Home', price: 2000, category: 'shelter' },
-  { id: 'car', emoji: '🚗', name: 'First Car', price: 1200, category: 'vehicle' },
-  { id: 'plane', emoji: '✈️', name: 'Travel Fund', price: 800, category: 'miscellaneous' },
-  { id: 'grad', emoji: '🎓', name: 'Diploma', price: 600, category: 'miscellaneous' },
-  { id: 'castle', emoji: '🏰', name: 'Castle', price: 5000, category: 'shelter' },
-  { id: 'sunflower', emoji: '🌻', name: 'Sunflower', price: 40, category: 'nature' },
-  { id: 'mushroom', emoji: '🍄', name: 'Mushroom', price: 35, category: 'nature' },
-  { id: 'rock', emoji: '🪨', name: 'Boulder', price: 50, category: 'nature' },
-  { id: 'log', emoji: '🪵', name: 'Log Seat', price: 60, category: 'miscellaneous' },
-  { id: 'potted', emoji: '🪴', name: 'Potted Plant', price: 70, category: 'nature' },
-  { id: 'basket', emoji: '🧺', name: 'Picnic Basket', price: 80, category: 'miscellaneous' },
-  { id: 'blossom', emoji: '🌸', name: 'Cherry Blossom', price: 90, category: 'nature' },
-  { id: 'pine', emoji: '🌲', name: 'Pine Tree', price: 90, category: 'nature' },
-  { id: 'mailbox', emoji: '📮', name: 'Mailbox', price: 100, category: 'miscellaneous' },
-  { id: 'umbrella', emoji: '⛱️', name: 'Beach Umbrella', price: 180, category: 'miscellaneous' },
-  { id: 'canoe', emoji: '🛶', name: 'Canoe', price: 350, category: 'vehicle' },
-  { id: 'playground', emoji: '🛝', name: 'Slide', price: 450, category: 'miscellaneous' },
-  { id: 'hut', emoji: '🛖', name: 'Cozy Hut', price: 700, category: 'shelter' },
-  { id: 'ferris', emoji: '🎡', name: 'Ferris Wheel', price: 3000, category: 'miscellaneous' },
+  { id: 'flower', name: 'Tulip', price: 30, category: 'nature' },
+  { id: 'tree', name: 'Oak Tree', price: 80, category: 'nature' },
+  { id: 'palm', name: 'Palm Tree', price: 100, category: 'nature' },
+  { id: 'bench', name: 'Chair', price: 120, category: 'miscellaneous' },
+  { id: 'lamp', name: 'Lantern', price: 150, category: 'miscellaneous' },
+  { id: 'fountain', name: 'Fountain', price: 400, category: 'miscellaneous' },
+  { id: 'tent', name: 'Tent', price: 250, category: 'shelter' },
+  { id: 'house', name: 'Dream Home', price: 2000, category: 'shelter' },
+  { id: 'car', name: 'First Car', price: 1200, category: 'vehicle' },
+  { id: 'plane', name: 'Travel Fund', price: 800, category: 'miscellaneous' },
+  { id: 'grad', name: 'Diploma', price: 600, category: 'miscellaneous' },
+  { id: 'castle', name: 'Castle', price: 5000, category: 'shelter' },
+  { id: 'sunflower', name: 'Sunflower', price: 40, category: 'nature' },
+  { id: 'mushroom', name: 'Mushroom', price: 35, category: 'nature' },
+  { id: 'rock', name: 'Boulder', price: 50, category: 'nature' },
+  { id: 'log', name: 'Log Seat', price: 60, category: 'miscellaneous' },
+  { id: 'potted', name: 'Potted Plant', price: 70, category: 'nature' },
+  { id: 'basket', name: 'Picnic Basket', price: 80, category: 'miscellaneous' },
+  { id: 'blossom', name: 'Cherry Blossom', price: 90, category: 'nature' },
+  { id: 'pine', name: 'Pine Tree', price: 90, category: 'nature' },
+  { id: 'mailbox', name: 'Mailbox', price: 100, category: 'miscellaneous' },
+  { id: 'umbrella', name: 'Beach Umbrella', price: 180, category: 'miscellaneous' },
+  { id: 'canoe', name: 'Canoe', price: 350, category: 'vehicle' },
+  { id: 'playground', name: 'Slide', price: 450, category: 'miscellaneous' },
+  { id: 'hut', name: 'Cozy Hut', price: 700, category: 'shelter' },
+  { id: 'ferris', name: 'Ferris Wheel', price: 3000, category: 'miscellaneous' },
   // added with the shop categories (Lina)
-  { id: 'garden', emoji: '🌼', name: 'Garden', price: 100, category: 'nature' },
-  { id: 'christmas-tree', emoji: '🎄', name: 'Christmas Tree', price: 100, category: 'nature' },
-  { id: 'mountain', emoji: '🏔️', name: 'Mountain', price: 100, category: 'nature' },
-  { id: 'table', emoji: '🍽️', name: 'Table', price: 130, category: 'miscellaneous' },
-  { id: 'fence', emoji: '🚧', name: 'Fence', price: 140, category: 'miscellaneous' },
-  { id: 'park-bench', emoji: '🛋️', name: 'Bench', price: 130, category: 'miscellaneous' },
-  { id: 'lamppost', emoji: '💡', name: 'Lamppost', price: 120, category: 'miscellaneous' },
-  { id: 'gazebo', emoji: '🏛️', name: 'Gazebo', price: 500, category: 'shelter' },
-  { id: 'greenhouse', emoji: '🪴', name: 'Greenhouse', price: 900, category: 'shelter' },
-  { id: 'treehouse', emoji: '🌳', name: 'Treehouse', price: 1200, category: 'shelter' },
-  { id: 'cabin', emoji: '🏕️', name: 'Cabin', price: 1500, category: 'shelter' },
-  { id: 'cottage', emoji: '🏠', name: 'Cottage', price: 1800, category: 'shelter' },
-  { id: 'mushroom-house', emoji: '🍄', name: 'Mushroom House', price: 2200, category: 'shelter' },
-  { id: 'small-shop', emoji: '🏪', name: 'Small Shop', price: 2500, category: 'shelter' },
+  { id: 'garden', name: 'Garden', price: 100, category: 'nature' },
+  { id: 'christmas-tree', name: 'Christmas Tree', price: 100, category: 'nature' },
+  { id: 'mountain', name: 'Mountain', price: 100, category: 'nature' },
+  { id: 'table', name: 'Table', price: 130, category: 'miscellaneous' },
+  { id: 'fence', name: 'Fence', price: 140, category: 'miscellaneous' },
+  { id: 'park-bench', name: 'Bench', price: 130, category: 'miscellaneous' },
+  { id: 'lamppost', name: 'Lamppost', price: 120, category: 'miscellaneous' },
+  { id: 'gazebo', name: 'Gazebo', price: 500, category: 'shelter' },
+  { id: 'greenhouse', name: 'Greenhouse', price: 900, category: 'shelter' },
+  { id: 'treehouse', name: 'Treehouse', price: 1200, category: 'shelter' },
+  { id: 'cabin', name: 'Cabin', price: 1500, category: 'shelter' },
+  { id: 'cottage', name: 'Cottage', price: 1800, category: 'shelter' },
+  { id: 'mushroom-house', name: 'Mushroom House', price: 2200, category: 'shelter' },
+  { id: 'small-shop', name: 'Small Shop', price: 2500, category: 'shelter' },
 ].sort((a, b) => a.price - b.price);
 // Shop tabs: one per category (Lina's categories), plus All and Paths; `icon` = pixel icon name
 const SHOP_CATEGORIES = [
@@ -457,19 +457,10 @@ function silhouette(id, color) {
   g.drawImage(icon(id), 0, 0); g.globalCompositeOperation = 'source-in'; g.fillStyle = color; g.fillRect(0, 0, 16, 16);
   return silCache[k] = c;
 }
-// Items without a hand-drawn pixel sprite yet (e.g. the newer shop items) fall back to their emoji, pixelated.
-function emojiSprite(id) {
-  const c = document.createElement('canvas'); c.width = c.height = 16;
-  const g = c.getContext('2d'); g.textAlign = 'center'; g.textBaseline = 'middle';
-  g.font = '14px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",serif';
-  g.fillText(SHOP.find(s => s.id === id)?.emoji || '?', 8, 9);
-  const img = g.getImageData(0, 0, 16, 16);
-  for (let i = 3; i < img.data.length; i += 4) img.data[i] = img.data[i] > 110 ? 255 : 0;
-  g.putImageData(img, 0, 0);
-  return c;
-}
+// Every shop item has a hand-drawn pixel sprite in icons.js; a plain wooden crate stands in for anything new.
+const emojiSprite = () => pixelSprite('crate');
 const urlCache = {};
-const iconURL = id => urlCache[id] || (urlCache[id] = (pixelSprite(id, true) || emojiSprite(id)).toDataURL()); // outlined for the shop/bag
+const iconURL = id => urlCache[id] || (urlCache[id] = (pixelSprite(id, true) || pixelSprite('crate', true)).toDataURL()); // outlined for the shop/bag
 const BIG = new Set([
   'tree', 'palm', 'house', 'castle', 'fountain', 'pine', 'hut', 'ferris', 'mountain', 'christmas-tree',
   'gazebo', 'greenhouse', 'treehouse', 'cabin', 'cottage', 'mushroom-house', 'small-shop',
@@ -715,6 +706,7 @@ const draw = () => {
     } },
   ].sort((a, b) => a.y - b.y);
   ents.forEach(e => e.draw());
+  if (window.SKY) atmosphere(SKY.current(), ox, oy, tx0, tx1, ty0, ty1);
 
   if (nearVillager()) drawBubble('Space to chat', VILLAGER.x * TILE + TILE / 2, VILLAGER.y * TILE - 14 * PX);
   else if (nearShop()) drawBubble('Space to enter shop', (SHOP_BLD.x + 1) * TILE, (SHOP_BLD.y + 2) * TILE + 2 * PX);
@@ -760,6 +752,86 @@ const draw = () => {
   }
   ctx.setTransform(1, 0, 0, 1, 0, 0);
 };
+
+// ---------- Time of day (sky.js): tint the island, cloud shadows, lamp glow, fireflies, stars on the sea ----------
+// [x offset, y offset from the item's base, glow radius] for things that light up after dark
+const LIGHTS = { lamp: [0, -24, 44], lamppost: [0, -30, 46], 'christmas-tree': [0, -26, 34], house: [0, -18, 30], hut: [0, -14, 24], castle: [0, -22, 34], tent: [0, -10, 20], ferris: [0, -30, 40] };
+function pixelGlow(cx, cy, r, color, a) {
+  // stepped rings: soft light that still snaps to the pixel grid
+  ctx.fillStyle = color;
+  const gx = Math.round(cx / PX) * PX, gy = Math.round(cy / PX) * PX;
+  [[1, .16], [.68, .22], [.38, .32]].forEach(([k, alpha]) => {
+    const R = Math.max(PX, Math.round(r * k / PX) * PX);
+    ctx.globalAlpha = a * alpha;
+    for (let dy = -R; dy < R; dy += PX) {
+      const hw = Math.round(Math.sqrt(Math.max(0, R * R - (dy + PX / 2) ** 2)) / PX) * PX;
+      if (hw) ctx.fillRect(gx - hw, gy + dy, hw * 2, PX);
+    }
+  });
+  ctx.globalAlpha = 1;
+}
+function atmosphere(sky, ox, oy, tx0, tx1, ty0, ty1) {
+  const snap = v => Math.round(v / PX) * PX;
+  const sea = (x, y) => x < 0 || y < 0 || x >= COLS || y >= ROWS || map[y][x] === 0;
+  // daytime: soft cloud shadows drifting across the island
+  const shade = Math.max(0, 1 - sky.tint[1] * 4) * (sky.up ? 1 : 0);
+  if (shade > .02) {
+    ctx.fillStyle = `rgba(28, 52, 44, ${.1 * shade})`;
+    const span = COLS * TILE + 480;
+    for (let i = 0; i < 4; i++) {
+      const x = ((t * (.16 + i * .05) + i * 640) % span) - 240, y = hash(i, 9, 77) * ROWS * TILE;
+      for (const [dx, dy, w, h] of [[2, 4, 22, 5], [6, 0, 10, 4], [0, 9, 28, 4], [5, 13, 16, 2]])
+        ctx.fillRect(snap(x + dx * PX), snap(y + dy * PX), w * PX, h * PX);
+    }
+  }
+  // the colour of the hour over everything
+  if (sky.tint[1] > .01) {
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.globalAlpha = sky.tint[1]; ctx.fillStyle = sky.tint[0]; ctx.fillRect(ox, oy, cv.width, cv.height);
+    ctx.globalAlpha = 1; ctx.globalCompositeOperation = 'source-over';
+  }
+  // sparkles on the water: stars reflected at night, gold glints at sunrise / sunset
+  if (sky.stars > .05 || sky.warm > .1) {
+    for (let y = ty0; y < ty1; y++) for (let x = tx0; x < tx1; x++) {
+      if (!sea(x, y)) continue;
+      const h = hash(x, y, 333);
+      if (h > .3) continue;
+      const on = (Math.floor(t / 18 + h * 40) % 5) !== 0;
+      if (!on) continue;
+      const px = x * TILE + Math.floor(hash(x, y, 334) * 9) * PX, py = y * TILE + Math.floor(hash(x, y, 335) * 9) * PX;
+      if (sky.stars > .05 && h < .18) {
+        ctx.fillStyle = `rgba(255, 247, 230, ${.85 * sky.stars})`;
+        ctx.fillRect(px, py, PX, PX);
+        if (h < .04) { ctx.fillRect(px - PX, py, PX, PX); ctx.fillRect(px + PX, py, PX, PX); ctx.fillRect(px, py - PX, PX, PX); ctx.fillRect(px, py + PX, PX, PX); }
+      } else if (sky.warm > .1) {
+        ctx.fillStyle = `rgba(255, 214, 138, ${.9 * sky.warm})`;
+        ctx.fillRect(px, py, 3 * PX, PX);
+      }
+    }
+  }
+  // after dark: lamps, windows and the shop glow; fireflies drift over the grass
+  if (sky.glow > .05) {
+    ctx.globalCompositeOperation = 'lighter';
+    const warm = '#ffb85c';
+    for (const p of S.placed) {
+      const L = LIGHTS[p.id]; if (!L) continue;
+      pixelGlow(p.x * TILE + TILE / 2 + L[0], p.y * TILE + TILE + L[1], L[2], warm, sky.glow * (.85 + .15 * Math.sin(t / 9 + p.x)));
+    }
+    pixelGlow((SHOP_BLD.x + SHOP_BLD.w / 2) * TILE, (SHOP_BLD.y + SHOP_BLD.h) * TILE - 12, 40, warm, sky.glow * .8);
+    for (const b of townBuilds) if (b.f >= 1) pixelGlow((b.x + 1) * TILE, (b.y + 1.6) * TILE, 36, warm, sky.glow * .7);
+    pixelGlow(P.rx * TILE + TILE / 2, P.ry * TILE + TILE / 2, 34, '#ffe2a8', sky.glow * .55); // a little lantern-light around you
+    for (let y = Math.max(0, ty0); y < Math.min(ROWS, ty1); y++) for (let x = Math.max(0, tx0); x < Math.min(COLS, tx1); x++) {
+      if (map[y][x] === 0 || hash(x, y, 55) > .07) continue;
+      const k = hash(x, y, 56) * 100;
+      const fx = x * TILE + TILE / 2 + Math.sin(t / 50 + k) * TILE * .6, fy = y * TILE + TILE / 2 + Math.cos(t / 63 + k) * TILE * .5;
+      const blink = (Math.sin(t / 14 + k) + 1) / 2;
+      if (blink < .35) continue;
+      pixelGlow(fx, fy, 10, '#d8f27a', sky.glow * blink * .9);
+      ctx.fillStyle = `rgba(250, 255, 190, ${sky.glow * blink})`; ctx.fillRect(snap(fx), snap(fy), PX, PX);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+  }
+}
 
 // ---------- Camera: the view follows the player around the island (Stardew / Animal Crossing style) ----------
 const VIEW_ROWS = 14;                 // about this many tiles fit top-to-bottom; the width follows the window
@@ -807,8 +879,8 @@ function update() {
     P.moving = !!(dx || dy);
     if (P.moving && walkable(P.x + dx, P.y + dy)) { P.x += dx; P.y += dy; S.player = { x: P.x, y: P.y }; saveLocal(); } // walking: browser only, no cloud write
   } else {
-    P.rx += Math.sign(P.x - P.rx) * Math.min(.2, Math.abs(P.x - P.rx));
-    P.ry += Math.sign(P.y - P.ry) * Math.min(.2, Math.abs(P.y - P.ry));
+    P.rx += Math.sign(P.x - P.rx) * Math.min(.28, Math.abs(P.x - P.rx));
+    P.ry += Math.sign(P.y - P.ry) * Math.min(.28, Math.abs(P.y - P.ry));
   }
 }
 const nearVillager = () => Math.abs(P.x - VILLAGER.x) + Math.abs(P.y - VILLAGER.y) <= 1;
@@ -887,7 +959,19 @@ function dropHeld(e) {
   }
   save(); renderInventory();
 }
-$('editBtn').onclick = () => setEdit(!editMode);
+$('editBtn').onclick = () => { closeMore(); setEdit(!editMode); };
+
+// "more" menu (three grey dots): edit island, goals, history
+function closeMore() { $('moreMenu').classList.add('hidden'); $('moreBtn').setAttribute('aria-expanded', 'false'); }
+$('moreBtn').onclick = e => {
+  e.stopPropagation();
+  const open = $('moreMenu').classList.toggle('hidden') === false;
+  $('moreBtn').setAttribute('aria-expanded', open);
+  if (open) $('moreMenu').querySelector('.more-item').focus({ preventScroll: true });
+};
+$('moreMenu').querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', closeMore));
+addEventListener('click', e => { if (!e.target.closest('.more-wrap')) closeMore(); });
+addEventListener('keydown', e => { if (e.key === 'Escape' && !$('moreMenu').classList.contains('hidden')) { closeMore(); $('moreBtn').focus(); } }, true);
 $('editDone').onclick = () => setEdit(false);
 function paintAt({ x, y }) {
   if (!canPave(x, y)) return;
@@ -949,6 +1033,7 @@ function closePanels() {
   document.activeElement?.blur?.();
 }
 function openPanel(name) {
+  $('bankWelcome').hidden = true; // the welcome banner is only for the very first pop-up
   const el = $('panel-' + name), side = el.classList.contains('side');
   const wasOpen = !el.classList.contains('hidden');
   closePanels();
@@ -1311,7 +1396,7 @@ function drawPreviewIsland(st, rate, start) {
   g.fillStyle = vig; g.fillRect(0, 0, cvp.width, cvp.height);
 
   $('pvYears').textContent = yrs(horizon);
-  const names = future.slice(0, 5).map(f => { const it = SHOP.find(s => s.id === f.id); return `${it.emoji} ${it.name}`; }).join(', ');
+  const names = future.slice(0, 5).map(f => { const it = SHOP.find(s => s.id === f.id); return `${pi(f.id)} ${it.name}`; }).join(', ');
   $('pvText').innerHTML = `
     <li>${pi('cash')} Saving <b>$${rate}/day</b> → about <b>${moneyFull(project(start, rate, horizon, false))}</b> in real savings</li>
     <li>${pi('chart')} If you invest it (5%/yr example) → about <b>${moneyFull(project(start, rate, horizon, true))}</b></li>
@@ -1457,7 +1542,9 @@ async function askVillager(question) {
   const goals = (S.personalGoals || []).map(g => `${g.name}: $${g.saved}/$${g.target}`).join(', ') || 'none yet';
   const context = `(Player info: saved $${S.saved} total, ${S.streak}-day streak, goals: ${goals})`;
   try {
-    const res = await fetch('http://localhost:3001/api/fox', {
+    const API = ['localhost', '127.0.0.1'].includes(location.hostname)
+      ? 'http://localhost:3001' : 'https://future-me-cdzs.onrender.com';
+    const res = await fetch(`${API}/api/fox`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ history: chatHistory, message: `${question}\n${context}` }),
@@ -1495,10 +1582,25 @@ if (document.body.classList.contains('intro-open')) {
   new MutationObserver((_, obs) => {
     if (!document.body.classList.contains('intro-open')) {
       obs.disconnect();
-      openPanel('bank');
+      openPanel('bank'); showWelcome();
     }
   }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
-} else openPanel('bank');
+} else { openPanel('bank'); showWelcome(); }
+
+// A warm hello at the top of the bank, the first time it pops up after entering the island
+function showWelcome() {
+  const box = $('bankWelcome');
+  box.querySelector('.welcome-word').innerHTML = [...'welcome!'].map((ch, i) => `<span style="--i:${i}" aria-hidden="true">${ch}</span>`).join('');
+  const period = window.SKY?.current().label;
+  box.querySelector('.welcome-sub').textContent = {
+    sunrise: 'good morning, early bird! so happy you\'re here',
+    morning: 'good morning, sunshine! so happy you\'re here',
+    afternoon: 'good afternoon! so happy you\'re here',
+    sunset: 'good evening! so happy you\'re here',
+    night: 'cozy night! so happy you\'re here',
+  }[period] || 'so happy you\'re here!';
+  box.hidden = false;
+}
 
 // Called by cloud.js when the cloud copy is newer than this browser's copy.
 window.loadCloudState = data => {
