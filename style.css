@@ -681,3 +681,25 @@ body.intro-open { overflow: hidden; }
   .color-controls { grid-template-columns: 1fr; }
   .color-controls .color-swatch, .color-controls .primary { grid-column: 1; }
 }
+
+/* personal goals tracker (Goals pop-up) */
+#personalGoals .goal { position: relative; padding-bottom: 44px; }
+.goal-completed { opacity: .7; }
+.goal-name { display: block; padding-right: 40px; }
+.goal-star {
+  position: absolute; top: 5px; right: 6px; padding: 2px 6px; color: var(--ink-soft); cursor: pointer;
+  background: transparent; border: 0; font: 1.55rem/1 var(--font);
+}
+.goal-star.starred { color: var(--sun); text-shadow: 1px 1px 0 var(--wood-dark); }
+.goal-star:focus-visible { outline: 2px solid var(--teal-dark); outline-offset: 2px; }
+.goal-complete { display: flex; align-items: center; gap: 8px; margin: 8px 0 0; font-size: .85rem; }
+.goal-complete input { width: auto; margin: 0; accent-color: var(--sage-dark); }
+.goal-menu { position: absolute; right: 6px; bottom: 4px; z-index: 2; }
+.goal-menu summary { list-style: none; cursor: pointer; padding: 0 8px; font-size: 1.4rem; line-height: 1.2; }
+.goal-menu summary::-webkit-details-marker { display: none; }
+.goal-menu summary:focus-visible { outline: 2px solid var(--teal-dark); outline-offset: 2px; }
+.goal-menu button {
+  position: absolute; right: 0; bottom: calc(100% + 4px); white-space: nowrap; padding: 6px 10px;
+  font: .85rem var(--font); color: var(--ink); cursor: pointer; background: var(--paper); border: var(--px) solid var(--wood-dark);
+  box-shadow: 3px 3px 0 rgba(90,70,54,.25);
+}

@@ -33,7 +33,7 @@ const today = () => fmt(new Date());
 const weekKey = (d = new Date()) => { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return fmt(x); };
 const defaultState = () => ({
   coins: 100, saved: 0, history: [], inventory: {}, placed: [],
-  goals: [], streak: 0, lastStreakDay: null, missionsDay: today(), missionsDone: [],
+  goals: [], personalGoals: [], streak: 0, lastStreakDay: null, missionsDay: today(), missionsDone: [],
   player: { x: 9, y: 8 }, weeks: [], lastDepositDay: null,
   accounts: ['High-interest savings', 'TFSA', 'RRSP', 'FHSA (first home)'],
   visionBoard: { selections: null, unlocked: 0 },
@@ -948,7 +948,7 @@ $('chatForm').onsubmit = async e => {
 };
 $('chatInput').addEventListener('keydown', e => { if (e.key === 'Escape') closeChat(); });
 
-function renderAll() { renderAccounts(); renderStats(); renderHistory(); renderRules(); renderShop(); renderInventory(); renderGoals(); renderMissions(); }
+function renderAll() { renderAccounts(); renderStats(); renderHistory(); renderRules(); renderShop(); renderInventory(); renderGoals(); window.renderPersonalGoals?.(); renderMissions(); }
 renderAll();
 
 if (document.body.classList.contains('intro-open')) {
