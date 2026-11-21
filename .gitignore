@@ -1,0 +1,12 @@
+# Firebase CLI logs (written automatically by `firebase login` / `firebase deploy`)
+firebase-debug.log
+firebase-debug.*.log
+firestore-debug.log
+ui-debug.log
+
+# OS clutter
+.DS_Store
+Thumbs.db
+
+.env
+node_modules/

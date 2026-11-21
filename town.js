@@ -8,7 +8,7 @@ import {
   doc, collection, query, orderBy, limit, where, getDocs, addDoc, deleteDoc, onSnapshot, runTransaction, updateDoc, deleteField, serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
-// Shared projects: members name a project and set its goal; saving habits add 🔨 points.
+// Shared projects: members name a project and set its goal; saving habits add hammer points.
 // One project at a time; when it's built it moves to towns/{CODE}.built and the next can start.
 // If you change these numbers, update firestore.rules to match and redeploy it.
 const MAX_POINTS = 300;                // per contribution
@@ -19,7 +19,7 @@ const S = () => window.getState();
 const show = (el, on) => $(el).classList.toggle('hidden', !on);
 const status = msg => { $('townStatus').textContent = msg; };
 // small DOM helper: never uses innerHTML, because names and news come from other players
-const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.innerHTML = window.pit(text); return e; }; // pit escapes text + draws :icon: tokens
 
 // No 0/O/1/I so codes are easy to read aloud
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -122,7 +122,7 @@ function newsPoster(f, showTown) {
   if (f.id && f.code) p.append(posterActions(f, p));
   return p;
 }
-// ♥ for everyone else's posts; ✏️ / 🗑️ on your own notes
+// heart for everyone else's posts; edit / delete on your own notes
 function posterActions(f, p) {
   const me = auth.currentUser?.uid, ref = doc(db, 'towns', f.code, 'feed', f.id);
   // keep hearts on the cached feed item, so an instant (optimistic) change survives the next re-render
@@ -153,7 +153,7 @@ function posterActions(f, p) {
   };
   row.append(heart);
   if (f.note && f.uid === me) {
-    const edit = el('button', null, '✏️'), del = el('button', null, '🗑️');
+    const edit = el('button', null, ':pencil:'), del = el('button', null, ':trash:');
     edit.type = del.type = 'button';
     edit.setAttribute('aria-label', 'Edit note'); del.setAttribute('aria-label', 'Delete note');
     edit.onclick = () => {
@@ -181,18 +181,18 @@ function posterActions(f, p) {
 function newsPosterBody(f, showTown) {
   const town = towns.get(f.code)?.name || f.code;
   const meta = (showTown ? town + ' · ' : '') + ago(f.createdAt) + (f.edited ? ' · edited' : '');
-  if (f.done) return poster({ key: f.id, paper: EVENT_PAPER.done, headline: '🎉 Built!', body: `${town} finished the ${f.project}! ${f.name} placed the last brick.`, meta });
-  if (f.started) return poster({ key: f.id, paper: EVENT_PAPER.started, headline: '🏗️ New project', body: `${f.name} started building: ${f.project}`, meta });
-  if (f.note) return poster({ key: f.id, paper: playerPaper(f.uid), headline: `💌 ${f.name}`, body: f.text, meta });
-  if (f.stageUp) return poster({ key: f.id, paper: EVENT_PAPER.stageUp, headline: `🎉 Stage ${f.stageUp + 1}!`, body: `${f.name} helped ${town} reach a new stage.`, meta });
-  return poster({ key: f.id, paper: playerPaper(f.uid), headline: f.name, body: f.text + (f.project ? ` (for the ${f.project})` : ''), stamp: `+${f.points} 🔨`, meta });
+  if (f.done) return poster({ key: f.id, paper: EVENT_PAPER.done, headline: ':party: Built!', body: `${town} finished the ${f.project}! ${f.name} placed the last brick.`, meta });
+  if (f.started) return poster({ key: f.id, paper: EVENT_PAPER.started, headline: ':crane: New project', body: `${f.name} started building: ${f.project}`, meta });
+  if (f.note) return poster({ key: f.id, paper: playerPaper(f.uid), headline: `:letter: ${f.name}`, body: f.text, meta });
+  if (f.stageUp) return poster({ key: f.id, paper: EVENT_PAPER.stageUp, headline: `:party: Stage ${f.stageUp + 1}!`, body: `${f.name} helped ${town} reach a new stage.`, meta });
+  return poster({ key: f.id, paper: playerPaper(f.uid), headline: f.name, body: f.text + (f.project ? ` (for the ${f.project})` : ''), stamp: `+${f.points} :hammer:`, meta });
 }
 
 // ---------- build info (Space next to a building on the island) ----------
 window.openBuildInfo = async b => {
   window.openPanel('build');
   const t = towns.get(b.code);
-  $('buildTitle').textContent = `${b.f >= 1 ? '✅' : '🏗️'} ${b.name}`;
+  $('buildTitle').innerHTML = window.pit(`${b.f >= 1 ? ':check:' : ':crane:'} ${b.name}`);
   $('buildSub').textContent = `${t?.name || b.code} · ${b.f >= 1 ? 'Built!' : `${Math.floor(b.f * 100)}% · ${phase(b.f)}`}`;
   $('buildFill').style.width = b.f * 100 + '%';
   $('buildContrib').replaceChildren(el('li', 'muted', 'Loading…'));
@@ -212,7 +212,7 @@ window.openBuildInfo = async b => {
       const li = el('li', 'contrib');
       const bar = el('div', 'town-bar'), fill = el('div', 'fill');
       fill.style.width = pct + '%'; fill.style.background = playerPaper(uid); bar.append(fill);
-      li.append(el('span', null, `${c.name}${uid === auth.currentUser?.uid ? ' (you)' : ''}`), el('b', null, `${pct}% · ${c.n} task${c.n === 1 ? '' : 's'} · ${c.pts} 🔨`), bar);
+      li.append(el('span', null, `${c.name}${uid === auth.currentUser?.uid ? ' (you)' : ''}`), el('b', null, `${pct}% · ${c.n} task${c.n === 1 ? '' : 's'} · ${c.pts} :hammer:`), bar);
       return li;
     });
     $('buildContrib').replaceChildren(...(rows.length ? rows : [el('li', 'muted', 'No one has helped yet. Save something to add the first brick!')]));
@@ -245,10 +245,10 @@ function renderGallery(ids) {
     card.type = 'button';
     card.setAttribute('aria-label', `Open ${t.name}`);
     if (art) { const img = el('img'); img.src = art; img.alt = ''; card.append(img); }
-    card.append(el('h4', null, t.name), el('p', 'town-meta', `👥 ${n} · 🏠 ${built} built`));
-    if (isActive(p)) card.append(el('p', 'town-project', `🏗️ ${p.name}`), progressBar(p),
-      el('p', 'town-meta', `${p.progress} / ${p.goal} 🔨 · ${phase(p.progress / p.goal)}`));
-    else card.append(el('p', 'town-project', isNamed(p) ? `✅ ${p.name} built!` : 'No project yet'), progressBar(isNamed(p) ? p : null),
+    card.append(el('h4', null, t.name), el('p', 'town-meta', `:people: ${n} · :home: ${built} built`));
+    if (isActive(p)) card.append(el('p', 'town-project', `:crane: ${p.name}`), progressBar(p),
+      el('p', 'town-meta', `${p.progress} / ${p.goal} :hammer: · ${phase(p.progress / p.goal)}`));
+    else card.append(el('p', 'town-project', isNamed(p) ? `:check: ${p.name} built!` : 'No project yet'), progressBar(isNamed(p) ? p : null),
       el('p', 'town-meta', 'Open to start the next project'));
     card.onclick = () => { openCode = code; showForm = false; render(); };
     return card;
@@ -266,26 +266,26 @@ function renderDetail(code) {
   const me = auth.currentUser?.uid;
   const members = Object.entries(t.members || {})
     .sort(([, a], [, b]) => (a.joinedAt?.seconds || 0) - (b.joinedAt?.seconds || 0));
-  $('townTitle').textContent = '🏘️ ' + t.name;
+  $('townTitle').innerHTML = window.pit(':town: ' + t.name);
   $('townCodeShow').textContent = t.code;
   $('townMembers').replaceChildren(...members.map(([uid, m]) =>
-    el('li', null, (uid === t.createdBy ? '👑 ' : '🏝️ ') + m.name + (uid === me ? ' (you)' : '') + (uid === t.createdBy ? ' · founder' : ''))));
+    el('li', null, (uid === t.createdBy ? ':crown: ' : ':island: ') + m.name + (uid === me ? ' (you)' : '') + (uid === t.createdBy ? ' · founder' : ''))));
 
   const p = t.project, active = isActive(p);
   show('projActive', isNamed(p));
   show('projNew', !active);
   if (isNamed(p)) {
     const f = Math.min(1, p.progress / p.goal);
-    $('projectTitle').textContent = `${active ? '🏗️' : '✅'} ${p.name}`;
+    $('projectTitle').innerHTML = window.pit(`${active ? ':crane:' : ':check:'} ${p.name}`);
     $('projectFill').style.width = f * 100 + '%';
-    $('projectText').textContent = active
-      ? `${p.progress} / ${p.goal} 🔨 · ${phase(f)} · watch it grow on your island!`
-      : 'Built! It now stands on everyone\'s island. 🎉';
+    $('projectText').innerHTML = window.pit(active
+      ? `${p.progress} / ${p.goal} :hammer: · ${phase(f)} · watch it grow on your island!`
+      : 'Built! It now stands on everyone\'s island. :party:');
   }
   $('projIntro').textContent = isNamed(p) ? 'Start the next project' : 'What should your town build first?';
   const built = t.built || [];
   $('builtList').replaceChildren(...(built.length
-    ? built.map(b => el('li', null, `✅ ${b.name} · ${b.goal} 🔨`))
+    ? built.map(b => el('li', null, `:check: ${b.name} · ${b.goal} :hammer:`))
     : [el('li', 'muted', 'Nothing yet. Finish a project to see it here.')]));
 }
 
@@ -323,7 +323,7 @@ async function startProject() {
   const code = openCode, name = $('projName').value.trim(), goal = Math.round(+$('projGoal').value);
   if (!code) return;
   if (!name) return window.toast('Give the project a name first!');
-  if (!(goal >= MIN_GOAL && goal <= MAX_GOAL)) return window.toast(`Pick a goal between ${MIN_GOAL} and ${MAX_GOAL} 🔨`);
+  if (!(goal >= MIN_GOAL && goal <= MAX_GOAL)) return window.toast(`Pick a goal between ${MIN_GOAL} and ${MAX_GOAL} :hammer:`);
   const user = auth.currentUser, ref = doc(db, 'towns', code);
   try {
     const result = await runTransaction(db, async tx => {
@@ -344,7 +344,7 @@ async function startProject() {
       return 'ok';
     });
     if (result === 'busy') return window.toast('Your town is already building something. Finish it first!');
-    if (result === 'ok') { $('projName').value = ''; window.toast(`🏗️ ${name} is underway!`); }
+    if (result === 'ok') { $('projName').value = ''; window.toast(`:crane: ${name} is underway!`); }
   } catch (e) {
     console.warn('[town] start project failed', e);
     window.toast('Could not start the project (' + e.code + ')');
@@ -369,7 +369,7 @@ async function contributeTo(code, text, points, user) {
       });
       return done ? p.name : null;
     });
-    if (finished) window.toast(`🎉 ${towns.get(code)?.name || 'Your town'} finished building the ${finished}!`);
+    if (finished) window.toast(`:party: ${towns.get(code)?.name || 'Your town'} finished building the ${finished}!`);
   } catch (e) {
     console.warn('[town] contribute failed', code, e);
   }
@@ -474,7 +474,7 @@ async function postNote(code, input) {
       uid: auth.currentUser.uid, name: playerName(), text, points: 0, note: true, createdAt: serverTimestamp(),
     });
     input.value = '';
-    window.toast('📌 Note pinned!');
+    window.toast(':pin: Note pinned!');
   } catch (e) {
     console.warn('[town] note failed', e);
     window.toast('Could not pin the note (' + e.code + ')');
