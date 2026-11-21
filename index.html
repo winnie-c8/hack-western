@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Future Me Island</title>
 <link rel="preload" href="fonts/VCR_OSD_MONO.ttf" as="font" type="font/ttf" crossorigin>
-<link rel="stylesheet" href="style.css?v=26">
+<link rel="stylesheet" href="style.css?v=28">
 </head>
 <body>
 <div id="intro" class="intro" role="dialog" aria-label="Welcome to Future Me Island">
@@ -53,15 +53,23 @@
     <div class="stat"><span class="stat-ico"><i data-pi="piggy"></i></span><div><b id="saved">$0</b><small>real $ saved</small></div></div>
     <div class="stat"><span class="stat-ico"><i data-pi="flame"></i></span><div><b id="streak">0</b><small>day streak</small></div></div>
     </div>
+    <div class="sky-clock" id="skyClock">
+      <canvas id="skyArc" width="56" height="28" aria-hidden="true"></canvas>
+      <div class="sky-text"><b id="skyTime"></b><small id="skyPhase"></small><small id="skyNext" class="sky-next"></small></div>
+    </div>
   </div>
 
   <nav class="hud hud-right" aria-label="Menu">
-    <button class="menu-btn" id="editBtn" aria-pressed="false"><span class="ico"><i data-pi="pencil"></i></span>edit</button>
     <button class="menu-btn" data-open="bank"><span class="ico"><i data-pi="bank"></i></span>bank</button>
     <button class="menu-btn" data-open="daily"><span class="ico"><i data-pi="flame"></i></span>daily</button>
     <button class="menu-btn" data-open="goals"><span class="ico"><i data-pi="target"></i></span>goals</button>
-    <button class="menu-btn" data-open="history"><span class="ico"><i data-pi="scroll"></i></span>history</button>
-    <button class="menu-btn" id="mainMenuBtn"><span class="ico"><i data-pi="home"></i></span>home</button>
+    <div class="more-wrap">
+      <button class="menu-btn more-btn" id="moreBtn" type="button" aria-haspopup="menu" aria-expanded="false" aria-controls="moreMenu"><span class="ico"><i data-pi="dots"></i></span>more</button>
+      <div id="moreMenu" class="more-menu hidden" role="menu" aria-label="More">
+        <button class="more-item" id="editBtn" type="button" role="menuitem" aria-pressed="false"><i data-pi="pencil"></i><span>edit island</span></button>
+        <button class="more-item" data-open="history" type="button" role="menuitem"><i data-pi="scroll"></i><span>history</span></button>
+      </div>
+    </div>
     <button class="help-dot" id="helpBtn" aria-label="Controls" aria-controls="helpPop">?</button>
   </nav>
   <div id="helpPop" class="help-pop hidden" role="dialog" aria-label="Controls">
@@ -100,6 +108,11 @@
   <div class="window bank-window">
     <div class="window-head"><h2 id="bankTitle"><i data-pi="bank"></i> Bank</h2><button class="close" data-close aria-label="Close">✕</button></div>
     <div class="window-body bank-body">
+      <!-- only shown the first time the bank pops up after "Enter my world!" -->
+      <div id="bankWelcome" class="bank-welcome" hidden>
+        <div class="welcome-row"><i data-pi="sparkle"></i><h3 class="welcome-word" aria-label="welcome!"></h3><i data-pi="sparkle"></i></div>
+        <p class="welcome-sub"></p>
+      </div>
       <!-- the big, obvious part: how much + LOG! (Figma Desktop-3) -->
       <h3 class="bank-q"><label for="depAmount">how much <span class="real">real money</span> did you save today?</label></h3>
       <div class="amt-tiles" role="group" aria-label="Quick amounts">
@@ -346,13 +359,14 @@
   </section>
 </div>
 
-<script src="icons.js?v=26"></script>
-<script src="intro.js"></script>
+<script src="icons.js?v=27"></script>
+<script src="sky.js?v=27"></script>
+<script src="intro.js?v=27"></script>
 <script src="Updated/Music%20for%20game.js?v=1"></script>
-<script src="game.js?v=25"></script>
-<script src="Set%20goals.js?v=25"></script>
-<script src="daily-star.js"></script>
+<script src="game.js?v=27"></script>
+<script src="Set%20goals.js?v=27"></script>
+<script src="daily-star.js?v=27"></script>
 <script type="module" src="cloud.js"></script>
-<script type="module" src="town.js?v=25"></script>
+<script type="module" src="town.js?v=27"></script>
 </body>
 </html>

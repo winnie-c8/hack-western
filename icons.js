@@ -235,6 +235,27 @@
       R(c.g, 0, 0, 16, 16); Y(c.p, [[5, 0], [11, 0], [16, 16], [0, 16]]);
       R(c.w, 7, 2, 2, 2); R(c.w, 7, 7, 2, 2); R(c.w, 7, 12, 2, 3); R(c.G, 1, 3, 1, 1); R(c.G, 14, 6, 1, 1);
     }],
+    sun: ['twinkle', ({ E, P }, c) => {
+      P(c.y, [[7, 0], [8, 0], [7, 15], [8, 15], [0, 7], [0, 8], [15, 7], [15, 8], [2, 2], [13, 2], [2, 13], [13, 13], [3, 3], [12, 3], [3, 12], [12, 12]]);
+      E(c.Y, 8, 8, 5); E(c.y, 8, 8, 4.2); P(c.w, [[6, 5], [5, 6]]);
+    }],
+    moon: ['tilt', ({ E, P }, c) => {
+      E(c.w, 8, 8, 6.5); E(null, 11, 6, 5.5); P(c.s, [[5, 9], [6, 11], [4, 7]]); P(c.y, [[13, 12], [14, 2]]);
+    }],
+    sunrise: ['hop', ({ E, R, P }, c) => {
+      E(c.o, 8, 12, 5.5); E(c.y, 8, 12, 4); R(null, 0, 12, 16, 4); R(c.t, 0, 12, 16, 2); R(c.T, 0, 14, 16, 2); R(c.l, 3, 13, 3, 1); R(c.l, 10, 15, 3, 1);
+      P(c.R, [[8, 0], [7, 1], [8, 1], [9, 1], [6, 2], [8, 2], [10, 2], [8, 3], [8, 4]]);
+    }],
+    sunset: ['bob', ({ E, R, P }, c) => {
+      E(c.R, 8, 12, 5.5); E(c.o, 8, 12, 4); R(null, 0, 12, 16, 4); R(c.d, 0, 12, 16, 2); R(c.T, 0, 14, 16, 2); R(c.r, 3, 13, 3, 1); R(c.r, 10, 15, 3, 1);
+      P(c.d, [[8, 0], [8, 1], [8, 2], [6, 2], [10, 2], [7, 3], [8, 3], [9, 3], [8, 4]]);
+    }],
+    dots: ['dots', ({ R, P }, c) => {
+      for (const x of [0, 6, 12]) {
+        R(c.S, x, 6, 4, 4); P(null, [[x, 6], [x + 3, 6], [x, 9], [x + 3, 9]]);
+        R(c.s, x + 1, 6, 2, 2); P(c.s, [[x, 7]]); P(c.w, [[x + 1, 6]]);
+      }
+    }],
     check: ['pop', ({ R, P }, c) => {
       R(c.g, 1, 1, 14, 14); R(c.G, 1, 13, 14, 2);
       P(c.w, [[3, 8], [4, 9], [5, 10], [6, 11], [7, 10], [8, 9], [9, 8], [10, 7], [11, 6], [12, 5], [4, 8], [5, 9], [6, 10], [7, 9], [8, 8], [9, 7], [10, 6], [11, 5], [12, 4]]);
@@ -366,6 +387,10 @@
       R(c.R, 7, 0, 3, 2); R(c.t, 13, 5, 3, 2); R(c.g, 7, 12, 3, 2); R(c.r, 0, 5, 3, 2);
       P(c.y, [[12, 1], [13, 2]]); P(c.p, [[2, 10], [3, 11]]); P(c.o, [[12, 11], [13, 10]]); P(c.l, [[2, 2], [3, 1]]);
     },
+    crate: ({ R, P }, c) => {
+      R(c.b, 2, 4, 12, 11); R(c.B, 2, 4, 12, 1); R(c.B, 2, 14, 12, 1); R(c.B, 2, 4, 1, 11); R(c.B, 13, 4, 1, 11);
+      P(c.B, [[4, 6], [5, 7], [6, 8], [7, 9], [8, 10], [9, 11], [10, 12], [11, 13]]);
+    },
     castle: ({ R, P, E }, c) => {
       R(c.s, 3, 7, 10, 9); R(c.s, 0, 4, 4, 12); R(c.s, 12, 4, 4, 12);
       P(c.s, [[0, 3], [2, 3], [12, 3], [14, 3], [4, 6], [6, 6], [9, 6], [11, 6]]);
@@ -446,12 +471,25 @@
     return svgCache[name] = out;
   }
 
-  let seq = 0;
-  // Inline animated icon. Each one gets a different phase so rows of icons don't move in lockstep.
+  function dotsBody() {
+    const px = grid('dots', false); let out = '';
+    [[0, 5], [5, 11], [11, 16]].forEach(([x0, x1], k) => {
+      out += `<g class="pd pd${k + 1}">`;
+      for (let y = 0; y < N; y++) for (let x = x0; x < x1;) {
+        const c = px[y][x]; let w = 1;
+        while (c && x + w < x1 && px[y][x + w] === c) w++;
+        if (c) out += `<rect x="${x}" y="${y}" width="${w}" height="1" fill="${c}"/>`;
+        x += w;
+      }
+      out += '</g>';
+    });
+    return out;
+  }
+
+  // Inline pixel icon. It stays still and plays its little animation while hovered (see .pi in style.css).
   window.pi = (name, cls = '') => {
     const anim = ICONS[name]?.[0] || 'bob';
-    const delay = -((seq++ * 0.37) % 2.4).toFixed(2);
-    return `<svg class="pi pa-${anim} ${cls}" style="animation-delay:${delay}s" viewBox="-1 -1 18 18" shape-rendering="crispEdges" aria-hidden="true">${svgBody(name)}</svg>`;
+    return `<svg class="pi pa-${anim} ${cls}" viewBox="-1 -1 18 18" shape-rendering="crispEdges" aria-hidden="true">${name === 'dots' ? dotsBody() : svgBody(name)}</svg>`;
   };
   const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   window.pit = text => esc(text).replace(/:([a-z]+):/g, (m, n) => (ICONS[n] || ITEMS[n]) ? window.pi(n) : m);
