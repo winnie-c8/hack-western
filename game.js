@@ -57,13 +57,15 @@ const today = () => fmt(new Date());
 const weekKey = (d = new Date()) => { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return fmt(x); };
 const defaultState = () => ({
   coins: 100, saved: 0, history: [], inventory: {}, placed: [],
-  goals: [], streak: 0, lastStreakDay: null, missionsDay: today(), missionsDone: [],
+  goals: [], personalGoals: [], streak: 0, lastStreakDay: null, missionsDay: today(), missionsDone: [],
   player: { x: 19, y: 15 }, weeks: [], lastDepositDay: null, worldV: 3,
   accounts: ['High-interest savings', 'TFSA', 'RRSP', 'FHSA (first home)'],
   paths: {},            // "x,y" -> path style, or 'none' where a default road was removed
   pathKits: ['dirt'],   // path styles you own (bought in the shop)
   layout: {},           // where you moved the shop / Maple: { shop: {x,y}, fox: {x,y} }
   buildPos: {},         // where you moved each town building: { key: {x,y} }
+  visionBoard: { selections: null, unlocked: 0 },
+  dailyStar: { date: null, games: [], completed: false, score: null, reward: 0, rounds: [] },
 });
 let S;
 let hadLocalSave = false; // a brand-new local island must never overwrite the cloud copy
@@ -900,14 +902,16 @@ function renderStats() {
 // "side" panels (daily) sit on the right and don't block walking; the rest are centred pop-ups
 const anyOpen = () => !!document.querySelector('.modal:not(.hidden):not(.side)');
 function closePanels() {
+  if (document.querySelector('.required-setup:not(.hidden)')) return false;
   document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
   document.querySelectorAll('[data-open]').forEach(b => b.classList.remove('active'));
   document.activeElement?.blur?.();
+  return true;
 }
 function openPanel(name) {
   const el = $('panel-' + name), side = el.classList.contains('side');
   const wasOpen = !el.classList.contains('hidden');
-  closePanels();
+  if (!closePanels()) return;
   if (side && wasOpen) return; // clicking the same button again closes it
   el.classList.remove('hidden');
   document.querySelector(`[data-open="${name}"]`)?.classList.add('active');
@@ -923,7 +927,9 @@ paintTownIsle();
 $('helpBtn').onclick = e => { e.stopPropagation(); $('helpPop').classList.toggle('hidden'); $('helpBtn').classList.toggle('active'); };
 addEventListener('click', e => { if (!e.target.closest('#helpPop')) { $('helpPop').classList.add('hidden'); $('helpBtn').classList.remove('active'); } });
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = closePanels);
-document.querySelectorAll('.modal').forEach(m => m.addEventListener('mousedown', e => { if (e.target === m) closePanels(); }));
+document.querySelectorAll('.modal').forEach(m => m.addEventListener('mousedown', e => {
+  if (e.target === m && !m.classList.contains('required-setup')) closePanels();
+}));
 
 // ---------- Bank ----------
 // consecutive weeks (ending this week) with at least one deposit
@@ -1514,12 +1520,15 @@ $('chatForm').onsubmit = async e => {
 };
 $('chatInput').addEventListener('keydown', e => { if (e.key === 'Escape') closeChat(); });
 
-function renderAll() { if (editMode) renderEditTools(); renderAccounts(); renderStats(); renderHistory(); renderRules(); renderShop(); renderInventory(); renderGoals(); renderMissions(); }
+function renderAll() { if (editMode) renderEditTools(); renderAccounts(); renderStats(); renderHistory(); renderRules(); renderShop(); renderInventory(); renderGoals(); window.renderPersonalGoals?.(); renderMissions(); }
 renderAll();
 
 if (document.body.classList.contains('intro-open')) {
   new MutationObserver((_, obs) => {
-    if (!document.body.classList.contains('intro-open')) { obs.disconnect(); openPanel('bank'); }
+    if (!document.body.classList.contains('intro-open')) {
+      obs.disconnect();
+      if ($('visionSetupModal').classList.contains('hidden')) openPanel('bank');
+    }
   }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 } else openPanel('bank');
 
@@ -1532,7 +1541,7 @@ window.loadCloudState = data => {
   Object.assign(P, { x: S.player.x, y: S.player.y, rx: S.player.x, ry: S.player.y, moving: false });
   applyLayout(); applySavedPaths(); paintAll(); window.setTownBuilds(lastBuildList);
   followCam(true);
-  rollDay(); renderAll();
+  rollDay(); renderAll(); window.renderVisionBoard?.();
 };
 window.getState = () => S;
 window.hasLocalSave = () => hadLocalSave;
