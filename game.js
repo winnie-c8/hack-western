@@ -80,8 +80,7 @@ const defaultState = () => ({
   pathKits: ['dirt'],   // path styles you own (bought in the shop)
   layout: {},           // where you moved the shop / Maple: { shop: {x,y}, fox: {x,y} }
   buildPos: {},         // where you moved each town building: { key: {x,y} }
-  visionBoard: { selections: null, unlocked: 0 },
-  dailyStar: { date: null, games: [], completed: false, score: null, reward: 0, rounds: [] },
+  dailyStar: { date: null, games: [], completed: false, score: null, rounds: [] },
 });
 let S;
 let hadLocalSave = false; // a brand-new local island must never overwrite the cloud copy
@@ -800,7 +799,13 @@ function update() {
   }
 }
 const nearVillager = () => Math.abs(P.x - VILLAGER.x) + Math.abs(P.y - VILLAGER.y) <= 1;
-const nearShop = () => P.y === SHOP_BLD.y + SHOP_BLD.h && P.x >= SHOP_BLD.x && P.x < SHOP_BLD.x + SHOP_BLD.w;
+const nearShop = () => {
+  const besideHorizontalEdge = P.y >= SHOP_BLD.y && P.y < SHOP_BLD.y + SHOP_BLD.h &&
+    (P.x === SHOP_BLD.x - 1 || P.x === SHOP_BLD.x + SHOP_BLD.w);
+  const besideVerticalEdge = P.x >= SHOP_BLD.x && P.x < SHOP_BLD.x + SHOP_BLD.w &&
+    (P.y === SHOP_BLD.y - 1 || P.y === SHOP_BLD.y + SHOP_BLD.h);
+  return besideHorizontalEdge || besideVerticalEdge;
+};
 followCam(true);
 (function loop() { update(); draw(); requestAnimationFrame(loop); })();
 
@@ -926,16 +931,14 @@ function renderStats() {
 // "side" panels (daily) sit on the right and don't block walking; the rest are centred pop-ups
 const anyOpen = () => !!document.querySelector('.modal:not(.hidden):not(.side)');
 function closePanels() {
-  if (document.querySelector('.required-setup:not(.hidden)')) return false;
   document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
   document.querySelectorAll('[data-open]').forEach(b => b.classList.remove('active'));
   document.activeElement?.blur?.();
-  return true;
 }
 function openPanel(name) {
   const el = $('panel-' + name), side = el.classList.contains('side');
   const wasOpen = !el.classList.contains('hidden');
-  if (!closePanels()) return;
+  closePanels();
   if (side && wasOpen) return; // clicking the same button again closes it
   el.classList.remove('hidden');
   document.querySelector(`[data-open="${name}"]`)?.classList.add('active');
@@ -952,7 +955,7 @@ $('helpBtn').onclick = e => { e.stopPropagation(); $('helpPop').classList.toggle
 addEventListener('click', e => { if (!e.target.closest('#helpPop')) { $('helpPop').classList.add('hidden'); $('helpBtn').classList.remove('active'); } });
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = closePanels);
 document.querySelectorAll('.modal').forEach(m => m.addEventListener('mousedown', e => {
-  if (e.target === m && !m.classList.contains('required-setup')) closePanels();
+  if (e.target === m) closePanels();
 }));
 
 // ---------- Bank ----------
@@ -1473,7 +1476,7 @@ if (document.body.classList.contains('intro-open')) {
   new MutationObserver((_, obs) => {
     if (!document.body.classList.contains('intro-open')) {
       obs.disconnect();
-      if ($('visionSetupModal').classList.contains('hidden')) openPanel('bank');
+      openPanel('bank');
     }
   }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 } else openPanel('bank');
@@ -1487,7 +1490,7 @@ window.loadCloudState = data => {
   Object.assign(P, { x: S.player.x, y: S.player.y, rx: S.player.x, ry: S.player.y, moving: false });
   applyLayout(); applySavedPaths(); paintAll(); window.setTownBuilds(lastBuildList);
   followCam(true);
-  rollDay(); renderAll(); window.renderVisionBoard?.();
+  rollDay(); renderAll();
 };
 window.getState = () => S;
 window.hasLocalSave = () => hadLocalSave;

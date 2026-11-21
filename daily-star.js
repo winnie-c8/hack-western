@@ -1,17 +1,8 @@
-// ---------- Daily Star and Vision Board ----------
+// ---------- Daily Star ----------
 (() => {
   const $ = id => document.getElementById(id);
   const state = () => window.getState();
-  const MAX_TILES = 50;
   const ROUNDS_PER_DAY = 7;
-
-  const dreams = [
-    { id: 'place', title: 'Dream place to live', placeholder: 'e.g. Tokyo, Japan', emoji: '🌍' },
-    { id: 'job', title: 'Dream job', placeholder: 'e.g. wildlife photographer', emoji: '💼' },
-    { id: 'car', title: 'Dream car', placeholder: 'e.g. electric road-trip van', emoji: '🚗' },
-    { id: 'home', title: 'Dream home', placeholder: 'e.g. a cabin by a lake', emoji: '🏡' },
-    { id: 'adventure', title: 'Dream experience', placeholder: 'e.g. travel around the world', emoji: '✨' },
-  ];
 
   const games = [
     { id: 'clock', name: 'Stop the clock', description: 'A hidden timer is running. Stop it when you think exactly 5 seconds have passed.' },
@@ -29,8 +20,6 @@
 
   let run = null;
   let pitchContext = null;
-  let setupAfterSave = false;
-  let setupCanCancel = false;
   let countdownInterval = null;
 
   // The Daily Star follows the device's local date, same as daily missions in game.js
@@ -52,6 +41,10 @@
     return `${hours}h ${String(minutes).padStart(2, '0')}m ${String(seconds % 60).padStart(2, '0')}s`;
   }
 
+  function resetCountdownMessage() {
+    return `The Daily Star resets in ${countdownText()} (midnight local time).`;
+  }
+
   function updateCountdown() {
     if (ensureState().dailyStar.date !== localDay() || !ensureState().dailyStar.completed) {
       const note = $('introNote');
@@ -71,10 +64,10 @@
     const message = countdownText();
     const note = $('introNote');
     if (note.dataset.dailyLocked === 'true') {
-      note.textContent = `Sorry, the daily star has twinkled already. Check back in ${message}.`;
+      note.textContent = `Sorry, the daily star has twinkled already. Check back in ${message} (midnight local time).`;
     }
     const modalCountdown = $('starCountdown');
-    if (modalCountdown) modalCountdown.textContent = `The Daily Star resets in ${message} (midnight your time).`;
+    if (modalCountdown) modalCountdown.textContent = resetCountdownMessage();
   }
 
   function showAlreadyPlayed() {
@@ -89,79 +82,8 @@
 
   function ensureState() {
     const s = state();
-    if (!s.visionBoard) s.visionBoard = { selections: null, unlocked: 0 };
-    if (!Number.isInteger(s.visionBoard.unlocked)) s.visionBoard.unlocked = 0;
-    s.visionBoard.unlocked = Math.max(0, Math.min(MAX_TILES, s.visionBoard.unlocked));
-    if (!s.dailyStar) s.dailyStar = { date: null, games: [], completed: false, score: null, reward: 0, rounds: [] };
+    if (!s.dailyStar) s.dailyStar = { date: null, games: [], completed: false, score: null, rounds: [] };
     return s;
-  }
-
-  function renderChoices() {
-    const selections = ensureState().visionBoard.selections || {};
-    const container = $('visionChoices');
-    container.replaceChildren(...dreams.map(dream => {
-      const label = document.createElement('label');
-      label.className = 'vision-choice';
-      label.textContent = dream.title;
-      const input = document.createElement('input');
-      input.type = 'text';
-      input.name = dream.id;
-      input.placeholder = dream.placeholder;
-      input.maxLength = 40;
-      input.required = true;
-      input.value = selections[dream.id] || '';
-      label.append(input);
-      return label;
-    }));
-    $('visionSetupCancel').classList.toggle('hidden', !setupCanCancel);
-  }
-
-  function openSetup({ canCancel = false, startAfter = false } = {}) {
-    setupCanCancel = canCancel;
-    setupAfterSave = startAfter;
-    renderChoices();
-    $('visionSetupModal').classList.toggle('required-setup', !canCancel);
-    $('visionSetupModal').classList.remove('hidden');
-    document.querySelector('#visionChoices input')?.focus();
-  }
-
-  function closeSetup() {
-    $('visionSetupModal').classList.add('hidden');
-    $('visionSetupModal').classList.remove('required-setup');
-  }
-
-  function renderBoard() {
-    const board = ensureState().visionBoard;
-    const unlocked = board.unlocked;
-    $('visionBoardProgress').textContent =
-      `${unlocked} of ${MAX_TILES} tiles revealed · ${MAX_TILES - unlocked} still waiting for you`;
-    const cells = Array.from({ length: MAX_TILES }, (_, index) => {
-      const tile = document.createElement('div');
-      tile.className = 'vision-tile';
-      if (index >= unlocked || !board.selections) {
-        tile.classList.add('locked');
-        tile.setAttribute('aria-label', `Locked vision tile ${index + 1}`);
-        tile.innerHTML = '<span class="tile-lock" aria-hidden="true">🔒</span><span>Tile ' +
-          String(index + 1).padStart(2, '0') + '</span>';
-        return tile;
-      }
-      const dream = dreams[Math.floor(index / 10)];
-      const name = board.selections[dream.id];
-      tile.classList.add('revealed', `dream-${dream.id}`);
-      tile.setAttribute('aria-label', `Revealed tile ${index + 1}: ${dream.title}, ${name}`);
-      const icon = document.createElement('span');
-      icon.className = 'tile-emoji';
-      icon.textContent = dream.emoji;
-      const title = document.createElement('span');
-      title.className = 'tile-title';
-      title.textContent = name;
-      const category = document.createElement('span');
-      category.className = 'tile-category';
-      category.textContent = `${dream.title} · ${index % 10 + 1}/10`;
-      tile.append(icon, title, category);
-      return tile;
-    });
-    $('visionBoardGrid').replaceChildren(...cells);
   }
 
   function randomGames() {
@@ -185,10 +107,6 @@
       if (!countdownInterval) countdownInterval = setInterval(updateCountdown, 1000);
       return;
     }
-    if (!s.visionBoard.selections) {
-      openSetup({ canCancel: false, startAfter: true });
-      return;
-    }
     $('dailyStarModal').classList.remove('hidden');
     if (!run || run.day !== localDay()) {
       const savedRun = s.dailyStar.date === localDay() &&
@@ -202,7 +120,7 @@
         ? s.dailyStar.rounds.slice() : [];
       run = { day: localDay(), ids, index: scores.length, scores };
       if (!savedRun) {
-        s.dailyStar = { date: run.day, games: ids, completed: false, score: null, reward: 0, rounds: [] };
+        s.dailyStar = { date: run.day, games: ids, completed: false, score: null, rounds: [] };
         window.saveGame();
       }
       if (run.index === ROUNDS_PER_DAY) finishChallenge();
@@ -215,8 +133,8 @@
     $('starRoundMount').innerHTML = `<div class="star-result">
       <div class="result-score">${Number(result.score).toFixed(1)}<small> / 10</small></div>
       <p>Accuracy: ${Math.round(result.score * 10)}%</p>
-      <p>You revealed ${result.reward} more vision-board tile${result.reward === 1 ? '' : 's'} today.</p>
-      <p id="starCountdown">The Daily Star resets in ${countdownText()} (midnight your time).</p>
+      <p>You completed all seven games today. Come back tomorrow for a new challenge!</p>
+      <p id="starCountdown">${resetCountdownMessage()}</p>
     </div>`;
     $('starNext').classList.add('hidden');
   }
@@ -578,51 +496,24 @@
     const s = ensureState();
     const rawScore = run.scores.reduce((sum, value) => sum + value, 0) / ROUNDS_PER_DAY / 10;
     const score = Math.round(rawScore * 10) / 10;
-    const reward = score > 6 ? 3 : score > 5 ? 2 : 1;
-    const unlocked = Math.min(MAX_TILES - s.visionBoard.unlocked, reward);
-    s.visionBoard.unlocked += unlocked;
     s.dailyStar = {
       date: run.day,
       games: run.ids,
       completed: true,
       score,
-      reward: unlocked,
       rounds: run.scores.slice(),
     };
     window.saveGame();
-    renderBoard();
     $('starRoundProgress').textContent = 'Challenge complete!';
     $('starRoundMount').innerHTML = `<div class="star-result">
       <div class="result-score">${score.toFixed(1)}<small> / 10</small></div>
       <p>Accuracy: ${Math.round(score * 10)}%</p>
-      <p>You revealed ${unlocked} vision-board tile${unlocked === 1 ? '' : 's'}.</p>
-      ${s.visionBoard.unlocked === MAX_TILES ? '<p>🎉 Your whole Vision Board is revealed!</p>' : ''}
+      <p>You completed all seven games today. Come back tomorrow for a new challenge!</p>
     </div>`;
     $('starNext').classList.add('hidden');
     run = null;
   }
 
-  $('visionSetupForm').addEventListener('submit', event => {
-    event.preventDefault();
-    const s = ensureState();
-    const selections = {};
-    for (const dream of dreams) {
-      const input = event.currentTarget.elements.namedItem(dream.id);
-      const value = String(new FormData(event.currentTarget).get(dream.id) || '').trim();
-      input.setCustomValidity(value ? '' : `Enter your ${dream.title.toLowerCase()}.`);
-      if (!value) { input.reportValidity(); return; }
-      selections[dream.id] = value;
-    }
-    s.visionBoard.selections = selections;
-    window.saveGame();
-    closeSetup();
-    renderBoard();
-    if (setupAfterSave) startDailyStar();
-  });
-
-  $('visionSetupCancel').addEventListener('click', closeSetup);
-  $('editVisionBoard').addEventListener('click', () => openSetup({ canCancel: true }));
-  $('playDailyStarFromBoard').addEventListener('click', startDailyStar);
   $('closeDailyStar').addEventListener('click', () => $('dailyStarModal').classList.add('hidden'));
   $('starNext').addEventListener('click', () => {
     if (!run) return;
@@ -633,9 +524,4 @@
 
   window.getGameDay = localDay;
   window.startDailyStar = startDailyStar;
-  window.renderVisionBoard = renderBoard;
-  window.onEnterWorld = () => {
-    if (!ensureState().visionBoard.selections) openSetup({ canCancel: false });
-  };
-  renderBoard();
 })();

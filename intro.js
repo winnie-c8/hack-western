@@ -94,7 +94,6 @@
     document.body.classList.remove('intro-open');
     cancelAnimationFrame(raf);
     document.activeElement?.blur?.();
-    window.onEnterWorld?.();
   }
 
   enterWorld.addEventListener('click', e => {
@@ -110,13 +109,6 @@
       };
       intro.addEventListener('animationend', onLeave);
     }
-  });
-
-  document.getElementById('mainMenuBtn').addEventListener('click', () => {
-    intro.hidden = false;
-    intro.classList.remove('leaving');
-    document.body.classList.add('intro-open');
-    raf = requestAnimationFrame(frame);
   });
 
   // Daily Star is provided by daily-star.js; keep a fallback if that script is unavailable.
