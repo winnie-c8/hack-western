@@ -5,7 +5,7 @@
 // The player's town codes are kept on their island as S.townIds (S.townId = first one, for older saves).
 import { auth, db, ready } from './cloud.js';
 import {
-  doc, collection, query, orderBy, limit, onSnapshot, runTransaction, updateDoc, deleteField, serverTimestamp,
+  doc, collection, query, orderBy, limit, where, getDocs, addDoc, deleteDoc, onSnapshot, runTransaction, updateDoc, deleteField, serverTimestamp,
 } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
 
 // Shared projects: members name a project and set its goal; saving habits add 🔨 points.
@@ -86,13 +86,16 @@ function ago(ts) {
   return Math.floor(s / 86400) + 'd ago';
 }
 const seed = str => [...str].reduce((h, c) => (h * 31 + c.charCodeAt(0)) | 0, 7) >>> 0;
-const PAPERS = ['#fff7e6', '#fde2e4', '#e2f0d6', '#dff1ef', '#fff1c1', '#ece4f7'];
+// Poster colours: event types have fixed colours, everyday habit posts get one colour per player
+const EVENT_PAPER = { started: '#ffe58a', done: '#bfe6a8', stageUp: '#ffc9a3', empty: '#fff7e6' };
+const PLAYER_PAPERS = ['#fde2e4', '#dff1ef', '#ece4f7', '#dbe8fb', '#f6dcef', '#e2f0d6', '#f3e6d6', '#d9f2f7'];
+const playerPaper = uid => PLAYER_PAPERS[seed(uid || '?') % PLAYER_PAPERS.length];
 
-function poster({ headline, body, stamp, meta, key }) {
+function poster({ headline, body, stamp, meta, key, paper }) {
   const h = seed(key || headline);
   const p = el('article', 'poster');
   p.style.setProperty('--tilt', ((h % 9) - 4) * .8 + 'deg');
-  p.style.setProperty('--paper', PAPERS[h % PAPERS.length]);
+  p.style.setProperty('--paper', paper || EVENT_PAPER.empty);
   p.append(el('span', 'pin'), el('h4', 'headline', headline));
   if (body) p.append(el('p', 'body', body));
   if (stamp) p.append(el('span', 'stamp', stamp));
@@ -101,6 +104,7 @@ function poster({ headline, body, stamp, meta, key }) {
 }
 
 function renderBoard(target, codes) {
+  if (document.activeElement?.classList.contains('note-edit') && $(target).contains(document.activeElement)) return; // don't wipe a note mid-edit
   const items = codes.flatMap(code => (feeds.get(code) || []).map(f => ({ ...f, code })))
     .sort((a, b) => (b.createdAt?.seconds ?? 9e9) - (a.createdAt?.seconds ?? 9e9))
     .slice(0, 8);
@@ -111,15 +115,113 @@ function renderBoard(target, codes) {
       body: codes.length ? 'Start a project, then save something to post the first notice.' : 'Start or join a town and its news gets pinned here.',
     }));
   }
-  $(target).replaceChildren(...items.map(f => {
-    const town = towns.get(f.code)?.name || f.code;
-    const meta = (many ? town + ' · ' : '') + ago(f.createdAt);
-    if (f.done) return poster({ key: f.id, headline: '🎉 Built!', body: `${town} finished the ${f.project}! ${f.name} placed the last brick.`, meta });
-    if (f.started) return poster({ key: f.id, headline: '🏗️ New project', body: `${f.name} started building: ${f.project}`, meta });
-    if (f.stageUp) return poster({ key: f.id, headline: `🎉 Stage ${f.stageUp + 1}!`, body: `${f.name} helped ${town} reach a new stage.`, meta });
-    return poster({ key: f.id, headline: f.name, body: f.text + (f.project ? ` (for the ${f.project})` : ''), stamp: `+${f.points} 🔨`, meta });
-  }));
+  $(target).replaceChildren(...items.map(f => newsPoster(f, many)));
 }
+function newsPoster(f, showTown) {
+  const p = newsPosterBody(f, showTown);
+  if (f.id && f.code) p.append(posterActions(f, p));
+  return p;
+}
+// ♥ for everyone else's posts; ✏️ / 🗑️ on your own notes
+function posterActions(f, p) {
+  const me = auth.currentUser?.uid, ref = doc(db, 'towns', f.code, 'feed', f.id);
+  // keep hearts on the cached feed item, so an instant (optimistic) change survives the next re-render
+  const cached = (feeds.get(f.code) || []).find(x => x.id === f.id);
+  const hearts = cached ? (cached.hearts ||= {}) : (f.hearts || {});
+  const row = el('div', 'poster-actions');
+  const heart = el('button', 'heart');
+  heart.type = 'button';
+  const paint = () => {
+    const n = Object.keys(hearts).length, mine = !!hearts[me];
+    heart.className = 'heart' + (mine ? ' on' : '');
+    heart.textContent = `${mine ? '♥' : '♡'} ${n || ''}`.trim();
+    if (f.uid === me) heart.title = n ? `${n} heart${n === 1 ? '' : 's'}` : 'No hearts yet';
+    else heart.setAttribute('aria-label', mine ? 'Remove heart' : 'Heart this');
+  };
+  paint();
+  if (f.uid === me) heart.disabled = true;
+  else heart.onclick = () => {
+    // update the button right away, then save; put it back if the save fails
+    const on = !hearts[me];
+    if (on) hearts[me] = true; else delete hearts[me];
+    paint();
+    updateDoc(ref, { [`hearts.${me}`]: on ? true : deleteField() }).catch(e => {
+      if (on) delete hearts[me]; else hearts[me] = true;
+      paint();
+      console.warn('[town] heart failed', e); window.toast('Could not heart (' + e.code + ')');
+    });
+  };
+  row.append(heart);
+  if (f.note && f.uid === me) {
+    const edit = el('button', null, '✏️'), del = el('button', null, '🗑️');
+    edit.type = del.type = 'button';
+    edit.setAttribute('aria-label', 'Edit note'); del.setAttribute('aria-label', 'Delete note');
+    edit.onclick = () => {
+      const body = p.querySelector('.body'), input = el('input', 'note-edit');
+      input.value = f.text; input.maxLength = 100;
+      const saveEdit = () => {
+        input.onblur = null; input.classList.remove('note-edit'); // let the board refresh again
+        const text = input.value.trim().slice(0, 100);
+        if (!text || text === f.text) return render();
+        updateDoc(ref, { text, edited: true }).catch(e => { console.warn('[town] edit failed', e); window.toast('Could not edit (' + e.code + ')'); render(); });
+      };
+      input.onkeydown = e => { if (e.key === 'Enter') saveEdit(); if (e.key === 'Escape') { e.stopPropagation(); render(); } };
+      input.onblur = saveEdit;
+      body.replaceWith(input); input.focus();
+    };
+    del.onclick = () => {
+      if (!confirm('Delete this note?')) return;
+      deleteDoc(ref).then(() => window.toast('Note removed'))
+        .catch(e => { console.warn('[town] delete failed', e); window.toast('Could not delete (' + e.code + ')'); });
+    };
+    row.append(edit, del);
+  }
+  return row;
+}
+function newsPosterBody(f, showTown) {
+  const town = towns.get(f.code)?.name || f.code;
+  const meta = (showTown ? town + ' · ' : '') + ago(f.createdAt) + (f.edited ? ' · edited' : '');
+  if (f.done) return poster({ key: f.id, paper: EVENT_PAPER.done, headline: '🎉 Built!', body: `${town} finished the ${f.project}! ${f.name} placed the last brick.`, meta });
+  if (f.started) return poster({ key: f.id, paper: EVENT_PAPER.started, headline: '🏗️ New project', body: `${f.name} started building: ${f.project}`, meta });
+  if (f.note) return poster({ key: f.id, paper: playerPaper(f.uid), headline: `💌 ${f.name}`, body: f.text, meta });
+  if (f.stageUp) return poster({ key: f.id, paper: EVENT_PAPER.stageUp, headline: `🎉 Stage ${f.stageUp + 1}!`, body: `${f.name} helped ${town} reach a new stage.`, meta });
+  return poster({ key: f.id, paper: playerPaper(f.uid), headline: f.name, body: f.text + (f.project ? ` (for the ${f.project})` : ''), stamp: `+${f.points} 🔨`, meta });
+}
+
+// ---------- build info (Space next to a building on the island) ----------
+window.openBuildInfo = async b => {
+  window.openPanel('build');
+  const t = towns.get(b.code);
+  $('buildTitle').textContent = `${b.f >= 1 ? '✅' : '🏗️'} ${b.name}`;
+  $('buildSub').textContent = `${t?.name || b.code} · ${b.f >= 1 ? 'Built!' : `${Math.floor(b.f * 100)}% · ${phase(b.f)}`}`;
+  $('buildFill').style.width = b.f * 100 + '%';
+  $('buildContrib').replaceChildren(el('li', 'muted', 'Loading…'));
+  $('buildNews').replaceChildren();
+  try {
+    const snap = await getDocs(query(collection(db, 'towns', b.code, 'feed'), where('project', '==', b.name)));
+    const items = snap.docs.map(d => ({ id: d.id, code: b.code, ...d.data() }))
+      .sort((x, y) => (y.createdAt?.seconds ?? 9e9) - (x.createdAt?.seconds ?? 9e9));
+    const tasks = items.filter(f => !f.started && f.points > 0);
+    const by = new Map();
+    for (const f of tasks) {
+      const c = by.get(f.uid) || { name: f.name, n: 0, pts: 0 };
+      c.n++; c.pts += f.points; by.set(f.uid, c);
+    }
+    const rows = [...by.entries()].sort((a, c) => c[1].n - a[1].n).map(([uid, c]) => {
+      const pct = Math.round(c.n / tasks.length * 100);
+      const li = el('li', 'contrib');
+      const bar = el('div', 'town-bar'), fill = el('div', 'fill');
+      fill.style.width = pct + '%'; fill.style.background = playerPaper(uid); bar.append(fill);
+      li.append(el('span', null, `${c.name}${uid === auth.currentUser?.uid ? ' (you)' : ''}`), el('b', null, `${pct}% · ${c.n} task${c.n === 1 ? '' : 's'} · ${c.pts} 🔨`), bar);
+      return li;
+    });
+    $('buildContrib').replaceChildren(...(rows.length ? rows : [el('li', 'muted', 'No one has helped yet. Save something to add the first brick!')]));
+    $('buildNews').replaceChildren(...items.slice(0, 6).map(f => newsPoster(f, false)));
+  } catch (e) {
+    console.warn('[town] build info failed', e);
+    $('buildContrib').replaceChildren(el('li', 'muted', 'Could not load contributions (offline?)'));
+  }
+};
 
 // A project is "active" while it's named and not yet built. Older towns may have an unnamed project = none yet.
 const isNamed = p => !!(p && p.name && p.goal && p.number && p.startedBy);
@@ -193,8 +295,9 @@ function pushBuilds() {
   for (const code of myTowns()) {
     const t = towns.get(code);
     if (!t) continue;
-    for (const b of t.built || []) list.push({ town: t.name, name: b.name, f: 1 });
-    if (isNamed(t.project)) list.push({ town: t.name, name: t.project.name, f: Math.min(1, t.project.progress / t.project.goal) });
+    for (const b of t.built || []) list.push({ key: `${code}#${b.number}`, code, town: t.name, name: b.name, f: 1 });
+    if (isNamed(t.project)) list.push({ key: `${code}#${t.project.number}`, code, town: t.name, name: t.project.name, f: Math.min(1, t.project.progress / t.project.goal),
+      progress: t.project.progress, goal: t.project.goal, members: Object.keys(t.members || {}).length });
   }
   window.setTownBuilds?.(list);
 }
@@ -204,6 +307,11 @@ function render() {
   if (openCode && !towns.has(openCode)) openCode = ids.includes(openCode) ? openCode : null;
   status(ids.length ? `You're in ${ids.length} town${ids.length === 1 ? '' : 's'}. Click one to see more.` : 'You are not in a town yet.');
   renderBoard('townBoard', ids);                 // gallery board: news from all your towns
+  const pick = $('noteTown').value;
+  $('noteTown').replaceChildren(...ids.filter(c => towns.has(c)).map(c => { const o = el('option', null, towns.get(c).name); o.value = c; return o; }));
+  if (ids.includes(pick)) $('noteTown').value = pick;
+  show('noteTown', ids.length > 1);
+  show('noteForm', ids.length > 0);
   renderGallery(ids);
   show('townDetail', !!openCode);                // the clicked town opens in its own pop-up
   if (openCode) { renderBoard('townDetailBoard', [openCode]); renderDetail(openCode); }
@@ -355,6 +463,25 @@ $('playerName').addEventListener('input', () => {
         .catch(e => console.warn('[town] rename failed', e));
   }, 800);
 });
+
+// ---------- encouragement notes pinned to the news board ----------
+async function postNote(code, input) {
+  const text = input.value.trim().slice(0, 100);
+  if (!code) return window.toast('Join a town first!');
+  if (!text) return window.toast('Write a note first!');
+  try {
+    await addDoc(collection(db, 'towns', code, 'feed'), {
+      uid: auth.currentUser.uid, name: playerName(), text, points: 0, note: true, createdAt: serverTimestamp(),
+    });
+    input.value = '';
+    window.toast('📌 Note pinned!');
+  } catch (e) {
+    console.warn('[town] note failed', e);
+    window.toast('Could not pin the note (' + e.code + ')');
+  }
+}
+$('noteForm').onsubmit = e => { e.preventDefault(); postNote($('noteTown').value, $('noteText')); };
+$('noteFormDetail').onsubmit = e => { e.preventDefault(); postNote(openCode, $('noteTextDetail')); };
 
 $('createTown').onclick = createTown;
 $('projStart').onclick = startProject;

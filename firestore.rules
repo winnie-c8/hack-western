@@ -85,6 +85,20 @@ service cloud.firestore {
           && request.resource.data.points is int
           && request.resource.data.points >= 0 && request.resource.data.points <= 300
           && request.resource.data.text is string && request.resource.data.text.size() <= 120;
+        // the author can edit the text of their own encouragement note, or delete it
+        allow update: if member()
+          && resource.data.uid == request.auth.uid && resource.data.get('note', false) == true
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'edited'])
+          && request.resource.data.text is string && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 120;
+        allow delete: if member()
+          && resource.data.uid == request.auth.uid && resource.data.get('note', false) == true;
+        // other townsfolk can add/remove only their own heart on any post
+        allow update: if member()
+          && resource.data.uid != request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hearts'])
+          && request.resource.data.hearts.diff(resource.data.get('hearts', {})).affectedKeys().hasOnly([request.auth.uid])
+          && request.resource.data.hearts.get(request.auth.uid, true) == true;
       }
     }
   }
