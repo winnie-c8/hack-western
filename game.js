@@ -271,7 +271,7 @@ const P = { x: S.player.x, y: S.player.y, rx: S.player.x, ry: S.player.y, dir: '
 const keys = {};
 const typing = () => ['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName);
 addEventListener('keydown', e => {
-  if (typing()) return;
+  if (typing() || document.body.classList.contains('intro-open')) return;
   if (e.key.startsWith('Arrow')) { keys[e.key] = true; e.preventDefault(); }
   if (e.key === ' ') { e.preventDefault(); if (nearVillager()) openChat(); }
   if (e.key === 'Escape') { selectedItem = null; renderInventory(); closeChat(); }
