@@ -103,6 +103,8 @@ kbd { font: inherit; background: var(--paper); border: 2px solid var(--wood-dark
 .help-pop dt { padding-right: 12px; }
 .help-pop dd { color: var(--ink-soft); }
 .help-pop kbd { white-space: nowrap; }
+.music-credit { margin: 10px 0 0; color: var(--ink-soft); font-size: .75rem; }
+.music-credit a { color: var(--teal-dark); }
 
 /* town island pinned to the bottom-right corner of the screen */
 .town-isle {
