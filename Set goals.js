@@ -1,5 +1,5 @@
 // Goal logic uses the state and helpers defined in game.js, which must load first.
-
+// Setting Financial Goals, Goals section of the app
 $('addPersonalGoal').onclick = () => {
   const name = $('personalGoalName').value.trim(), target = +$('personalGoalTarget').value;
   if (!name || !(target > 0)) return toast('Add a name and target');
