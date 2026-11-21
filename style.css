@@ -394,6 +394,11 @@ label[for="depAmount"] { margin-bottom: 0; }
 .edit-tools .tool img { width: 20px; height: 20px; image-rendering: pixelated; border: 1px solid var(--ink); }
 .edit-tools .tool.active { background: var(--ink); color: var(--paper); }
 body.paving #game { cursor: crosshair; }
+/* shop category tabs */
+.shop-tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.shop-tab { cursor: pointer; font-size: .95rem; padding: 6px 12px; color: var(--ink); background: rgba(255,255,255,.55); border: 2px solid var(--wood); }
+.shop-tab:hover { background: #fff; }
+.shop-tab.on { background: var(--ink); color: var(--paper); border-color: var(--ink); }
 .shop-section { grid-column: 1 / -1; margin: 10px 0 0; font-size: 1.05rem; border-bottom: 1px dashed rgba(110,90,70,.45); padding-bottom: 4px; }
 .shop-section:first-child { margin-top: 0; }
 .shop-section small { font-size: .78rem; color: var(--ink-soft); text-transform: none; letter-spacing: 0; margin-left: 6px; }
