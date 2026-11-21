@@ -169,6 +169,7 @@
     document.getElementById('dailyStar').classList.remove('wiggle');
     document.body.classList.remove('intro-open');
     document.activeElement?.blur?.();
+    window.onEnterWorld?.();
   };
   intro.addEventListener('animationend', ev => { if (ev.target === intro) finish(); });
 
@@ -185,15 +186,13 @@
     if (!intro.hidden) return;
     document.querySelectorAll('.intro-btn').forEach(b => b.classList.remove('picked', 'wiggle'));
     note.textContent = ''; note.classList.remove('show');
-    const card = document.getElementById('starCard');
-    if (card) card.hidden = true;
-    document.querySelector('.intro-stage').classList.remove('star-mode');
     document.body.classList.add('intro-open');
     intro.hidden = false;
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(frame);
     enterBtn.focus({ preventScroll: true });
   };
+  document.getElementById('mainMenuBtn')?.addEventListener('click', () => window.showIntro());
 
   // Daily Star: if window.startDailyStar exists it runs, otherwise show a "coming soon" note.
   document.getElementById('dailyStar').addEventListener('click', e => {

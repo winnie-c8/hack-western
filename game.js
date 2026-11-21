@@ -80,7 +80,7 @@ const defaultState = () => ({
   pathKits: ['dirt'],   // path styles you own (bought in the shop)
   layout: {},           // where you moved the shop / Maple: { shop: {x,y}, fox: {x,y} }
   buildPos: {},         // where you moved each town building: { key: {x,y} }
-  dailyStar: null,
+  dailyStar: { date: null, games: [], completed: false, score: null, rounds: [] },
 });
 let S;
 let hadLocalSave = false; // a brand-new local island must never overwrite the cloud copy
@@ -874,7 +874,13 @@ function update() {
   }
 }
 const nearVillager = () => Math.abs(P.x - VILLAGER.x) + Math.abs(P.y - VILLAGER.y) <= 1;
-const nearShop = () => P.y === SHOP_BLD.y + SHOP_BLD.h && P.x >= SHOP_BLD.x && P.x < SHOP_BLD.x + SHOP_BLD.w;
+const nearShop = () => {
+  const besideHorizontalEdge = P.y >= SHOP_BLD.y && P.y < SHOP_BLD.y + SHOP_BLD.h &&
+    (P.x === SHOP_BLD.x - 1 || P.x === SHOP_BLD.x + SHOP_BLD.w);
+  const besideVerticalEdge = P.x >= SHOP_BLD.x && P.x < SHOP_BLD.x + SHOP_BLD.w &&
+    (P.y === SHOP_BLD.y - 1 || P.y === SHOP_BLD.y + SHOP_BLD.h);
+  return besideHorizontalEdge || besideVerticalEdge;
+};
 followCam(true);
 (function loop() { update(); draw(); requestAnimationFrame(loop); })();
 
@@ -1012,17 +1018,15 @@ function renderStats() {
 // "side" panels (daily) sit on the right and don't block walking; the rest are centred pop-ups
 const anyOpen = () => !!document.querySelector('.modal:not(.hidden):not(.side)');
 function closePanels() {
-  if (document.querySelector('.required-setup:not(.hidden)')) return false;
   document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
   document.querySelectorAll('[data-open]').forEach(b => b.classList.remove('active'));
   document.activeElement?.blur?.();
-  return true;
 }
 function openPanel(name) {
   $('bankWelcome').hidden = true; // the welcome banner is only for the very first pop-up
   const el = $('panel-' + name), side = el.classList.contains('side');
   const wasOpen = !el.classList.contains('hidden');
-  if (!closePanels()) return;
+  closePanels();
   if (side && wasOpen) return; // clicking the same button again closes it
   el.classList.remove('hidden');
   document.querySelector(`[data-open="${name}"]`)?.classList.add('active');
@@ -1039,7 +1043,7 @@ $('helpBtn').onclick = e => { e.stopPropagation(); $('helpPop').classList.toggle
 addEventListener('click', e => { if (!e.target.closest('#helpPop')) { $('helpPop').classList.add('hidden'); $('helpBtn').classList.remove('active'); } });
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = closePanels);
 document.querySelectorAll('.modal').forEach(m => m.addEventListener('mousedown', e => {
-  if (e.target === m && !m.classList.contains('required-setup')) closePanels();
+  if (e.target === m) closePanels();
 }));
 
 // ---------- Bank ----------
@@ -1523,17 +1527,24 @@ const TIPS = [
   "Small amounts add up — $5 a day is over $1,800 a year!",
   "An emergency fund of 3–6 months of expenses = peace of mind.",
 ];
+const chatHistory = [];
 async function askVillager(question) {
-  // TODO: replace with a real API call, e.g.
-  // const res = await fetch('/api/chat', { method: 'POST', body: JSON.stringify({ question, state: S }) });
-  // return (await res.json()).reply;
-  const q = question.toLowerCase();
-  if (q.includes('tfsa')) return TIPS[1];
-  if (q.includes('fhsa') || q.includes('home') || q.includes('house')) return TIPS[2];
-  if (q.includes('budget')) return TIPS[3];
-  if (q.includes('emergency')) return TIPS[5];
-  if (q.includes('streak')) return `You're on a ${S.streak}-day streak! Do any daily mission to keep it alive.`;
-  return TIPS[Math.floor(Math.random() * TIPS.length)];
+  const goals = (S.personalGoals || []).map(g => `${g.name}: $${g.saved}/$${g.target}`).join(', ') || 'none yet';
+  const context = `(Player info: saved $${S.saved} total, ${S.streak}-day streak, goals: ${goals})`;
+  try {
+    const API = ['localhost', '127.0.0.1'].includes(location.hostname)
+      ? 'http://localhost:3001' : 'https://future-me-cdzs.onrender.com';
+    const res = await fetch(`${API}/api/fox`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ history: chatHistory, message: `${question}\n${context}` }),
+    });
+    const { reply } = await res.json();
+    chatHistory.push({ role: 'user', text: question }, { role: 'model', text: reply });
+    return reply.replace(/[<>]/g, '');
+  } catch {
+    return TIPS[Math.floor(Math.random() * TIPS.length)];
+  }
 }
 function addMsg(text, who) { const d = document.createElement('div'); d.className = 'msg ' + who; d.innerHTML = pit(text); $('chatLog').append(d); $('chatLog').scrollTop = 1e9; }
 function openChat() {
@@ -1548,7 +1559,8 @@ $('chatForm').onsubmit = async e => {
   e.preventDefault();
   const q = $('chatInput').value.trim(); if (!q) return;
   $('chatInput').value = ''; addMsg(q, 'me');
-  addMsg(await askVillager(q), 'bot');
+  addMsg('...', 'bot'); const typing = $('chatLog').lastChild;
+  typing.innerHTML = pit(await askVillager(q));
   completeMission('chat');
 };
 $('chatInput').addEventListener('keydown', e => { if (e.key === 'Escape') closeChat(); });
