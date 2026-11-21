@@ -1,20 +1,21 @@
 // ===== Future Me Island — MVP =====
 const TILE = 40, COLS = 20, ROWS = 14;
-const COINS_PER_DOLLAR = 10;
+// Coins reward the HABIT, not the amount. Dollars only fill your Wish Jars.
+const REWARDS = { dailyLog: 10, firstThisWeek: 50, weekStreak: 150, jarFilled: 300 };
 
 const SHOP = [
-  { id: 'flower', emoji: '🌷', name: 'Tulip', price: 50 },
-  { id: 'tree', emoji: '🌳', name: 'Oak Tree', price: 150 },
-  { id: 'palm', emoji: '🌴', name: 'Palm Tree', price: 200 },
-  { id: 'bench', emoji: '🪑', name: 'Chair', price: 250 },
-  { id: 'lamp', emoji: '🏮', name: 'Lantern', price: 300 },
-  { id: 'fountain', emoji: '⛲', name: 'Fountain', price: 800 },
-  { id: 'tent', emoji: '⛺', name: 'Tent', price: 500 },
-  { id: 'house', emoji: '🏡', name: 'Dream Home', price: 5000 },
-  { id: 'car', emoji: '🚗', name: 'First Car', price: 3000 },
-  { id: 'plane', emoji: '✈️', name: 'Travel Fund', price: 2000 },
-  { id: 'grad', emoji: '🎓', name: 'Diploma', price: 1500 },
-  { id: 'castle', emoji: '🏰', name: 'Castle', price: 20000 },
+  { id: 'flower', emoji: '🌷', name: 'Tulip', price: 30 },
+  { id: 'tree', emoji: '🌳', name: 'Oak Tree', price: 80 },
+  { id: 'palm', emoji: '🌴', name: 'Palm Tree', price: 100 },
+  { id: 'bench', emoji: '🪑', name: 'Chair', price: 120 },
+  { id: 'lamp', emoji: '🏮', name: 'Lantern', price: 150 },
+  { id: 'fountain', emoji: '⛲', name: 'Fountain', price: 400 },
+  { id: 'tent', emoji: '⛺', name: 'Tent', price: 250 },
+  { id: 'house', emoji: '🏡', name: 'Dream Home', price: 2000 },
+  { id: 'car', emoji: '🚗', name: 'First Car', price: 1200 },
+  { id: 'plane', emoji: '✈️', name: 'Travel Fund', price: 800 },
+  { id: 'grad', emoji: '🎓', name: 'Diploma', price: 600 },
+  { id: 'castle', emoji: '🏰', name: 'Castle', price: 5000 },
 ];
 
 const MISSIONS = [
@@ -26,11 +27,14 @@ const MISSIONS = [
 ];
 
 // ---------- State (localStorage) ----------
-const today = () => new Date().toISOString().slice(0, 10);
+const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const today = () => fmt(new Date());
+// Monday of the week containing d (local time)
+const weekKey = (d = new Date()) => { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return fmt(x); };
 const defaultState = () => ({
   coins: 100, saved: 0, history: [], inventory: {}, placed: [],
   goals: [], streak: 0, lastStreakDay: null, missionsDay: today(), missionsDone: [],
-  player: { x: 9, y: 8 },
+  player: { x: 9, y: 8 }, weeks: [], lastDepositDay: null,
 });
 let S;
 try { S = Object.assign(defaultState(), JSON.parse(localStorage.getItem('fmi')) || {}); } catch { S = defaultState(); }
@@ -48,7 +52,7 @@ function rollDay() {
 rollDay();
 
 // ---------- Map ----------
-// 0 water, 1 sand, 2 grass
+// 0 water, 1 sand, 2 grass, 3 wooden dock, 4 dirt path
 const map = [];
 for (let y = 0; y < ROWS; y++) {
   map.push([]);
@@ -58,48 +62,197 @@ for (let y = 0; y < ROWS; y++) {
     map[y].push(d > 0.95 ? 0 : d > 0.7 ? 1 : 2);
   }
 }
+// dirt path running south from the plaza, ending in a little dock
+for (let y = 8; y < ROWS; y++) for (const x of [9, 10]) {
+  if (map[y][x] === 2) map[y][x] = 4; else if (map[y][x] === 0) map[y][x] = 3;
+}
 const VILLAGER = { x: 13, y: 5 };
 const walkable = (x, y) => map[y]?.[x] > 0 && !(x === VILLAGER.x && y === VILLAGER.y)
   && !S.placed.some(p => p.x === x && p.y === y && p.id !== 'flower');
 
-// ---------- Rendering ----------
-const cv = document.getElementById('game'), ctx = cv.getContext('2d');
-let selectedItem = null, hover = null, t = 0;
-const draw = () => {
-  t++;
+// ---------- Pixel-art rendering (cozy palette from the Figma mood board) ----------
+const PX = 4; // one art pixel = 4 screen px → 10×10 art pixels per tile
+const PAL = {
+  deep: '#5aaebd', water: '#6cc3c8', ripple: '#a6e2dc', foam: '#d4f3ea',
+  sand: '#f3dcaa', sandDot: '#e5c48d',
+  grass: '#a5ca8c', grass2: '#9bc284', tuft: '#7fae6e',
+  path: '#f1c38f', pathDot: '#e0a873',
+  plank: '#caa070', plank2: '#b98b5c', plankLine: '#8d6440', post: '#6e4a31',
+  flowers: ['#f6c1d2', '#ffffff', '#c7b6ef', '#f7d774'],
+};
+const hash = (x, y, i = 0) => {
+  let n = (x * 374761393 + y * 668265263 + i * 1274126177) | 0;
+  n = Math.imul(n ^ (n >>> 13), 1274126177);
+  return ((n ^ (n >>> 16)) >>> 0) / 4294967296;
+};
+const tileAtMap = (x, y) => map[y]?.[x] ?? 0;
+const isWet = (x, y) => { const v = tileAtMap(x, y); return v === 0 || v === 3; };
+const SIDES = [[0, -1], [1, 0], [0, 1], [-1, 0]];
+
+const bg = document.createElement('canvas');
+bg.width = COLS * TILE; bg.height = ROWS * TILE;
+(function paintBackground() {
+  const g = bg.getContext('2d');
+  const dot = (tx, ty, px, py, c, w = 1, h = 1) => { g.fillStyle = c; g.fillRect(tx * TILE + px * PX, ty * TILE + py * PX, w * PX, h * PX); };
+  // pixels along one edge of a tile (side: 0 top, 1 right, 2 bottom, 3 left)
+  const edge = (x, y, side, c, density, seed) => {
+    for (let i = 0; i < 10; i++) if (hash(x, y, seed + i) < density) {
+      const [px, py] = [[i, 0], [9, i], [i, 9], [0, i]][side];
+      dot(x, y, px, py, c);
+    }
+  };
   for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
     const v = map[y][x];
-    ctx.fillStyle = v === 0 ? ((x + y + (t >> 5)) % 2 ? '#4fb3d9' : '#5bbde0') : v === 1 ? '#f3e1a8' : ((x + y) % 2 ? '#8fd16a' : '#86c860');
-    ctx.fillRect(x * TILE, y * TILE, TILE, TILE);
+    if (v === 0 || v === 3) {
+      const shore = SIDES.some(([a, b]) => !isWet(x + a, y + b));
+      dot(x, y, 0, 0, shore ? PAL.water : PAL.deep, 10, 10);
+      SIDES.forEach(([a, b], s) => { if (!isWet(x + a, y + b)) edge(x, y, s, PAL.foam, .75, 10 + s * 10); });
+    }
+    if (v === 1) {
+      dot(x, y, 0, 0, PAL.sand, 10, 10);
+      for (let i = 0; i < 5; i++) dot(x, y, Math.floor(hash(x, y, i) * 10), Math.floor(hash(x, y, i + 9) * 10), PAL.sandDot);
+      SIDES.forEach(([a, b], s) => { if (tileAtMap(x + a, y + b) === 2) edge(x, y, s, PAL.grass, .55, 40 + s * 10); });
+    }
+    if (v === 2) {
+      dot(x, y, 0, 0, PAL.grass, 10, 10);
+      for (let i = 0; i < 3; i++) dot(x, y, Math.floor(hash(x, y, i + 20) * 8), Math.floor(hash(x, y, i + 30) * 8), PAL.grass2, 2, 2);
+      for (let i = 0; i < 2; i++) { // little "v" tufts
+        const px = 1 + Math.floor(hash(x, y, i + 40) * 8), py = 1 + Math.floor(hash(x, y, i + 50) * 8);
+        dot(x, y, px - 1, py - 1, PAL.tuft); dot(x, y, px + 1, py - 1, PAL.tuft); dot(x, y, px, py, PAL.tuft);
+      }
+      if (hash(x, y, 60) < .14) { // tiny flower
+        const px = 2 + Math.floor(hash(x, y, 61) * 6), py = 2 + Math.floor(hash(x, y, 62) * 6);
+        const c = PAL.flowers[Math.floor(hash(x, y, 63) * PAL.flowers.length)];
+        dot(x, y, px - 1, py, c); dot(x, y, px + 1, py, c); dot(x, y, px, py - 1, c); dot(x, y, px, py + 1, c);
+        dot(x, y, px, py, '#f7d774');
+      }
+    }
+    if (v === 4) {
+      dot(x, y, 0, 0, PAL.path, 10, 10);
+      for (let i = 0; i < 4; i++) dot(x, y, Math.floor(hash(x, y, i + 70) * 10), Math.floor(hash(x, y, i + 80) * 10), PAL.pathDot);
+      SIDES.forEach(([a, b], s) => { if (tileAtMap(x + a, y + b) === 2) edge(x, y, s, PAL.grass, .6, 90 + s * 10); });
+    }
+    if (v === 3) { // dock planks (horizontal boards) + posts
+      for (let r = 0; r < 5; r++) {
+        dot(x, y, 0, r * 2, r % 2 ? PAL.plank2 : PAL.plank, 10, 2);
+        dot(x, y, 0, r * 2 + 1, PAL.plankLine, 10, 1);
+        if (hash(x, y, r + 100) < .5) dot(x, y, Math.floor(hash(x, y, r + 110) * 9), r * 2, PAL.plank2, 1, 1);
+      }
+      const left = tileAtMap(x - 1, y) !== 3, right = tileAtMap(x + 1, y) !== 3;
+      if (left) dot(x, y, 0, 0, PAL.post, 1, 10);
+      if (right) dot(x, y, 9, 0, PAL.post, 1, 10);
+    }
   }
-  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.font = '30px serif';
-  const things = [...S.placed.map(p => ({ ...p, emoji: SHOP.find(s => s.id === p.id).emoji })),
-    { x: VILLAGER.x, y: VILLAGER.y, emoji: '🦊' }].sort((a, b) => a.y - b.y);
-  things.forEach(p => ctx.fillText(p.emoji, p.x * TILE + 20, p.y * TILE + 22));
+})();
 
-  // villager prompt bubble
-  if (nearVillager()) {
-    ctx.fillStyle = '#fff'; ctx.beginPath(); ctx.roundRect(VILLAGER.x * TILE - 30, VILLAGER.y * TILE - 34, 100, 26, 12); ctx.fill();
-    ctx.fillStyle = '#4a3b2a'; ctx.font = 'bold 13px sans-serif'; ctx.fillText('Space to chat', VILLAGER.x * TILE + 20, VILLAGER.y * TILE - 21);
+// Sprites as pixel strings (each char = one art pixel; '.' = transparent)
+function playerRows(dir, step) {
+  const hair = ['..HHHHHH..', '.HHHHHHHH.', 'HHHHHHHHHH'];
+  const face = {
+    down: ['HHSSSSSSHH', 'HSSESSESSH', 'HSCSSSSCSH'],
+    up: ['HHHHHHHHHH', 'HHHHHHHHHH', '.HHHHHHHH.'],
+    right: ['HHHSSSSSSH', 'HHSSSESSES', 'HHSSSSSSCS'],
+  }[dir === 'left' ? 'right' : dir];
+  const body = ['.SSSSSSSS.', '..BBBBBB..', '.SBBBBBBS.', '..BbBBbB..', '..PPPPPP..'];
+  const legs = step ? '..F....F..' : '..FF..FF..';
+  return [...hair, ...face, ...body, legs];
+}
+const PLAYER_PAL = { H: '#6b4a3a', S: '#ffe0c2', E: '#3d2b22', C: '#f4a6a6', B: '#f2a0a8', b: '#d9838d', P: '#7b8fb8', F: '#5a4636' };
+const FOX = [
+  '.O......O.', '.OO....OO.', '.OOOOOOOO.', 'OOEOOOOEOO', 'OWWWNNWWWO', '.WWWWWWWW.',
+  '..GGGGGG..', '.OGGGGGGO.', '..GGWWGG..', '..OO..OO..', '..DD..DD..',
+];
+const FOX_PAL = { O: '#e8935a', W: '#fff4e6', E: '#3d2b22', N: '#3d2b22', G: '#8fb87a', D: '#7a4a30' };
+
+const cv = document.getElementById('game'), ctx = cv.getContext('2d');
+let selectedItem = null, hover = null, t = 0;
+
+function drawSprite(rows, pal, cx, bottom, flip = false) {
+  const w = rows[0].length, left = Math.round(cx - w * PX / 2), top = Math.round(bottom - rows.length * PX);
+  rows.forEach((r, j) => { for (let i = 0; i < w; i++) {
+    const c = r[flip ? w - 1 - i : i];
+    if (c !== '.') { ctx.fillStyle = pal[c]; ctx.fillRect(left + i * PX, top + j * PX, PX, PX); }
+  } });
+}
+function shadow(cx, bottom, w = 6) {
+  ctx.fillStyle = 'rgba(60, 90, 50, .25)';
+  ctx.fillRect(cx - w * PX / 2, bottom - PX, w * PX, PX);
+  ctx.fillRect(cx - (w - 2) * PX / 2, bottom, (w - 2) * PX, PX);
+}
+
+// Shop items: emoji rendered at 16×16, alpha-snapped, then scaled up crisp → pixel-art look
+const iconCache = {};
+function icon(id) {
+  if (iconCache[id]) return iconCache[id];
+  const c = document.createElement('canvas'); c.width = c.height = 16;
+  const g = c.getContext('2d');
+  g.textAlign = 'center'; g.textBaseline = 'middle';
+  g.font = '14px "Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",serif';
+  g.fillText(SHOP.find(s => s.id === id).emoji, 8, 9);
+  const img = g.getImageData(0, 0, 16, 16);
+  for (let i = 3; i < img.data.length; i += 4) img.data[i] = img.data[i] > 110 ? 255 : 0;
+  g.putImageData(img, 0, 0);
+  return iconCache[id] = c;
+}
+const iconURL = id => icon(id).toDataURL();
+const BIG = new Set(['tree', 'palm', 'house', 'castle', 'fountain']);
+function drawItem(id, x, y, alpha = 1) {
+  const size = BIG.has(id) ? 56 : 36, cx = x * TILE + TILE / 2, bottom = y * TILE + TILE - 2;
+  if (alpha === 1) shadow(cx, bottom - 2, BIG.has(id) ? 10 : 6);
+  ctx.globalAlpha = alpha;
+  ctx.drawImage(icon(id), cx - size / 2, bottom - size, size, size);
+  ctx.globalAlpha = 1;
+}
+
+function drawBubble(text, cx, bottom) {
+  ctx.font = '16px "VCR OSD Mono", monospace';
+  const w = Math.ceil(ctx.measureText(text).width / PX) * PX + 6 * PX, h = 6 * PX;
+  const x = Math.round(cx - w / 2), y = bottom - h;
+  ctx.fillStyle = '#8d6440'; ctx.fillRect(x + PX, y, w - 2 * PX, h); ctx.fillRect(x, y + PX, w, h - 2 * PX);
+  ctx.fillStyle = '#fff7e6'; ctx.fillRect(x + PX, y + PX, w - 2 * PX, h - 2 * PX);
+  ctx.fillStyle = '#8d6440'; ctx.fillRect(cx - PX, y + h, 2 * PX, PX);
+  ctx.fillStyle = '#5a4636'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(text, cx, y + h / 2 + 1);
+}
+
+const draw = () => {
+  t++;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(bg, 0, 0);
+  // gentle water shimmer
+  for (let y = 0; y < ROWS; y++) for (let x = 0; x < COLS; x++) {
+    if (map[y][x] !== 0) continue;
+    const phase = Math.floor(t / 40 + hash(x, y, 7) * 8);
+    if (hash(x, y, phase) < .3) {
+      ctx.fillStyle = PAL.ripple;
+      ctx.fillRect(x * TILE + Math.floor(hash(x, y, phase + 1) * 6) * PX, y * TILE + Math.floor(hash(x, y, phase + 2) * 9) * PX, 3 * PX, PX);
+    }
   }
 
-  // player
-  const px = P.rx * TILE + 20, py = P.ry * TILE + 20 + Math.sin(t / 6) * (P.moving ? 2 : 0);
-  ctx.fillStyle = 'rgba(0,0,0,.2)'; ctx.beginPath(); ctx.ellipse(px, py + 16, 13, 5, 0, 0, 7); ctx.fill();
-  ctx.fillStyle = '#ff8fab'; ctx.beginPath(); ctx.roundRect(px - 11, py - 2, 22, 18, 6); ctx.fill(); // body
-  ctx.fillStyle = '#ffdcb5'; ctx.beginPath(); ctx.arc(px, py - 9, 12, 0, 7); ctx.fill(); // head
-  ctx.fillStyle = '#6b3e26'; ctx.beginPath(); ctx.arc(px, py - 13, 12, Math.PI, 0); ctx.fill(); // hair
-  ctx.fillStyle = '#333'; const ex = P.dir === 'left' ? -3 : P.dir === 'right' ? 3 : 0;
-  if (P.dir !== 'up') { ctx.fillRect(px - 5 + ex, py - 9, 3, 4); ctx.fillRect(px + 2 + ex, py - 9, 3, 4); }
+  // depth-sorted entities
+  const step = P.moving && Math.floor(t / 8) % 2;
+  const ents = [
+    ...S.placed.map(p => ({ y: p.y, draw: () => drawItem(p.id, p.x, p.y) })),
+    { y: VILLAGER.y, draw: () => {
+      const cx = VILLAGER.x * TILE + TILE / 2, bottom = VILLAGER.y * TILE + TILE - 2;
+      shadow(cx, bottom); drawSprite(FOX, FOX_PAL, cx, bottom - (Math.floor(t / 30) % 2) * PX / 2);
+    } },
+    { y: P.ry + .01, draw: () => {
+      const cx = P.rx * TILE + TILE / 2, bottom = P.ry * TILE + TILE - 2;
+      shadow(cx, bottom); drawSprite(playerRows(P.dir, step), PLAYER_PAL, cx, bottom - (step ? PX : 0), P.dir === 'left');
+    } },
+  ].sort((a, b) => a.y - b.y);
+  ents.forEach(e => e.draw());
 
-  // placement preview
+  if (nearVillager()) drawBubble('Space to chat', VILLAGER.x * TILE + TILE / 2, VILLAGER.y * TILE - 14 * PX);
+
+  // placement preview: ghost item + pixel corner brackets
   if (selectedItem && hover) {
-    ctx.globalAlpha = .5; ctx.font = '30px serif';
-    ctx.fillText(SHOP.find(s => s.id === selectedItem).emoji, hover.x * TILE + 20, hover.y * TILE + 22);
-    ctx.globalAlpha = 1;
-    ctx.strokeStyle = canPlace(hover.x, hover.y) ? '#fff' : '#e74c3c'; ctx.lineWidth = 3;
-    ctx.strokeRect(hover.x * TILE + 2, hover.y * TILE + 2, TILE - 4, TILE - 4);
+    drawItem(selectedItem, hover.x, hover.y, .6);
+    ctx.fillStyle = canPlace(hover.x, hover.y) ? '#fff7e6' : '#e0705c';
+    const X = hover.x * TILE, Y = hover.y * TILE, L = 3 * PX;
+    [[X, Y], [X + TILE - L, Y], [X, Y + TILE - PX], [X + TILE - L, Y + TILE - PX]].forEach(([a, b]) => ctx.fillRect(a, b, L, PX));
+    [[X, Y], [X + TILE - PX, Y], [X, Y + TILE - L], [X + TILE - PX, Y + TILE - L]].forEach(([a, b]) => ctx.fillRect(a, b, PX, L));
   }
 };
 
@@ -165,32 +318,64 @@ document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
 });
 
 // ---------- Bank ----------
+// consecutive weeks (ending this week) with at least one deposit
+function weekStreak() { let n = 0; const d = new Date(); while (S.weeks.includes(weekKey(d))) { n++; d.setDate(d.getDate() - 7); } return n; }
+
+// Log real-life saving. Amount fills Wish Jars; coins come only from consistency.
+function logSaving(amt, type, jarIdx) {
+  const rewards = [];
+  if (S.lastDepositDay !== today()) { S.lastDepositDay = today(); rewards.push(['Saved today', REWARDS.dailyLog]); }
+  const wk = weekKey();
+  if (!S.weeks.includes(wk)) {
+    S.weeks.push(wk);
+    rewards.push(['First deposit this week', REWARDS.firstThisWeek]);
+    const ws = weekStreak();
+    if (ws >= 3) rewards.push([`${ws} weeks in a row`, REWARDS.weekStreak]);
+  }
+  S.saved += amt;
+  const g = S.goals[jarIdx];
+  if (g) {
+    g.saved += amt; g.log.push({ date: today(), amt });
+    if (!g.rewarded && g.saved >= g.target) { g.rewarded = true; rewards.push([`Wish Jar "${g.name}" filled`, REWARDS.jarFilled]); }
+  }
+  const coins = rewards.reduce((t, r) => t + r[1], 0);
+  S.coins += coins;
+  S.history.unshift({ amt, type, date: today(), jar: g?.name, coins });
+  save(); renderAll();
+  toast(coins ? `+${coins} 🪙 · ${rewards.map(r => r[0]).join(' · ')}` : `$${amt} added to your progress. Coins come from showing up — see you tomorrow!`);
+  completeMission('deposit');
+  if (g) completeMission('goal');
+}
 $('depositBtn').onclick = () => {
   const amt = Math.floor(+$('depAmount').value);
   if (!(amt > 0)) return toast('Enter an amount');
-  const coins = amt * COINS_PER_DOLLAR;
-  S.saved += amt; S.coins += coins;
-  S.history.unshift({ amt, type: $('depType').value, date: today() });
-  save(); renderAll(); toast(`+${coins} 🪙 — Future you says thanks!`);
-  completeMission('deposit');
+  logSaving(amt, $('depType').value, $('depJar').value === '' ? -1 : +$('depJar').value);
 };
+function renderRules() {
+  const ws = weekStreak();
+  $('rules').innerHTML = `
+    <li>${S.lastDepositDay === today() ? '✅' : '⬜'} Save anything today <b>+${REWARDS.dailyLog}🪙</b></li>
+    <li>${S.weeks.includes(weekKey()) ? '✅' : '⬜'} First deposit this week <b>+${REWARDS.firstThisWeek}🪙</b></li>
+    <li>${ws >= 3 ? '✅' : '⬜'} 3+ weeks in a row <b>+${REWARDS.weekStreak}🪙/week</b> <span class="muted">(now: ${ws} wk)</span></li>
+    <li>🫙 Fill a Wish Jar <b>+${REWARDS.jarFilled}🪙</b></li>`;
+}
 function renderHistory() {
-  $('history').innerHTML = S.history.slice(0, 20).map(h => `<li>${h.date} · <b>$${h.amt}</b> → ${h.type} <span class="muted">(+${h.amt * COINS_PER_DOLLAR}🪙)</span></li>`).join('') || '<li class="muted">No deposits yet</li>';
+  $('history').innerHTML = S.history.slice(0, 20).map(h => `<li>${h.date} · <b>$${h.amt}</b> → ${h.type}${h.jar ? ' · 🫙 ' + esc(h.jar) : ''} <span class="muted">(+${h.coins ?? 0}🪙)</span></li>`).join('') || '<li class="muted">No deposits yet</li>';
 }
 
 // ---------- Shop / Inventory ----------
 function renderShop() {
-  $('shop').innerHTML = SHOP.map(s => `<div class="item ${S.coins < s.price ? 'locked' : ''}" data-id="${s.id}"><span class="emoji">${s.emoji}</span>${s.name}<br><b>${s.price}🪙</b></div>`).join('');
+  $('shop').innerHTML = SHOP.map(s => `<div class="item ${S.coins < s.price ? 'locked' : ''}" data-id="${s.id}"><img class="emoji" src="${iconURL(s.id)}" alt="">${s.name}<br><b>${s.price}🪙</b></div>`).join('');
   $('shop').querySelectorAll('.item').forEach(el => el.onclick = () => {
     const s = SHOP.find(i => i.id === el.dataset.id);
-    if (S.coins < s.price) return toast(`Save $${Math.ceil((s.price - S.coins) / COINS_PER_DOLLAR)} more to unlock!`);
+    if (S.coins < s.price) return toast(`Need ${s.price - S.coins} more 🪙 — keep your saving streak going!`);
     S.coins -= s.price; S.inventory[s.id] = (S.inventory[s.id] || 0) + 1;
     save(); renderAll(); toast(`Bought ${s.name}! Select it below to place.`);
   });
 }
 function renderInventory() {
   const ids = Object.keys(S.inventory);
-  $('inventory').innerHTML = ids.map(id => { const s = SHOP.find(i => i.id === id); return `<div class="item ${selectedItem === id ? 'selected' : ''}" data-id="${id}"><span class="emoji">${s.emoji}</span>${s.name} ×${S.inventory[id]}</div>`; }).join('') || '<p class="muted">Nothing yet — buy something!</p>';
+  $('inventory').innerHTML = ids.map(id => { const s = SHOP.find(i => i.id === id); return `<div class="item ${selectedItem === id ? 'selected' : ''}" data-id="${id}"><img class="emoji" src="${iconURL(s.id)}" alt="">${s.name} ×${S.inventory[id]}</div>`; }).join('') || '<p class="muted">Nothing yet — buy something!</p>';
   $('inventory').querySelectorAll('.item').forEach(el => el.onclick = () => {
     selectedItem = selectedItem === el.dataset.id ? null : el.dataset.id;
     renderInventory(); if (selectedItem) toast('Click a tile on the island to place');
@@ -212,13 +397,14 @@ function renderGoals() {
       <div class="bar"><div style="width:${pct}%"></div></div>
       <small>$${g.saved} / $${g.target} · ${loggedToday ? '✅ logged today' : '⏳ not logged today'}</small>
       <div class="goal-row"><input type="number" min="1" placeholder="Today's $" id="gi${i}"><button data-i="${i}">Log</button></div></div>`;
-  }).join('') || '<p class="muted">What does your dream life look like? Add a goal!</p>';
+  }).join('') || '<p class="muted">What does your dream life look like? Add a Wish Jar!</p>';
+  const cur = $('depJar').value;
+  $('depJar').innerHTML = '<option value="">General savings</option>' + S.goals.map((g, i) => `<option value="${i}">🫙 ${esc(g.name)}</option>`).join('');
+  $('depJar').value = cur;
   $('goals').querySelectorAll('button').forEach(b => b.onclick = () => {
-    const g = S.goals[b.dataset.i], amt = Math.floor(+$('gi' + b.dataset.i).value);
+    const amt = Math.floor(+$('gi' + b.dataset.i).value);
     if (!(amt > 0)) return toast('Enter an amount');
-    g.saved += amt; g.log.push({ date: today(), amt });
-    save(); renderGoals(); toast(g.saved >= g.target ? `🎉 Goal "${g.name}" reached!` : 'Progress logged!');
-    completeMission('goal');
+    logSaving(amt, 'Savings', +b.dataset.i);
   });
 }
 const esc = s => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
@@ -286,5 +472,5 @@ $('chatForm').onsubmit = async e => {
 };
 $('chatInput').addEventListener('keydown', e => { if (e.key === 'Escape') closeChat(); });
 
-function renderAll() { renderStats(); renderHistory(); renderShop(); renderInventory(); renderGoals(); renderMissions(); }
+function renderAll() { renderStats(); renderHistory(); renderRules(); renderShop(); renderInventory(); renderGoals(); renderMissions(); }
 renderAll();
