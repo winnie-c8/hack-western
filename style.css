@@ -55,7 +55,7 @@ kbd { font: inherit; background: var(--paper); border: 2px solid var(--wood-dark
 }
 .chip.small { font-size: .95rem; padding: 2px 10px; box-shadow: none; margin-left: auto; margin-right: 12px; }
 
-/* square menu buttons (Figma: top-right "daily" / "jars") */
+/* square menu buttons (Figma: top-right "daily" / "goals") */
 .menu-btn {
   width: 76px; height: 76px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
   background: var(--paper); color: var(--ink); font-size: .95rem; cursor: pointer;
@@ -187,10 +187,6 @@ button.primary:active, button.secondary:active { transform: translateY(2px); box
 .shop-grid .item.locked img { opacity: .45; filter: grayscale(.7); }
 .shop-grid .item.locked .price { background: #e4d8c0; border-color: var(--wood); }
 
-/* jars */
-.new-jar { display: grid; grid-template-columns: 2fr 1fr auto; gap: 10px; align-items: end; }
-.new-jar label { margin: 0; }
-.new-jar .primary { width: auto; margin: 0; padding: 10px 14px; }
 .goal { background: var(--paper); border: 3px solid var(--wood); padding: 12px; margin-top: 12px; }
 .goal-top { display: flex; justify-content: space-between; gap: 8px; font-size: 1.1rem; }
 .bar { height: 22px; background: #ecdcbc; border: 3px solid var(--wood-dark); margin: 8px 0; }
@@ -295,33 +291,6 @@ button.primary:active, button.secondary:active { transform: translateY(2px); box
 .mission button { padding: 4px 10px; background: var(--sage); border-color: var(--sage-dark); text-shadow: 1px 1px 0 var(--sage-dark); }
 .mission.done { text-decoration: line-through; opacity: .6; }
 
-/* jar gallery (centred pop-up) */
-.jars-window { width: min(820px, calc(100vw - 32px)); }
-.new-jar { margin-bottom: 14px; }
-.jar-gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 14px; }
-.jar-card {
-  display: flex; flex-direction: column; align-items: center; text-align: center;
-  background: var(--paper); border: 3px solid var(--jar, var(--wood)); padding: 12px;
-  box-shadow: 4px 4px 0 rgba(62,47,34,.2);
-}
-.jar-card.full { box-shadow: 0 0 0 3px var(--sun), 4px 4px 0 rgba(62,47,34,.2); }
-.jar-img { width: 96px; height: 114px; image-rendering: pixelated; }
-.jar-fill { width: 100%; margin: 8px 0 0; padding: 12px; font-size: 1.1rem; }
-.jar-card.draft label { width: 100%; text-align: left; margin: 8px 0 0; }
-/* Cancel + Create share the card's width (no full-width/padding from .primary pushing Create outside) */
-.jar-card.draft .goal-row { flex-wrap: wrap; }
-.jar-card.draft .goal-row button { flex: 1 1 0; min-width: 0; width: auto; margin: 0; padding: 8px 6px; font-size: .95rem; white-space: nowrap; }
-.jar-name { font-size: 1.1rem; margin-top: 6px; word-break: break-word; }
-.jar-card .bar { width: 100%; }
-.jar-card .bar div { background-color: var(--jar, var(--teal)); }
-.jar-amt { font-size: .95rem; }
-.jar-card .goal-row { width: 100%; }
-.jar-add {
-  justify-content: center; gap: 8px; min-height: 260px; cursor: pointer; font: inherit; color: var(--ink-soft);
-  border-style: dashed; border-color: var(--wood); background: transparent; box-shadow: none;
-}
-.jar-add .plus { font-size: 4rem; line-height: 1; }
-.jar-add:hover { background: var(--paper); color: var(--ink); }
 
 .goal-row button, .mission button, #chatForm button, #copyCode, #leaveTown {
   font-size: 1rem; color: #fff; cursor: pointer; padding: 6px 14px;
@@ -404,10 +373,9 @@ input, select { background: rgba(255,255,255,.7); border-width: 2px; }
 #depAmount { margin-top: 0; }
 label[for="depAmount"] { margin-bottom: 0; }
 
-/* daily + jars: receipts pinned to the right side, island stays playable */
+/* daily: receipts pinned to the right side, island stays playable */
 .modal.side { background: none; pointer-events: none; justify-content: flex-end; align-items: flex-start; padding: 100px 10px 150px; z-index: 12; }
 .modal.side .window { pointer-events: auto; width: 360px; max-height: calc(100vh - 260px); animation: slideIn .18s ease-out; }
-.modal.side .new-jar { grid-template-columns: 1fr; }
 @keyframes slideIn { from { transform: translateX(30px); opacity: 0; } to { transform: none; opacity: 1; } }
 
 /* ===== Edit mode ===== */
@@ -441,7 +409,7 @@ body.holding, body.holding #game { cursor: grabbing; }
 body.holding .bag { outline: 3px dashed var(--sun-dark); outline-offset: 3px; }
 @media (max-width: 760px) { .edit-bar { top: auto; bottom: 90px; max-width: calc(100vw - 20px); } }
 
-/* ===== Bank (Figma Desktop-3): amount + LOG! are big; account + jar are small ===== */
+/* ===== Bank (Figma Desktop-3): amount + LOG are big; account + goal are small ===== */
 .bank-window { width: 680px; }
 .bank-body { display: flex; flex-direction: column; gap: 12px; }
 .bank-q { margin: 4px 0 2px; text-align: center; font-size: 1.35rem; font-weight: 400; }
@@ -461,17 +429,20 @@ body.holding .bag { outline: 3px dashed var(--sun-dark); outline-offset: 3px; }
 .bank-small { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
 .small-label { display: block; margin: 0; font-size: .9rem; color: var(--ink); }
 .small-label select { margin-top: 4px; padding: 6px 10px; font-size: .95rem; background: rgba(217, 217, 217, .8); border: 2px solid transparent; }
-.jar-pick { display: flex; gap: 10px; flex-wrap: wrap; }
-.jar-opt {
-  width: 72px; padding: 6px 4px 4px; display: flex; flex-direction: column; align-items: center; gap: 2px; cursor: pointer;
-  color: var(--ink); background: rgba(217, 217, 217, .55); border: 3px solid transparent;
+/* bank: "goal?" picker (your unfinished Goals, with mini progress bars) */
+.goal-pick { display: flex; gap: 8px; flex-wrap: wrap; }
+.goal-opt {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 110px; max-width: 170px; padding: 6px 10px;
+  cursor: pointer; color: var(--ink); text-align: left; background: rgba(217, 217, 217, .55); border: 3px solid transparent;
 }
-.jar-opt img { width: 32px; height: 40px; image-rendering: pixelated; }
-.jar-opt .none-ico { height: 40px; display: grid; place-items: center; font-size: 1.4rem; color: var(--ink-soft); }
-.jar-opt-name { font-size: .7rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.jar-opt:hover { background: rgba(255, 255, 255, .8); transform: translateY(-2px); }
-.jar-opt.on { background: #e2f0d6; border-color: var(--sage-dark); box-shadow: 3px 3px 0 rgba(28,52,44,.25); }
-.jar-opt.add { border-style: dashed; border-color: rgba(110,90,70,.45); background: transparent; }
+.goal-opt.none, .goal-opt.add { min-width: 0; justify-content: center; align-self: stretch; font-size: .85rem; }
+.goal-opt.add { border-style: dashed; border-color: rgba(110,90,70,.45); background: transparent; }
+.goal-opt-name { font-size: .8rem; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goal-opt-bar { width: 100%; height: 6px; background: rgba(255,255,255,.7); }
+.goal-opt-bar i { display: block; height: 100%; background: var(--sage-dark); }
+.goal-opt-amt { font-size: .7rem; color: var(--ink-soft); }
+.goal-opt:hover { background: rgba(255, 255, 255, .8); transform: translateY(-2px); }
+.goal-opt.on { background: #e2f0d6; border-color: var(--sage-dark); box-shadow: 3px 3px 0 rgba(28,52,44,.25); }
 .log-btn {
   margin-top: 10px; height: 96px; font-size: 2.4rem; letter-spacing: 2px; cursor: pointer; color: var(--ink);
   display: flex; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 0 12px;
@@ -731,7 +702,7 @@ body.holding .bag { outline: 3px dashed var(--sun-dark); outline-offset: 3px; }
   .town-isle canvas { width: 120px; height: 80px; }
   .hud-bottom { max-width: calc(100vw - 140px); }
   .help-pop { top: 50px; }
-  .two-col, .new-jar { grid-template-columns: 1fr; }
+  .two-col { grid-template-columns: 1fr; }
 }
 
 /* ===== Entrance screen ===== */

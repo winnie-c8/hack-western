@@ -1,8 +1,8 @@
 // ===== Future Me Island — MVP =====
 // The island is a 40×28-tile world; the view (camera) follows the player around it.
 const TILE = 40, COLS = 40, ROWS = 28;
-// Coins reward the HABIT, not the amount. Dollars only fill your Wish Jars.
-const REWARDS = { dailyLog: 10, firstThisWeek: 50, weekStreak: 150, jarFilled: 300 };
+// Coins reward the HABIT, not the amount. Dollars only move your Goals forward.
+const REWARDS = { dailyLog: 10, firstThisWeek: 50, weekStreak: 150, goalReached: 300 };
 
 const SHOP = [
   { id: 'flower', emoji: '🌷', name: 'Tulip', price: 30, category: 'nature' },
@@ -107,6 +107,14 @@ function migrateWorld() {
   if (!onLand(S.player.x, S.player.y)) S.player = { x: 19, y: 15 };
   S.worldV = 3;
 }
+// Wish Jars were replaced by Goals: turn any old jars into goals once, keeping name/target/saved
+function migrateJars() {
+  if (!S.goals?.length) return;
+  S.personalGoals ||= [];
+  for (const j of S.goals) S.personalGoals.push({ name: j.name, target: j.target, saved: Math.min(j.saved || 0, j.target), completed: (j.saved || 0) >= j.target, starred: false, rewarded: !!j.rewarded });
+  S.goals = [];
+}
+migrateJars();
 // stamp=false for automatic housekeeping (e.g. daily reset) so it doesn't count as "newer" than the cloud
 const saveLocal = () => { try { localStorage.setItem('fmi', JSON.stringify(S)); } catch {} };
 const save = (stamp = true) => {
@@ -954,8 +962,8 @@ document.querySelectorAll('.modal').forEach(m => m.addEventListener('mousedown',
 // consecutive weeks (ending this week) with at least one deposit
 function weekStreak() { let n = 0; const d = new Date(); while (S.weeks.includes(weekKey(d))) { n++; d.setDate(d.getDate() - 7); } return n; }
 
-// Log real-life saving. Amount fills Wish Jars; coins come only from consistency.
-function logSaving(amt, type, jarIdx) {
+// Log real-life saving. The amount moves a Goal forward; coins come only from consistency.
+function logSaving(amt, type, goalIdx) {
   const rewards = [];
   if (S.lastDepositDay !== today()) { S.lastDepositDay = today(); rewards.push(['Saved today', REWARDS.dailyLog]); }
   const wk = weekKey();
@@ -966,18 +974,18 @@ function logSaving(amt, type, jarIdx) {
     if (ws >= 3) rewards.push([`${ws} weeks in a row`, REWARDS.weekStreak]);
   }
   S.saved += amt;
-  const g = S.goals[jarIdx];
+  const g = S.personalGoals?.[goalIdx];
   if (g) {
-    g.saved += amt; g.log.push({ date: today(), amt });
-    if (!g.rewarded && g.saved >= g.target) { g.rewarded = true; rewards.push([`Wish Jar "${g.name}" filled`, REWARDS.jarFilled]); }
+    g.saved = Math.min(g.target, g.saved + amt); // a goal never goes past its target
+    if (!g.rewarded && g.saved >= g.target) { g.rewarded = true; g.completed = true; rewards.push([`Goal "${g.name}" reached`, REWARDS.goalReached]); }
   }
   const coins = rewards.reduce((t, r) => t + r[1], 0);
   S.coins += coins;
-  S.history.unshift({ amt, type, date: today(), jar: g?.name, coins });
+  S.history.unshift({ amt, type, date: today(), goal: g?.name, coins });
   save(); renderAll();
   toast(coins ? `+${coins} :coin: · ${rewards.map(r => r[0]).join(' · ')}` : `$${amt} added to your progress. Coins come from showing up — see you tomorrow!`);
-  // share the habit (never the amount or jar name) with the town
-  if (coins) window.onHabit?.(rewards.map(r => r[0].startsWith('Wish Jar') ? 'filled a Wish Jar' : r[0].toLowerCase()).join(' · '), coins);
+  // share the habit (never the amount or goal name) with the town
+  if (coins) window.onHabit?.(rewards.map(r => r[0].startsWith('Goal "') ? 'reached a goal' : r[0].toLowerCase()).join(' · '), coins);
   completeMission('deposit');
   if (g) completeMission('goal');
 }
@@ -1025,7 +1033,7 @@ $('depAmount').addEventListener('keydown', e => { if (e.key === 'Enter') $('depo
 $('depositBtn').onclick = () => {
   const amt = Math.floor(+$('depAmount').value);
   if (!(amt > 0)) return toast('Enter an amount');
-  logSaving(amt, $('depType').value, $('depJar').value === '' ? -1 : +$('depJar').value);
+  logSaving(amt, $('depType').value, $('depGoal').value === '' ? -1 : +$('depGoal').value);
   $('depAmount').value = ''; syncTiles();
   closePanels();
 };
@@ -1035,12 +1043,12 @@ function renderRules() {
     <li><span>${pi(S.lastDepositDay === today() ? 'check' : 'box')} Save anything today</span><b>+${REWARDS.dailyLog}${pi('coin')}</b></li>
     <li><span>${pi(S.weeks.includes(weekKey()) ? 'check' : 'box')} First deposit this week</span><b>+${REWARDS.firstThisWeek}${pi('coin')}</b></li>
     <li><span>${pi(ws >= 3 ? 'check' : 'box')} 3+ weeks in a row (now ${ws})</span><b>+${REWARDS.weekStreak}${pi('coin')}/wk</b></li>
-    <li><span>${pi('jar')} Fill a Wish Jar</span><b>+${REWARDS.jarFilled}${pi('coin')}</b></li>`;
+    <li><span>${pi('target')} Reach a goal</span><b>+${REWARDS.goalReached}${pi('coin')}</b></li>`;
 }
 function renderHistory() {
   if (typeof renderFuture === 'function' && $('futureStats')) setTimeout(renderFuture);
-  const mode = $('histSort').value, grouped = mode === 'type' || mode === 'jar';
-  const key = h => mode === 'type' ? (h.type || 'Savings') : (h.jar || 'General savings (no jar)');
+  const mode = $('histSort').value, grouped = mode === 'type' || mode === 'goal';
+  const key = h => mode === 'type' ? (h.type || 'Savings') : (h.goal || h.jar || 'General savings (no goal)');
   let rows = S.history.map((h, i) => ({ ...h, i }));          // S.history is newest-first
   if (mode === 'old') rows.reverse();
   if (grouped) rows.sort((a, b) => key(a).localeCompare(key(b)) || a.i - b.i);
@@ -1050,11 +1058,11 @@ function renderHistory() {
     if (grouped && key(h) !== last) {
       last = key(h);
       const total = rows.filter(r => key(r) === last).reduce((t, r) => t + r.amt, 0);
-      head = `<li class="group"><span>${pi(mode === 'jar' ? 'jar' : 'bank')} ${esc(last)}</span><b>$${total.toLocaleString()}</b></li>`;
+      head = `<li class="group"><span>${pi(mode === 'goal' ? 'target' : 'bank')} ${esc(last)}</span><b>$${total.toLocaleString()}</b></li>`;
     }
     return head + `<li>
       <span class="date">${h.date}</span>
-      <span><span class="amt">$${h.amt}</span> → ${esc(h.type || 'Savings')}${h.jar ? ' · ' + pi('jar') + ' ' + esc(h.jar) : ''}</span>
+      <span><span class="amt">$${h.amt}</span> → ${esc(h.type || 'Savings')}${h.goal || h.jar ? ' · ' + pi('target') + ' ' + esc(h.goal || h.jar) : ''}</span>
       <span class="coins">+${h.coins ?? 0} ${pi('coin')}</span></li>`;
   }).join('') || '<li><span class="empty">No savings logged yet. Open the bank to log your first!</span></li>';
 }
@@ -1352,116 +1360,29 @@ function renderInventory() {
 }
 
 // ---------- Goals ----------
-const JAR_COLORS = ['#6cc3c8', '#f2a0a8', '#f2c26b', '#a5ca8c', '#b49be0', '#f1a36b', '#7fb0e8'];
-let draftJar = false; // the "+" card turns into an editable jar
-// pixel-art jar: o = outline, L = lid, ' ' = inside (glass or liquid), . = empty
-const JAR_ART = [
-  '....oooooooo....',
-  '...oLLLLLLLLo...',
-  '...oLLLLLLLLo...',
-  '....oooooooo....',
-  '....o      o....',
-  '..oo        oo..',
-  '.o            o.',
-  'o              o',
-  'o              o',
-  'o              o',
-  'o              o',
-  'o              o',
-  'o              o',
-  'o              o',
-  'o              o',
-  'o              o',
-  'o              o',
-  '.o            o.',
-  '..oooooooooooo..',
-];
-const shade = (hex, f) => '#' + [1, 3, 5].map(i => Math.round(Math.min(255, parseInt(hex.substr(i, 2), 16) * f)).toString(16).padStart(2, '0')).join('');
-const jarCache = {};
-function jarPixelURL(pct, color) {
-  const liquid = Math.round(14 * Math.min(100, pct) / 100); // inside rows 4..17
-  const key = color + liquid;
-  if (jarCache[key]) return jarCache[key];
-  const c = document.createElement('canvas'); c.width = 16; c.height = JAR_ART.length;
-  const g = c.getContext('2d');
-  JAR_ART.forEach((row, y) => [...row].forEach((ch, x) => {
-    let col = null;
-    if (ch === 'o') col = PAL.outline;
-    else if (ch === 'L') col = y === 1 ? shade(color, 1.15) : shade(color, .8);
-    else if (ch === ' ') {
-      const wet = y >= 18 - liquid, edgeR = row[x + 1] !== ' ';
-      if (wet) col = y === 18 - liquid ? shade(color, 1.2) : edgeR ? shade(color, .8) : color;
-      else col = edgeR ? '#d9eef0' : '#eef8f8';
-      if (x === 2 && y >= 8 && y <= 14) col = '#ffffff'; // glass shine
-    }
-    if (col) { g.fillStyle = col; g.fillRect(x, y, 1, 1); }
-  }));
-  return jarCache[key] = c.toDataURL();
-}
-function addJar() {
-  const name = $('goalName').value.trim(), target = +$('goalTarget').value;
-  if (!name || !(target > 0)) return toast('Add a name and target');
-  S.goals.push({ name, target, saved: 0, log: [], color: JAR_COLORS[S.goals.length % JAR_COLORS.length] });
-  draftJar = false;
-  save(); renderGoals();
-}
-function renderGoals() {
-  const nextColor = JAR_COLORS[S.goals.length % JAR_COLORS.length];
-  $('goals').innerHTML = S.goals.map((g, i) => {
-    const pct = Math.min(100, g.saved / g.target * 100), loggedToday = g.log.some(l => l.date === today());
-    const color = g.color || JAR_COLORS[i % JAR_COLORS.length];
-    return `<div class="jar-card ${pct >= 100 ? 'full' : ''}" style="--jar:${color}">
-      <img class="jar-img" src="${jarPixelURL(pct, color)}" alt="">
-      <div class="jar-name">${esc(g.name)} ${pct >= 100 ? pi('party') : ''}</div>
-      <div class="bar"><div style="width:${pct}%"></div></div>
-      <div class="jar-amt">$${g.saved.toLocaleString()} / $${g.target.toLocaleString()} · ${Math.floor(pct)}%</div>
-      <span class="muted">${loggedToday ? pi('check') + ' added today' : 'not added today'}</span>
-      <button class="primary jar-fill" data-i="${i}">+ Add money</button>
-    </div>`;
-  }).join('') + (draftJar
-    ? `<div class="jar-card draft" style="--jar:${nextColor}">
-        <img class="jar-img" src="${jarPixelURL(0, nextColor)}" alt="">
-        <label>Dream<input id="goalName" placeholder="e.g. Trip to Japan"></label>
-        <label>Target ($)<input id="goalTarget" type="number" min="1" placeholder="3000"></label>
-        <div class="goal-row"><button id="cancelJar">Cancel</button><button id="addGoal" class="primary">Create</button></div>
-      </div>`
-    : `<button class="jar-card jar-add" id="newJarBtn" aria-label="Add a new Wish Jar"><span class="plus">+</span>New jar</button>`);
-  if (draftJar) {
-    $('goalName').focus();
-    $('addGoal').onclick = addJar;
-    $('cancelJar').onclick = () => { draftJar = false; renderGoals(); };
-    $('goalTarget').onkeydown = $('goalName').onkeydown = e => { if (e.key === 'Enter') addJar(); };
-  } else $('newJarBtn').onclick = () => { draftJar = true; renderGoals(); };
-  const cur = $('depJar').value;
-  $('depJar').innerHTML = '<option value="">General savings</option>' + S.goals.map((g, i) => `<option value="${i}">${esc(g.name)}</option>`).join('');
-  $('depJar').value = cur;
-  // "Add money" jumps to the bank pop-up with this jar already picked
-  $('goals').querySelectorAll('button[data-i]').forEach(b => b.onclick = () => {
-    openPanel('bank');
-    $('depJar').value = b.dataset.i;
-    renderJarPick();
-    $('depAmount').focus();
-  });
-  renderJarPick();
-}
-// Bank: your Wish Jars as little pixel jars; click one to send this saving into it (click again for "none")
-function renderJarPick() {
-  const cur = $('depJar').value;
-  const none = `<button type="button" class="jar-opt none ${cur === '' ? 'on' : ''}" data-jar="" role="radio" aria-checked="${cur === ''}">
-      <span class="none-ico">–</span><span class="jar-opt-name">none</span></button>`;
-  const jars = S.goals.map((g, i) => {
-    const pct = Math.min(100, g.saved / g.target * 100), color = g.color || JAR_COLORS[i % JAR_COLORS.length], on = cur === String(i);
-    return `<button type="button" class="jar-opt ${on ? 'on' : ''}" data-jar="${i}" role="radio" aria-checked="${on}" title="${esc(g.name)} · $${g.saved} / $${g.target}">
-      <img src="${jarPixelURL(pct, color)}" alt=""><span class="jar-opt-name">${esc(g.name)}</span></button>`;
+// Bank: pick which Goal this saving goes toward (click again for "none")
+function renderGoalPick() {
+  const cur = $('depGoal').value, goals = S.personalGoals || [];
+  if (cur !== '' && !(goals[+cur] && !goals[+cur].completed)) $('depGoal').value = '';
+  const sel = $('depGoal').value;
+  const none = `<button type="button" class="goal-opt none ${sel === '' ? 'on' : ''}" data-goal="" role="radio" aria-checked="${sel === ''}">none</button>`;
+  const opts = goals.map((g, i) => {
+    if (g.completed) return '';
+    const pct = Math.min(100, g.saved / g.target * 100), on = sel === String(i);
+    return `<button type="button" class="goal-opt ${on ? 'on' : ''}" data-goal="${i}" role="radio" aria-checked="${on}" title="${esc(g.name)} · $${g.saved} of $${g.target}">
+      <span class="goal-opt-name">${g.starred ? pi('star') + ' ' : ''}${esc(g.name)}</span>
+      <span class="goal-opt-bar"><i style="width:${pct}%"></i></span>
+      <span class="goal-opt-amt">$${g.saved} / $${g.target}</span></button>`;
   }).join('');
-  const add = `<button type="button" class="jar-opt add" data-newjar><span class="none-ico">+</span><span class="jar-opt-name">new jar</span></button>`;
-  $('jarPick').innerHTML = none + jars + add;
-  $('jarPick').querySelectorAll('[data-jar]').forEach(b => b.onclick = () => {
-    $('depJar').value = b.dataset.jar !== '' && b.dataset.jar === cur ? '' : b.dataset.jar;
-    renderJarPick();
+  const add = `<button type="button" class="goal-opt add" data-newgoal>+ new goal</button>`;
+  $('goalPick').innerHTML = none + opts + add;
+  $('goalPick').querySelectorAll('[data-goal]').forEach(btn => btn.onclick = () => {
+    $('depGoal').value = btn.dataset.goal !== '' && btn.dataset.goal === sel ? '' : btn.dataset.goal;
+    renderGoalPick();
   });
-  $('jarPick').querySelector('[data-newjar]').onclick = () => { openPanel('jars'); draftJar = true; renderGoals(); };
+  $('goalPick').querySelector('[data-newgoal]').onclick = () => { openPanel('goals'); $('personalGoalName')?.focus(); };
 }
+window.renderGoalPick = renderGoalPick;
 const esc = s => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 
 // ---------- Daily missions & streak ----------
@@ -1502,7 +1423,7 @@ function tickMission(li) {
   if (li.classList.contains('striking')) return;
   if (m.auto) {
     if (id === 'deposit') { toast('Log any amount in the bank to tick this off'); return openPanel('bank'); }
-    if (id === 'goal') { toast('Add money to a Wish Jar to tick this off'); return openPanel('jars'); }
+    if (id === 'goal') { toast('Add savings to a goal to tick this off'); return openPanel('goals'); }
     if (id === 'chat') return toast('Walk up to Maple :fox: and press Space to ask a question');
   }
   li.classList.add('striking');
@@ -1548,7 +1469,7 @@ $('chatForm').onsubmit = async e => {
 };
 $('chatInput').addEventListener('keydown', e => { if (e.key === 'Escape') closeChat(); });
 
-function renderAll() { if (editMode) renderEditTools(); renderAccounts(); renderStats(); renderHistory(); renderRules(); renderShop(); renderInventory(); renderGoals(); window.renderPersonalGoals?.(); renderMissions(); }
+function renderAll() { if (editMode) renderEditTools(); renderAccounts(); renderStats(); renderHistory(); renderRules(); renderShop(); renderInventory(); window.renderPersonalGoals?.(); renderGoalPick(); renderMissions(); }
 renderAll();
 
 if (document.body.classList.contains('intro-open')) {
@@ -1564,7 +1485,7 @@ if (document.body.classList.contains('intro-open')) {
 window.loadCloudState = data => {
   S = Object.assign(defaultState(), data);
   if (!data.worldV) S.worldV = 0;
-  migrateWorld();
+  migrateWorld(); migrateJars();
   try { localStorage.setItem('fmi', JSON.stringify(S)); } catch {}
   Object.assign(P, { x: S.player.x, y: S.player.y, rx: S.player.x, ry: S.player.y, moving: false });
   applyLayout(); applySavedPaths(); paintAll(); window.setTownBuilds(lastBuildList);
