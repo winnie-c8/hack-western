@@ -5,33 +5,49 @@ const TILE = 40, COLS = 40, ROWS = 28;
 const REWARDS = { dailyLog: 10, firstThisWeek: 50, weekStreak: 150, jarFilled: 300 };
 
 const SHOP = [
-  { id: 'flower', emoji: '🌷', name: 'Tulip', price: 30 },
-  { id: 'tree', emoji: '🌳', name: 'Oak Tree', price: 80 },
-  { id: 'palm', emoji: '🌴', name: 'Palm Tree', price: 100 },
-  { id: 'bench', emoji: '🪑', name: 'Chair', price: 120 },
-  { id: 'lamp', emoji: '🏮', name: 'Lantern', price: 150 },
-  { id: 'fountain', emoji: '⛲', name: 'Fountain', price: 400 },
-  { id: 'tent', emoji: '⛺', name: 'Tent', price: 250 },
-  { id: 'house', emoji: '🏡', name: 'Dream Home', price: 2000 },
-  { id: 'car', emoji: '🚗', name: 'First Car', price: 1200 },
-  { id: 'plane', emoji: '✈️', name: 'Travel Fund', price: 800 },
-  { id: 'grad', emoji: '🎓', name: 'Diploma', price: 600 },
-  { id: 'castle', emoji: '🏰', name: 'Castle', price: 5000 },
-  { id: 'sunflower', emoji: '🌻', name: 'Sunflower', price: 40 },
-  { id: 'mushroom', emoji: '🍄', name: 'Mushroom', price: 35 },
-  { id: 'rock', emoji: '🪨', name: 'Boulder', price: 50 },
-  { id: 'log', emoji: '🪵', name: 'Log Seat', price: 60 },
-  { id: 'potted', emoji: '🪴', name: 'Potted Plant', price: 70 },
-  { id: 'basket', emoji: '🧺', name: 'Picnic Basket', price: 80 },
-  { id: 'blossom', emoji: '🌸', name: 'Cherry Blossom', price: 90 },
-  { id: 'pine', emoji: '🌲', name: 'Pine Tree', price: 90 },
-  { id: 'mailbox', emoji: '📮', name: 'Mailbox', price: 100 },
-  { id: 'umbrella', emoji: '⛱️', name: 'Beach Umbrella', price: 180 },
-  { id: 'canoe', emoji: '🛶', name: 'Canoe', price: 350 },
-  { id: 'playground', emoji: '🛝', name: 'Slide', price: 450 },
-  { id: 'hut', emoji: '🛖', name: 'Cozy Hut', price: 700 },
-  { id: 'ferris', emoji: '🎡', name: 'Ferris Wheel', price: 3000 },
+  { id: 'flower', emoji: '🌷', name: 'Tulip', price: 30, category: 'nature' },
+  { id: 'tree', emoji: '🌳', name: 'Oak Tree', price: 80, category: 'nature' },
+  { id: 'palm', emoji: '🌴', name: 'Palm Tree', price: 100, category: 'nature' },
+  { id: 'bench', emoji: '🪑', name: 'Chair', price: 120, category: 'miscellaneous' },
+  { id: 'lamp', emoji: '🏮', name: 'Lantern', price: 150, category: 'miscellaneous' },
+  { id: 'fountain', emoji: '⛲', name: 'Fountain', price: 400, category: 'miscellaneous' },
+  { id: 'tent', emoji: '⛺', name: 'Tent', price: 250, category: 'shelter' },
+  { id: 'house', emoji: '🏡', name: 'Dream Home', price: 2000, category: 'shelter' },
+  { id: 'car', emoji: '🚗', name: 'First Car', price: 1200, category: 'vehicle' },
+  { id: 'plane', emoji: '✈️', name: 'Travel Fund', price: 800, category: 'miscellaneous' },
+  { id: 'grad', emoji: '🎓', name: 'Diploma', price: 600, category: 'miscellaneous' },
+  { id: 'castle', emoji: '🏰', name: 'Castle', price: 5000, category: 'shelter' },
+  { id: 'sunflower', emoji: '🌻', name: 'Sunflower', price: 40, category: 'nature' },
+  { id: 'mushroom', emoji: '🍄', name: 'Mushroom', price: 35, category: 'nature' },
+  { id: 'rock', emoji: '🪨', name: 'Boulder', price: 50, category: 'nature' },
+  { id: 'log', emoji: '🪵', name: 'Log Seat', price: 60, category: 'miscellaneous' },
+  { id: 'potted', emoji: '🪴', name: 'Potted Plant', price: 70, category: 'nature' },
+  { id: 'basket', emoji: '🧺', name: 'Picnic Basket', price: 80, category: 'miscellaneous' },
+  { id: 'blossom', emoji: '🌸', name: 'Cherry Blossom', price: 90, category: 'nature' },
+  { id: 'pine', emoji: '🌲', name: 'Pine Tree', price: 90, category: 'nature' },
+  { id: 'mailbox', emoji: '📮', name: 'Mailbox', price: 100, category: 'miscellaneous' },
+  { id: 'umbrella', emoji: '⛱️', name: 'Beach Umbrella', price: 180, category: 'miscellaneous' },
+  { id: 'canoe', emoji: '🛶', name: 'Canoe', price: 350, category: 'vehicle' },
+  { id: 'playground', emoji: '🛝', name: 'Slide', price: 450, category: 'miscellaneous' },
+  { id: 'hut', emoji: '🛖', name: 'Cozy Hut', price: 700, category: 'shelter' },
+  { id: 'ferris', emoji: '🎡', name: 'Ferris Wheel', price: 3000, category: 'miscellaneous' },
+  // added with the shop categories (Lina)
+  { id: 'garden', emoji: '🌼', name: 'Garden', price: 100, category: 'nature' },
+  { id: 'christmas-tree', emoji: '🎄', name: 'Christmas Tree', price: 100, category: 'nature' },
+  { id: 'mountain', emoji: '🏔️', name: 'Mountain', price: 100, category: 'nature' },
+  { id: 'table', emoji: '🍽️', name: 'Table', price: 130, category: 'miscellaneous' },
+  { id: 'fence', emoji: '🚧', name: 'Fence', price: 140, category: 'miscellaneous' },
+  { id: 'park-bench', emoji: '🛋️', name: 'Bench', price: 130, category: 'miscellaneous' },
+  { id: 'lamppost', emoji: '💡', name: 'Lamppost', price: 120, category: 'miscellaneous' },
 ].sort((a, b) => a.price - b.price);
+// Shop tabs: one per category (Lina's categories), plus All and Paths
+const SHOP_CATEGORIES = [
+  { id: 'nature', label: '🌳 Nature' },
+  { id: 'miscellaneous', label: '🪑 Miscellaneous' },
+  { id: 'shelter', label: '🏠 Shelter' },
+  { id: 'vehicle', label: '🚗 Vehicles' },
+];
+let shopTab = 'all';
 // Path styles: buy once in the shop, then pave/unpave anywhere in ✏️ edit mode
 const PATH_KITS = [
   { id: 'dirt', name: 'Dirt Path', price: 0 },
@@ -437,7 +453,7 @@ function silhouette(id, color) {
   return silCache[k] = c;
 }
 const iconURL = id => icon(id).toDataURL();
-const BIG = new Set(['tree', 'palm', 'house', 'castle', 'fountain', 'pine', 'hut', 'ferris']);
+const BIG = new Set(['tree', 'palm', 'house', 'castle', 'fountain', 'pine', 'hut', 'ferris', 'mountain', 'christmas-tree']);
 function drawItem(id, x, y, alpha = 1) {
   const size = BIG.has(id) ? 56 : 36, cx = x * TILE + TILE / 2, bottom = y * TILE + TILE - 2;
   const left = cx - size / 2, top = bottom - size, o = Math.max(2, Math.round(size / 16));
@@ -1296,10 +1312,19 @@ function renderShop() {
       <span class="price">${owned ? 'Owned ✓' : '🪙 ' + k.price}</span>
       ${locked ? `<span class="need">need ${k.price - S.coins} more</span>` : ''}</button>`;
   }).join('');
-  $('shop').innerHTML = `<h3 class="shop-section">🛤️ Paths <small>buy a style once, then pave as much as you like in ✏️ edit mode</small></h3>${kits}
-    <h3 class="shop-section">🌳 Decorations</h3>` + SHOP.map(s => `<button class="item ${S.coins < s.price ? 'locked' : ''}" data-id="${s.id}">
+  const tabs = [{ id: 'all', label: 'All' }, ...SHOP_CATEGORIES, { id: 'paths', label: '🛤️ Paths' }];
+  $('shopTabs').innerHTML = tabs.map(t => `<button type="button" role="tab" class="shop-tab ${shopTab === t.id ? 'on' : ''}" aria-selected="${shopTab === t.id}" data-tab="${t.id}">${t.label}</button>`).join('');
+  $('shopTabs').querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { shopTab = b.dataset.tab; renderShop(); });
+  const card = s => `<button class="item ${S.coins < s.price ? 'locked' : ''}" data-id="${s.id}">
       <img src="${iconURL(s.id)}" alt=""><span class="name">${s.name}</span><span class="price">🪙 ${s.price}</span>
-      ${S.coins < s.price ? `<span class="need">need ${s.price - S.coins} more</span>` : ''}</button>`).join('');
+      ${S.coins < s.price ? `<span class="need">need ${s.price - S.coins} more</span>` : ''}</button>`;
+  const paths = `<h3 class="shop-section">🛤️ Paths <small>buy a style once, then pave as much as you like in ✏️ edit mode</small></h3>${kits}`;
+  const shown = shopTab === 'all' ? SHOP_CATEGORIES : SHOP_CATEGORIES.filter(c => c.id === shopTab);
+  const items = shown.map(c => {
+    const list = SHOP.filter(s => s.category === c.id);
+    return list.length ? `<h3 class="shop-section">${c.label}</h3>` + list.map(card).join('') : '';
+  }).join('');
+  $('shop').innerHTML = shopTab === 'paths' ? paths : items + (shopTab === 'all' ? paths : '');
   $('shop').querySelectorAll('[data-kit]').forEach(el => el.onclick = () => {
     const k = PATH_KITS.find(i => i.id === el.dataset.kit);
     if (S.pathKits?.includes(k.id)) return toast(`You own ${k.name}. Open ✏️ edit mode to pave with it.`);
