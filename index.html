@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Future Me Island</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<header>
+  <h1>🏝️ Future Me Island</h1>
+  <div class="stats">
+    <span id="coins">🪙 0</span>
+    <span id="saved">💰 $0 saved</span>
+    <span id="streak">🔥 0-day streak</span>
+  </div>
+</header>
+
+<main>
+  <section class="game-wrap">
+    <canvas id="game" width="800" height="560"></canvas>
+    <p class="hint">Arrow keys to move · <b>Space</b> near Maple 🦊 to chat · Select an item from your inventory then click a tile to place it · Shift+click to pick an item back up</p>
+  </section>
+
+  <aside>
+    <nav class="tabs">
+      <button data-tab="bank" class="active">🏦 Bank</button>
+      <button data-tab="shop">🛍️ Shop</button>
+      <button data-tab="goals">🎯 Goals</button>
+      <button data-tab="daily">🔥 Daily</button>
+    </nav>
+
+    <div class="panel active" id="tab-bank">
+      <h2>Savings Account</h2>
+      <p class="muted">Demo of a linked bank account. Every <b>$1</b> moved into savings/investments = <b>10 🪙</b>.</p>
+      <label>Amount ($)<input id="depAmount" type="number" min="1" value="20"></label>
+      <label>Where?
+        <select id="depType">
+          <option value="Savings">High-interest savings</option>
+          <option value="TFSA">TFSA</option>
+          <option value="RRSP">RRSP</option>
+          <option value="FHSA">FHSA (first home)</option>
+        </select>
+      </label>
+      <button id="depositBtn" class="primary">Deposit</button>
+      <h3>History</h3>
+      <ul id="history" class="list"></ul>
+    </div>
+
+    <div class="panel" id="tab-shop">
+      <h2>Nook-ish Shop</h2>
+      <div id="shop" class="grid"></div>
+      <h3>Inventory <small class="muted">(click to place)</small></h3>
+      <div id="inventory" class="grid"></div>
+    </div>
+
+    <div class="panel" id="tab-goals">
+      <h2>Dream Life Goals</h2>
+      <label>Goal<input id="goalName" placeholder="e.g. Trip to Japan"></label>
+      <label>Target ($)<input id="goalTarget" type="number" min="1" placeholder="3000"></label>
+      <button id="addGoal" class="primary">Add goal</button>
+      <div id="goals"></div>
+    </div>
+
+    <div class="panel" id="tab-daily">
+      <h2>Daily Missions</h2>
+      <p class="muted">Finish any mission each day to keep your streak. Bonus coins grow with your streak!</p>
+      <ul id="missions" class="list"></ul>
+      <p id="streakInfo"></p>
+    </div>
+  </aside>
+</main>
+
+<div id="chat" class="modal hidden">
+  <div class="chat-box">
+    <div class="chat-head">🦊 Maple the Money Fox <button id="closeChat">✕</button></div>
+    <div id="chatLog"></div>
+    <form id="chatForm"><input id="chatInput" placeholder="Ask Maple anything about money..." autocomplete="off"><button>Send</button></form>
+  </div>
+</div>
+
+<div id="toast"></div>
+<script src="game.js"></script>
+</body>
+</html>
