@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Future Me Island</title>
 <link rel="preload" href="fonts/VCR_OSD_MONO.ttf" as="font" type="font/ttf" crossorigin>
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=19">
 </head>
 <body>
 <div id="intro" class="intro" role="dialog" aria-label="Welcome to Future Me Island">
@@ -23,7 +23,6 @@
 </div>
 
 <!-- ===== The island: full screen ===== -->
-<canvas id="sea" aria-hidden="true"></canvas>
 <main class="stage" id="stage">
   <canvas id="game" width="800" height="560" aria-label="Your island. Use arrow keys to walk."></canvas>
 
@@ -34,6 +33,7 @@
   </div>
 
   <nav class="hud hud-right" aria-label="Menu">
+    <button class="menu-btn" id="editBtn" aria-pressed="false"><span class="ico">✏️</span>edit</button>
     <button class="menu-btn" data-open="bank"><span class="ico">🏦</span>bank</button>
     <button class="menu-btn" data-open="daily"><span class="ico">🔥</span>daily</button>
     <button class="menu-btn" data-open="jars"><span class="ico">🫙</span>jars</button>
@@ -44,7 +44,7 @@
     <h3>Controls</h3>
     <dl>
       <dt><kbd>←↑↓→</kbd> or <kbd>WASD</kbd></dt><dd>Walk</dd>
-      <dt><kbd>Space</kbd></dt><dd>Talk to Maple / enter the shop</dd>
+      <dt><kbd>Space</kbd></dt><dd>Talk to Maple / enter the shop / town build info</dd>
       <dt>Click bag item, then island</dt><dd>Place it</dd>
       <dt><kbd>Shift</kbd> + click</dt><dd>Pick an item back up</dd>
       <dt>Click the town island</dt><dd>Visit your town</dd>
@@ -65,30 +65,41 @@
   </div>
 </main>
 
+<div id="editBar" class="edit-bar hidden" role="status">
+  <div class="edit-top"><b>✏️ Edit mode</b><span id="editHint" class="edit-hint"></span><button id="editDone" type="button">Done</button></div>
+  <div id="editTools" class="edit-tools" role="toolbar" aria-label="Edit tools"></div>
+</div>
+
 <!-- ===== Pop-up windows ===== -->
 <div class="modal hidden" id="panel-bank" role="dialog" aria-labelledby="bankTitle">
-  <div class="window">
+  <div class="window bank-window">
     <div class="window-head"><h2 id="bankTitle">🏦 Bank</h2><button class="close" data-close aria-label="Close">✕</button></div>
-    <div class="window-body">
-      <div>
-        <p class="bank-hello">Welcome back!</p>
-        <label for="depAmount" class="bank-ask">How much <span class="real">real money</span> did you save?</label>
-        <div class="quick-add">
-          <button type="button" data-add="1">+$1</button>
-          <button type="button" data-add="5">+$5</button>
-          <button type="button" data-add="10">+$10</button>
-        </div>
-        <input id="depAmount" type="number" min="1" placeholder="or type an amount" inputmode="numeric">
-        <label>Where did it go?<select id="depType"></select></label>
+    <div class="window-body bank-body">
+      <!-- the big, obvious part: how much + LOG! (Figma Desktop-3) -->
+      <h3 class="bank-q"><label for="depAmount">how much <span class="real">real money</span> did you save today?</label></h3>
+      <div class="amt-tiles" role="group" aria-label="Quick amounts">
+        <button type="button" class="amt-tile" data-amt="1">$1</button>
+        <button type="button" class="amt-tile" data-amt="5">$5</button>
+        <button type="button" class="amt-tile" data-amt="10">$10</button>
+      </div>
+      <input id="depAmount" class="amt-input" type="number" min="1" placeholder="or type an amount" inputmode="numeric">
+
+      <!-- the small, optional part: which account + which jar -->
+      <div class="bank-small">
+        <label class="small-label">which account?<select id="depType"></select></label>
         <div id="acctEditor" class="acct-editor hidden">
           <div class="acct-head"><span>Your savings accounts</span><button type="button" id="acctDone">Done</button></div>
           <ul id="acctList" class="acct-list"></ul>
           <div class="acct-add"><input id="acctName" maxlength="30" placeholder="e.g. Emergency fund"><button type="button" id="acctAdd">+ Add</button></div>
         </div>
-        <label>Put it toward a Wish Jar?<select id="depJar"></select></label>
-        <button id="depositBtn" class="primary">Log my savings</button>
-        <button class="secondary" data-close>Not today, go to my island</button>
+        <div class="small-label" id="jarPickLabel">wish jar? <span class="muted">(optional)</span></div>
+        <div id="jarPick" class="jar-pick" role="radiogroup" aria-labelledby="jarPickLabel"></div>
+        <select id="depJar" class="hidden" aria-hidden="true" tabindex="-1"></select>
       </div>
+
+      <button id="depositBtn" class="log-btn">💰 LOG MY SAVINGS</button>
+      <button class="link-btn" data-close>not today</button>
+
       <details class="earn">
         <summary><span class="q">?</span> How you earn 🪙 <span class="arrow">▸</span></summary>
         <div class="card">
@@ -132,24 +143,76 @@
 </div>
 
 <div class="modal hidden" id="panel-history" role="dialog" aria-labelledby="historyTitle">
-  <div class="window">
-    <div class="window-head"><h2 id="historyTitle">📜 Savings History</h2><button class="close" data-close aria-label="Close">✕</button></div>
-    <div class="window-body">
-      <div class="hist-tools">
-        <label for="histSort">Sort by</label>
-        <select id="histSort">
-          <option value="new">Date (newest first)</option>
-          <option value="old">Date (oldest first)</option>
-          <option value="type">Account</option>
-          <option value="jar">Wish Jar</option>
-        </select>
+  <div class="window wide">
+    <div class="window-head"><h2 id="historyTitle">📈 History &amp; Future</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-body future-body">
+      <div id="futureStats" class="future-stats"></div>
+
+      <div class="what-if">
+        <label for="rateInput">Projecting</label>
+        <span class="rate-box">$<input id="rateInput" type="number" min="0.5" step="0.5"> a day</span>
+        <span id="rateNote" class="muted"></span>
+        <button type="button" id="rateReset" class="link-btn hidden">use my real average</button>
       </div>
-      <ul id="history" class="history"></ul>
+
+      <figure class="chart-wrap">
+        <div class="chart-legend">
+          <span><i style="background:#0f8aa3"></i>saved so far</span>
+          <span><i class="dash" style="--c:#d9701a"></i>keep saving</span>
+          <span><i class="dash" style="--c:#8a4fd0"></i>saved + invested (5%/yr)</span>
+        </div>
+        <svg id="futureChart" role="img" aria-label="Your savings so far and projected into the future"></svg>
+        <div id="chartTip" class="chart-tip hidden" role="status"></div>
+        <details class="chart-table"><summary>Show as a table</summary><table id="futureTable"></table></details>
+        <figcaption class="muted">Click 1 yr, 10 yrs or 20 yrs on the graph to see your island then. Projections assume you keep saving at this pace. The invested line assumes 5% a year growth, which is an example only: real investments go up and down.</figcaption>
+      </figure>
+
+      <section class="preview">
+        <div class="preview-head">
+          <h3>🔮 Your island in <span id="pvYears">10 yrs</span></h3>
+          <div id="horizonPick" class="horizon-pick" role="group" aria-label="How far ahead"></div>
+        </div>
+        <div class="postcard">
+          <canvas id="previewIsland" width="560" height="440" aria-label="Preview of your island in the future"></canvas>
+          <span class="postcard-stamp">✨ future you</span>
+        </div>
+        <ul id="pvText" class="pv-list"></ul>
+      </section>
+
+      <details class="hist-log">
+        <summary>🏗️ Show my savings log</summary>
+        <div class="hist-tools">
+          <label for="histSort">Sort by</label>
+          <select id="histSort">
+            <option value="new">Date (newest first)</option>
+            <option value="old">Date (oldest first)</option>
+            <option value="type">Account</option>
+            <option value="jar">Wish Jar</option>
+          </select>
+        </div>
+        <ul id="history" class="history"></ul>
+      </details>
     </div>
   </div>
 </div>
 
-<div class="modal hidden" id="panel-town" role="dialog" aria-labelledby="townTitleHead">
+<div class="modal hidden" id="panel-build" role="dialog" aria-labelledby="buildTitle">
+  <div class="window">
+    <div class="window-head"><h2 id="buildTitle">🏗️ Town build</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-body">
+      <p id="buildSub" class="muted"></p>
+      <div class="town-bar big"><div id="buildFill" class="fill"></div></div>
+      <h3>Who's helping</h3>
+      <ul id="buildContrib" class="contrib-list"></ul>
+      <section class="newsboard small" aria-label="Recent news for this build">
+        <h3 class="board-title">📌 Recent News</h3>
+        <div id="buildNews" class="board"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="panel-town"role="dialog" aria-labelledby="townTitleHead">
   <div class="window wide">
     <div class="window-head"><h2 id="townTitleHead">🏘️ Towns</h2><button class="close" data-close aria-label="Close">✕</button></div>
     <div class="window-body">
@@ -157,6 +220,11 @@
       <section class="newsboard" aria-labelledby="boardTitle">
         <h3 class="board-title" id="boardTitle">📌 Town News</h3>
         <div id="townBoard" class="board"></div>
+        <form class="note-form" id="noteForm">
+          <select id="noteTown" aria-label="Which town to post in"></select>
+          <input id="noteText" maxlength="100" placeholder="Pin a note to cheer your town on! 💪" aria-label="Encouragement note">
+          <button class="primary">📌 Pin</button>
+        </form>
       </section>
       <p id="townStatus" class="muted">Connecting…</p>
 
@@ -192,6 +260,10 @@
         <section class="newsboard small" aria-label="This town's news">
           <h3 class="board-title">📌 Town News</h3>
           <div id="townDetailBoard" class="board"></div>
+          <form class="note-form" id="noteFormDetail">
+            <input id="noteTextDetail" maxlength="100" placeholder="Pin a note to cheer your town on! 💪" aria-label="Encouragement note">
+            <button class="primary">📌 Pin</button>
+          </form>
         </section>
         <div id="projActive">
           <h3 id="projectTitle">Town Project</h3>
@@ -232,8 +304,8 @@
 
 <div id="toast" role="status"></div>
 <script src="intro.js"></script>
-<script src="game.js?v=4"></script>
+<script src="game.js?v=19"></script>
 <script type="module" src="cloud.js"></script>
-<script type="module" src="town.js?v=4"></script>
+<script type="module" src="town.js?v=19"></script>
 </body>
 </html>
