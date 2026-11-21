@@ -33,51 +33,27 @@
   let setupCanCancel = false;
   let countdownInterval = null;
 
-  function easternParts(date = new Date(), includeTime = false) {
-    const options = {
-      timeZone: 'America/New_York',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    };
-    if (includeTime) {
-      options.hour = '2-digit';
-      options.minute = '2-digit';
-      options.second = '2-digit';
-      options.hourCycle = 'h23';
-    }
-    return Object.fromEntries(new Intl.DateTimeFormat('en-US', options)
-      .formatToParts(date).filter(part => part.type !== 'literal').map(part => [part.type, Number(part.value)]));
+  // The Daily Star follows the device's local date, same as daily missions in game.js
+  function localDay() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
-  function easternDay() {
-    const { year, month, day } = easternParts();
-    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-  }
-
-  function easternOffset(date) {
-    const { year, month, day, hour, minute, second } = easternParts(date, true);
-    return Date.UTC(year, month - 1, day, hour, minute, second) - date.getTime();
-  }
-
-  function untilEasternMidnight() {
-    const { year, month, day } = easternParts();
-    const nextDay = new Date(Date.UTC(year, month - 1, day + 1));
-    const target = Date.UTC(nextDay.getUTCFullYear(), nextDay.getUTCMonth(), nextDay.getUTCDate());
-    let midnight = target;
-    for (let i = 0; i < 3; i++) midnight = target - easternOffset(new Date(midnight));
+  function untilLocalMidnight() {
+    const midnight = new Date();
+    midnight.setHours(24, 0, 0, 0);
     return Math.max(0, midnight - Date.now());
   }
 
   function countdownText() {
-    const seconds = Math.ceil(untilEasternMidnight() / 1000);
+    const seconds = Math.ceil(untilLocalMidnight() / 1000);
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor(seconds % 3600 / 60);
     return `${hours}h ${String(minutes).padStart(2, '0')}m ${String(seconds % 60).padStart(2, '0')}s`;
   }
 
   function updateCountdown() {
-    if (ensureState().dailyStar.date !== easternDay() || !ensureState().dailyStar.completed) {
+    if (ensureState().dailyStar.date !== localDay() || !ensureState().dailyStar.completed) {
       const note = $('introNote');
       if (note.dataset.dailyLocked === 'true') {
         note.dataset.dailyLocked = 'false';
@@ -98,7 +74,7 @@
       note.textContent = `Sorry, the daily star has twinkled already. Check back in ${message}.`;
     }
     const modalCountdown = $('starCountdown');
-    if (modalCountdown) modalCountdown.textContent = `The Daily Star resets in ${message} (midnight Eastern).`;
+    if (modalCountdown) modalCountdown.textContent = `The Daily Star resets in ${message} (midnight your time).`;
   }
 
   function showAlreadyPlayed() {
@@ -199,7 +175,7 @@
 
   function startDailyStar({ fromMenu = false } = {}) {
     const s = ensureState();
-    if (s.dailyStar.date === easternDay() && s.dailyStar.completed) {
+    if (s.dailyStar.date === localDay() && s.dailyStar.completed) {
       if (fromMenu) {
         showAlreadyPlayed();
         return;
@@ -214,8 +190,8 @@
       return;
     }
     $('dailyStarModal').classList.remove('hidden');
-    if (!run || run.day !== easternDay()) {
-      const savedRun = s.dailyStar.date === easternDay() &&
+    if (!run || run.day !== localDay()) {
+      const savedRun = s.dailyStar.date === localDay() &&
         Array.isArray(s.dailyStar.games) && s.dailyStar.games.length === ROUNDS_PER_DAY &&
         new Set(s.dailyStar.games).size === ROUNDS_PER_DAY &&
         s.dailyStar.games.every(id => gameById[id]);
@@ -224,7 +200,7 @@
         s.dailyStar.rounds.length <= ROUNDS_PER_DAY &&
         s.dailyStar.rounds.every(score => Number.isFinite(score) && score >= 0 && score <= 100)
         ? s.dailyStar.rounds.slice() : [];
-      run = { day: easternDay(), ids, index: scores.length, scores };
+      run = { day: localDay(), ids, index: scores.length, scores };
       if (!savedRun) {
         s.dailyStar = { date: run.day, games: ids, completed: false, score: null, reward: 0, rounds: [] };
         window.saveGame();
@@ -240,7 +216,7 @@
       <div class="result-score">${Number(result.score).toFixed(1)}<small> / 10</small></div>
       <p>Accuracy: ${Math.round(result.score * 10)}%</p>
       <p>You revealed ${result.reward} more vision-board tile${result.reward === 1 ? '' : 's'} today.</p>
-      <p id="starCountdown">The Daily Star resets in ${countdownText()} (midnight Eastern).</p>
+      <p id="starCountdown">The Daily Star resets in ${countdownText()} (midnight your time).</p>
     </div>`;
     $('starNext').classList.add('hidden');
   }
@@ -655,7 +631,7 @@
     else renderRound();
   });
 
-  window.getGameDay = easternDay;
+  window.getGameDay = localDay;
   window.startDailyStar = startDailyStar;
   window.renderVisionBoard = renderBoard;
   window.onEnterWorld = () => {
