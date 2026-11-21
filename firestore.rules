@@ -1,0 +1,105 @@
+rules_version = '2';
+// Source of truth for Firestore security rules.
+// Deploy: firebase deploy --only firestore:rules
+// (or paste this whole file into Firebase console -> Firestore -> Rules -> Publish)
+// Keep numbers in sync with town.js: MAX_POINTS (300), project goal range (100–50000), name length (40).
+service cloud.firestore {
+  match /databases/{db}/documents {
+
+    // Each player's island: only they can read/write it.
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // towns/{code}.project = { name, goal, progress, number, startedBy }   (one active project at a time)
+    // towns/{code}.built   = [ { name, goal, number }, ... ]                (finished projects)
+    match /towns/{code} {
+      function isMember() {
+        return request.auth != null && resource.data.members.keys().hasAny([request.auth.uid]);
+      }
+      function oldP() { return resource.data.get('project', {}); }
+      function newP() { return request.resource.data.project; }
+      // towns from before named projects have an unnamed project; treat that as "no project yet"
+      function named(p) { return p.keys().hasAll(['name', 'goal', 'progress', 'number', 'startedBy']); }
+      function projectShape(p) { return p.keys().hasOnly(['name', 'goal', 'progress', 'number', 'startedBy']); }
+
+      // add hammer points to the active project: at most 300 per action, never past the goal
+      function validContribution() {
+        let o = oldP();
+        let n = newP();
+        return named(o) && o.progress < o.goal && projectShape(n)
+          && n.name == o.name && n.goal == o.goal && n.number == o.number && n.startedBy == o.startedBy
+          && n.progress > o.progress && n.progress - o.progress <= 300 && n.progress <= n.goal;
+      }
+
+      // start the next project, only once the current one is built (or the town has none yet);
+      // the finished project moves into `built`
+      function validNewProject() {
+        let o = oldP();
+        let n = newP();
+        let oldBuilt = resource.data.get('built', []);
+        let newBuilt = request.resource.data.get('built', []);
+        return projectShape(n)
+          && n.name is string && n.name.size() > 0 && n.name.size() <= 40
+          && n.goal is int && n.goal >= 100 && n.goal <= 50000
+          && n.progress == 0 && n.startedBy == request.auth.uid
+          && (
+            (named(o) && o.progress >= o.goal && n.number == o.number + 1
+              && newBuilt == oldBuilt.concat([{ 'name': o.name, 'goal': o.goal, 'number': o.number }]))
+            || (!named(o) && n.number == 1 && newBuilt == oldBuilt)
+          );
+      }
+
+      // anyone signed in can look up a town by its code (needed to join); no listing all towns
+      allow get: if request.auth != null;
+
+      // founder must be the only member, and the doc ID must match the code
+      allow create: if request.auth != null
+        && request.resource.data.code == code
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.members.keys().hasOnly([request.auth.uid]);
+
+      allow update: if request.auth != null && (
+        // join / rename / leave: only your own member entry
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members'])
+          && request.resource.data.members.diff(resource.data.members).affectedKeys().hasOnly([request.auth.uid]))
+        // contribute: members only, small increments
+        || (isMember()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['project'])
+          && validContribution())
+        // start a new project: members only
+        || (isMember()
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['project', 'built'])
+          && validNewProject())
+      );
+
+      // Town news feed (points can be 0 for "started a project" notices)
+      match /feed/{id} {
+        function member() {
+          return request.auth != null &&
+            get(/databases/$(db)/documents/towns/$(code)).data.members.keys().hasAny([request.auth.uid]);
+        }
+        allow read: if member();
+        allow create: if member()
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.points is int
+          && request.resource.data.points >= 0 && request.resource.data.points <= 300
+          && request.resource.data.text is string && request.resource.data.text.size() <= 120;
+        // the author can edit the text of their own encouragement note, or delete it
+        allow update: if member()
+          && resource.data.uid == request.auth.uid && resource.data.get('note', false) == true
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['text', 'edited'])
+          && request.resource.data.text is string && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 120;
+        allow delete: if member()
+          && resource.data.uid == request.auth.uid && resource.data.get('note', false) == true;
+        // other townsfolk can add/remove only their own heart on any post
+        allow update: if member()
+          && resource.data.uid != request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hearts'])
+          && request.resource.data.hearts.diff(resource.data.get('hearts', {})).affectedKeys().hasOnly([request.auth.uid])
+          && request.resource.data.hearts.get(request.auth.uid, true) == true;
+      }
+    }
+  }
+}
