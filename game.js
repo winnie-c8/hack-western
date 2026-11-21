@@ -36,6 +36,8 @@ const defaultState = () => ({
   goals: [], streak: 0, lastStreakDay: null, missionsDay: today(), missionsDone: [],
   player: { x: 9, y: 8 }, weeks: [], lastDepositDay: null,
   accounts: ['High-interest savings', 'TFSA', 'RRSP', 'FHSA (first home)'],
+  visionBoard: { selections: null, unlocked: 0 },
+  dailyStar: { date: null, games: [], completed: false, score: null, reward: 0, rounds: [] },
 });
 let S;
 let hadLocalSave = false; // a brand-new local island must never overwrite the cloud copy
@@ -619,14 +621,16 @@ function renderStats() {
 // "side" panels (daily) sit on the right and don't block walking; the rest are centred pop-ups
 const anyOpen = () => !!document.querySelector('.modal:not(.hidden):not(.side)');
 function closePanels() {
+  if (document.querySelector('.required-setup:not(.hidden)')) return false;
   document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
   document.querySelectorAll('[data-open]').forEach(b => b.classList.remove('active'));
   document.activeElement?.blur?.();
+  return true;
 }
 function openPanel(name) {
   const el = $('panel-' + name), side = el.classList.contains('side');
   const wasOpen = !el.classList.contains('hidden');
-  closePanels();
+  if (!closePanels()) return;
   if (side && wasOpen) return; // clicking the same button again closes it
   el.classList.remove('hidden');
   document.querySelector(`[data-open="${name}"]`)?.classList.add('active');
@@ -641,7 +645,9 @@ paintTownIsle();
 $('helpBtn').onclick = e => { e.stopPropagation(); $('helpPop').classList.toggle('hidden'); $('helpBtn').classList.toggle('active'); };
 addEventListener('click', e => { if (!e.target.closest('#helpPop')) { $('helpPop').classList.add('hidden'); $('helpBtn').classList.remove('active'); } });
 document.querySelectorAll('[data-close]').forEach(b => b.onclick = closePanels);
-document.querySelectorAll('.modal').forEach(m => m.addEventListener('mousedown', e => { if (e.target === m) closePanels(); }));
+document.querySelectorAll('.modal').forEach(m => m.addEventListener('mousedown', e => {
+  if (e.target === m && !m.classList.contains('required-setup')) closePanels();
+}));
 
 // ---------- Bank ----------
 // consecutive weeks (ending this week) with at least one deposit
@@ -947,7 +953,10 @@ renderAll();
 
 if (document.body.classList.contains('intro-open')) {
   new MutationObserver((_, obs) => {
-    if (!document.body.classList.contains('intro-open')) { obs.disconnect(); openPanel('bank'); }
+    if (!document.body.classList.contains('intro-open')) {
+      obs.disconnect();
+      if ($('visionSetupModal').classList.contains('hidden')) openPanel('bank');
+    }
   }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 } else openPanel('bank');
 
@@ -956,7 +965,7 @@ window.loadCloudState = data => {
   S = Object.assign(defaultState(), data);
   try { localStorage.setItem('fmi', JSON.stringify(S)); } catch {}
   Object.assign(P, { x: S.player.x, y: S.player.y, rx: S.player.x, ry: S.player.y, moving: false });
-  rollDay(); renderAll();
+  rollDay(); renderAll(); window.renderVisionBoard?.();
 };
 window.getState = () => S;
 window.hasLocalSave = () => hadLocalSave;

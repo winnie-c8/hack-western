@@ -84,25 +84,44 @@
 
   // ---------- Buttons ----------
   const note = document.getElementById('introNote');
+  const enterWorld = document.getElementById('enterWorld');
 
-  document.getElementById('enterWorld').addEventListener('click', e => {
+  function finishLeaving() {
+    intro.hidden = true;
+    intro.classList.remove('leaving');
+    enterWorld.classList.remove('picked');
+    document.getElementById('dailyStar').classList.remove('wiggle');
+    document.body.classList.remove('intro-open');
+    cancelAnimationFrame(raf);
+    document.activeElement?.blur?.();
+    window.onEnterWorld?.();
+  }
+
+  enterWorld.addEventListener('click', e => {
     if (intro.classList.contains('leaving')) return;
     e.currentTarget.classList.add('picked');
     intro.classList.add('leaving');
-    const finish = () => {
-      cancelAnimationFrame(raf);
-      intro.remove();
-      document.body.classList.remove('intro-open');
-      document.activeElement?.blur?.();
-    };
-    if (reduce) setTimeout(finish, 300);
-    else intro.addEventListener('animationend', ev => { if (ev.target === intro) finish(); });
+    if (reduce) setTimeout(finishLeaving, 300);
+    else {
+      const onLeave = ev => {
+        if (ev.target !== intro) return;
+        intro.removeEventListener('animationend', onLeave);
+        finishLeaving();
+      };
+      intro.addEventListener('animationend', onLeave);
+    }
   });
 
-  // Daily Star: game code comes later. If window.startDailyStar exists it runs,
-  // otherwise the screen shows a "coming soon" note.
+  document.getElementById('mainMenuBtn').addEventListener('click', () => {
+    intro.hidden = false;
+    intro.classList.remove('leaving');
+    document.body.classList.add('intro-open');
+    raf = requestAnimationFrame(frame);
+  });
+
+  // Daily Star is provided by daily-star.js; keep a fallback if that script is unavailable.
   document.getElementById('dailyStar').addEventListener('click', e => {
-    if (typeof window.startDailyStar === 'function') return window.startDailyStar();
+    if (typeof window.startDailyStar === 'function') return window.startDailyStar({ fromMenu: true });
     note.textContent = '⭐ The Daily Star is twinkling soon! Check back tomorrow.';
     note.classList.remove('show'); void note.offsetWidth; note.classList.add('show');
     e.currentTarget.classList.remove('wiggle'); void e.currentTarget.offsetWidth; e.currentTarget.classList.add('wiggle');

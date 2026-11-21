@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Future Me Island</title>
 <link rel="preload" href="fonts/VCR_OSD_MONO.ttf" as="font" type="font/ttf" crossorigin>
-<link rel="stylesheet" href="style.css?v=4">
+<link rel="stylesheet" href="style.css?v=5">
 </head>
 <body>
 <div id="intro" class="intro" role="dialog" aria-label="Welcome to Future Me Island">
@@ -38,6 +38,8 @@
     <button class="menu-btn" data-open="daily"><span class="ico">🔥</span>daily</button>
     <button class="menu-btn" data-open="jars"><span class="ico">🫙</span>jars</button>
     <button class="menu-btn" data-open="history"><span class="ico">📜</span>history</button>
+    <button class="menu-btn" data-open="vision"><span class="ico">🌠</span>vision</button>
+    <button class="menu-btn" id="mainMenuBtn"><span class="ico">🏠</span>home</button>
     <button class="help-dot" id="helpBtn" aria-label="Controls" aria-controls="helpPop">?</button>
   </nav>
   <div id="helpPop" class="help-pop hidden" role="dialog" aria-label="Controls">
@@ -149,6 +151,20 @@
   </div>
 </div>
 
+<div class="modal hidden" id="panel-vision" role="dialog" aria-labelledby="visionTitle">
+  <div class="window wide">
+    <div class="window-head"><h2 id="visionTitle">🌠 My Vision Board</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-body">
+      <p id="visionBoardProgress" class="muted"></p>
+      <div id="visionBoardGrid" class="vision-grid" aria-live="polite"></div>
+      <div class="vision-actions">
+        <button id="playDailyStarFromBoard" class="primary" type="button">⭐ Play the Daily Star</button>
+        <button id="editVisionBoard" class="secondary" type="button">Edit my dreams</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="modal hidden" id="panel-town" role="dialog" aria-labelledby="townTitleHead">
   <div class="window wide">
     <div class="window-head"><h2 id="townTitleHead">🏘️ Towns</h2><button class="close" data-close aria-label="Close">✕</button></div>
@@ -231,8 +247,38 @@
 </div>
 
 <div id="toast" role="status"></div>
+<div id="visionSetupModal" class="modal hidden layered-modal" role="dialog" aria-modal="true" aria-labelledby="visionSetupTitle">
+  <section class="game-dialog setup-dialog">
+    <h2 id="visionSetupTitle">Build your Vision Board</h2>
+    <p>Write down five dreams to guide your 50-tile board. Each Daily Star challenge reveals more of your future.</p>
+    <form id="visionSetupForm">
+      <div id="visionChoices" class="vision-choices"></div>
+      <p class="muted">Your first challenge unlocks 1–3 tiles. Score above 6/10 to unlock 3, above 5/10 to unlock 2.</p>
+      <div class="dialog-actions">
+        <button type="submit" class="primary">Save my Vision Board</button>
+        <button type="button" id="visionSetupCancel" class="secondary-btn">Cancel</button>
+      </div>
+    </form>
+  </section>
+</div>
+
+<div id="dailyStarModal" class="modal hidden layered-modal" role="dialog" aria-modal="true" aria-labelledby="dailyStarTitle">
+  <section class="game-dialog daily-dialog">
+    <div class="dialog-heading">
+      <h2 id="dailyStarTitle">⭐ Daily Star</h2>
+      <button type="button" id="closeDailyStar" class="dialog-close" aria-label="Close Daily Star">✕</button>
+    </div>
+    <p id="starRoundProgress" class="muted"></p>
+    <div id="starRoundMount"></div>
+    <div class="dialog-actions">
+      <button type="button" id="starNext" class="primary hidden">Next round</button>
+    </div>
+  </section>
+</div>
+
 <script src="intro.js"></script>
-<script src="game.js?v=4"></script>
+<script src="game.js?v=5"></script>
+<script src="daily-star.js"></script>
 <script type="module" src="cloud.js"></script>
 <script type="module" src="town.js?v=4"></script>
 </body>
