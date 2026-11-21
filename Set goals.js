@@ -1,5 +1,5 @@
 // Goal logic uses the state and helpers defined in game.js, which must load first.
-// Setting Financial Goals, Goals section of the app
+
 $('addPersonalGoal').onclick = () => {
   const name = $('personalGoalName').value.trim(), target = +$('personalGoalTarget').value;
   if (!name || !(target > 0)) return toast('Add a name and target');
@@ -15,8 +15,7 @@ function renderPersonalGoals() {
     return `<div class="goal ${g.completed ? 'goal-completed' : ''}">
       <button type="button" class="goal-star ${g.starred ? 'starred' : ''}" data-star-goal="${i}" aria-label="${g.starred ? 'Unstar' : 'Star'} ${esc(g.name)}" aria-pressed="${!!g.starred}">${g.starred ? '★' : '☆'}</button>
       <b class="goal-name">${esc(g.name)}</b>
-      <div class="bar"><div style="wid
-      th:${pct}%"></div></div>
+      <div class="bar"><div style="width:${pct}%"></div></div>
       <small>$${g.saved} saved of $${g.target} · $${remaining} to go</small>
       <div class="goal-row"><input type="number" min="1" placeholder="Add savings" aria-label="Amount saved for ${esc(g.name)}" id="personalGoalAmount${i}"><button type="button" data-save-goal="${i}">Add</button></div>
       <label class="goal-complete"><input type="checkbox" data-complete-goal="${i}" ${g.completed ? 'checked' : ''}> Mark completed</label>
@@ -26,6 +25,7 @@ function renderPersonalGoals() {
       </details>
     </div>`;
   }).join('') || '<p class="muted">Add a goal to start tracking your progress.</p>';
+  window.renderGoalPick?.(); // the bank's "goal?" picker lists these too
 
   $('personalGoals').querySelectorAll('[data-save-goal]').forEach(button => {
     button.onclick = () => {
@@ -68,4 +68,5 @@ function renderPersonalGoals() {
   });
 }
 
+window.renderPersonalGoals = renderPersonalGoals;
 renderPersonalGoals();
