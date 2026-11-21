@@ -37,6 +37,7 @@
     <button class="menu-btn" data-open="bank"><span class="ico">🏦</span>bank</button>
     <button class="menu-btn" data-open="daily"><span class="ico">🔥</span>daily</button>
     <button class="menu-btn" data-open="jars"><span class="ico">🫙</span>jars</button>
+    <button class="menu-btn" data-open="goals"><span class="ico">🎯</span>goals</button>
     <button class="menu-btn" data-open="history"><span class="ico">📜</span>history</button>
     <button class="help-dot" id="helpBtn" aria-label="Controls" aria-controls="helpPop">?</button>
   </nav>
@@ -127,6 +128,19 @@
       <p id="streakInfo" class="lead"></p>
       <ul id="missions" class="checklist"></ul>
       <p class="muted">Finish any one mission each day to keep your streak. The bonus grows the longer it lasts.</p>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="panel-goals" role="dialog" aria-labelledby="goalsTitle">
+  <div class="window">
+    <div class="window-head"><h2 id="goalsTitle">🎯 Goals</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-body">
+      <p class="muted">Create a savings goal, track progress, star important goals, and mark them complete.</p>
+      <label>Goal name<input id="personalGoalName" placeholder="e.g. Save for a bike"></label>
+      <label>Target ($)<input id="personalGoalTarget" type="number" min="1" placeholder="500"></label>
+      <button id="addPersonalGoal" class="primary">Add goal</button>
+      <div id="personalGoals"></div>
     </div>
   </div>
 </div>
@@ -233,6 +247,7 @@
 <div id="toast" role="status"></div>
 <script src="intro.js"></script>
 <script src="game.js?v=4"></script>
+<script src="Set%20goals.js"></script>
 <script type="module" src="cloud.js"></script>
 <script type="module" src="town.js?v=4"></script>
 </body>
