@@ -37,8 +37,18 @@ const defaultState = () => ({
   player: { x: 9, y: 8 }, weeks: [], lastDepositDay: null,
 });
 let S;
-try { S = Object.assign(defaultState(), JSON.parse(localStorage.getItem('fmi')) || {}); } catch { S = defaultState(); }
-const save = () => { try { localStorage.setItem('fmi', JSON.stringify(S)); } catch {} };
+let hadLocalSave = false; // a brand-new local island must never overwrite the cloud copy
+try {
+  const raw = localStorage.getItem('fmi');
+  hadLocalSave = !!raw;
+  S = Object.assign(defaultState(), JSON.parse(raw) || {});
+} catch { S = defaultState(); }
+// stamp=false for automatic housekeeping (e.g. daily reset) so it doesn't count as "newer" than the cloud
+const save = (stamp = true) => {
+  if (stamp) S.updatedAt = Date.now();
+  try { localStorage.setItem('fmi', JSON.stringify(S)); } catch {}
+  window.cloudSave?.(S); // set by cloud.js once signed in
+};
 
 // reset daily missions on a new day; break streak if a day was missed
 function rollDay() {
@@ -47,7 +57,7 @@ function rollDay() {
     const gap = (new Date(today()) - new Date(S.lastStreakDay)) / 86400000;
     if (gap > 1) S.streak = 0;
   }
-  save();
+  save(false);
 }
 rollDay();
 
@@ -474,3 +484,13 @@ $('chatInput').addEventListener('keydown', e => { if (e.key === 'Escape') closeC
 
 function renderAll() { renderStats(); renderHistory(); renderRules(); renderShop(); renderInventory(); renderGoals(); renderMissions(); }
 renderAll();
+
+// Called by cloud.js when the cloud copy is newer than this browser's copy.
+window.loadCloudState = data => {
+  S = Object.assign(defaultState(), data);
+  try { localStorage.setItem('fmi', JSON.stringify(S)); } catch {}
+  Object.assign(P, { x: S.player.x, y: S.player.y, rx: S.player.x, ry: S.player.y, moving: false });
+  rollDay(); renderAll();
+};
+window.getState = () => S;
+window.hasLocalSave = () => hadLocalSave;
