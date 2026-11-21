@@ -14,7 +14,7 @@
 
   // ---------- Pixel scene behind the sign (320×180 art pixels, scaled up) ----------
   const cv = document.getElementById('introScene');
-  const g = cv.getContext('2d');
+  let g = cv.getContext('2d');
   const W = cv.width, H = cv.height, HORIZON = 104;
   const C = {
     sky: ['#cdeee9', '#d9f2ea', '#e6f6ea', '#f3f6e4'],
@@ -41,14 +41,53 @@
   const clouds = [{ x: 30, y: 26, s: 4 }, { x: 150, y: 14, s: 2.5 }, { x: 230, y: 50, s: 3.2 }, { x: 290, y: 30, s: 2 }];
   const ripples = Array.from({ length: 22 }, (_, k) => ({ x: (k * 53) % W, y: HORIZON + 6 + ((k * 29) % (H - HORIZON - 10)), w: 4 + (k % 3) * 2, s: 2 + (k % 4) }));
 
+  // land + sea are drawn on their own layer so the time-of-day tint doesn't touch the sky
+  const fg = document.createElement('canvas'); fg.width = W; fg.height = H;
+  const mask = document.createElement('canvas'); mask.width = W; mask.height = H;
+  const stars = Array.from({ length: 46 }, (_, k) => ({ x: (k * 97 + 13) % W, y: (k * 37 + 5) % (HORIZON - 14), big: k % 9 === 0, p: k * 1.7 }));
+  const base = { ...C };
+
   function drawScene(t) {
+    const sky = window.SKY ? SKY.current() : null;
+    if (sky) {
+      C.cloud = sky.cloud; C.cloudShade = SKY.mix(sky.cloud, '#4a3628', .12);
+      C.water = sky.sea[0]; C.deep = sky.sea[1];
+      C.ripple = SKY.mix(sky.sea[0], '#ffffff', .35); C.foam = SKY.mix(sky.sea[0], '#ffffff', .6);
+    }
     // sky in soft stepped bands
-    C.sky.forEach((c, k) => rect(c, 0, k * (HORIZON / 4), W, HORIZON / 4 + 1));
-    // sun with a pulsing glow
-    disc(C.sunGlow, 252, 40, 18 + Math.round(Math.sin(t * 2) + 1));
-    disc(C.sun, 252, 40, 14);
+    (sky ? sky.sky : base.sky).forEach((c, k) => rect(c, 0, k * (HORIZON / 4), W, HORIZON / 4 + 1));
+    // stars come out at dusk and twinkle
+    if (sky && sky.stars > .05) {
+      g.globalAlpha = sky.stars;
+      stars.forEach(s => {
+        if (Math.sin(t * 2.2 + s.p) < -.6) return;
+        rect('#fff7e6', s.x, s.y, 1, 1);
+        if (s.big) { rect('#fff7e6', s.x - 1, s.y, 3, 1); rect('#fff7e6', s.x, s.y - 1, 1, 3); }
+      });
+      g.globalAlpha = 1;
+    }
+    // sun (or moon) travels across the sky from horizon to horizon
+    let body = null;
+    if (!sky) { disc(C.sunGlow, 252, 40, 18 + Math.round(Math.sin(t * 2) + 1)); disc(C.sun, 252, 40, 14); }
+    else if (sky.up) {
+      const x = Math.round(24 + sky.sun * (W - 48)), y = Math.round(HORIZON + 6 - Math.sin(Math.PI * sky.sun) * 84);
+      const low = 1 - Math.min(1, Math.sin(Math.PI * sky.sun) * 3);            // 1 near the horizon
+      disc(SKY.mix('#f8dc9c', '#f9b48a', low), x, y, 18 + Math.round(Math.sin(t * 2) + 1));
+      disc(SKY.mix('#f2c26b', '#f2895a', low), x, y, 13);
+      body = { x, y, color: SKY.mix('#ffe3a0', '#ffb07a', low), strength: .35 + low * .65 };
+    } else {
+      const x = Math.round(24 + sky.moon * (W - 48)), y = Math.round(HORIZON + 4 - Math.sin(Math.PI * Math.min(1, sky.moon)) * 78);
+      disc('rgba(255, 247, 230, .18)', x, y, 15 + Math.round(Math.sin(t * 1.5)));
+      disc('#fff3d6', x, y, 10);
+      disc(sky.sky[1], x + 5, y - 3, 9);                                          // crescent
+      body = { x: x - 3, y, color: '#fff3d6', strength: .5 };
+    }
     clouds.forEach(c => cloud(((c.x + t * c.s) % (W + 40)) - 40, c.y));
-    // sea
+
+    // ---- foreground layer: sea + island ----
+    const sg = g;
+    g = fg.getContext('2d');
+    g.clearRect(0, 0, W, H);
     rect(C.water, 0, HORIZON, W, H - HORIZON);
     rect(C.deep, 0, HORIZON + 50, W, H - HORIZON - 50);
     rect(C.foam, 0, HORIZON, W, 1);
@@ -66,7 +105,7 @@
     rect(C.roofDark, 169, 102, 28, 3);
     for (let k = 0; k < 8; k++) rect(C.roof, 170 + k, 101 - k, 26 - k * 2, 1);
     rect(C.door, 180, 110, 6, 8);
-    rect(C.ripple, 188, 107, 4, 4);
+    rect(base.ripple, 188, 107, 4, 4);
     // palm tree that sways a little
     const sway = Math.round(Math.sin(t * 1.6) * 1.5);
     for (let k = 0; k < 22; k++) rect(k % 4 === 0 ? C.trunkDark : C.trunk, 134 + Math.round(k * k / 90) + (k > 14 ? sway : 0), 120 - k, 3, 1);
@@ -75,12 +114,46 @@
       for (let k = 0; k <= 8; k++) rect(k % 3 ? C.leaf : C.leafLight, tx + dx * k / 8, ty + dy * k / 8 + (k * k) / 24, 3, 2);
     });
     rect(C.trunkDark, tx - 1, ty + 1, 3, 3);
+    // tint the land + sea with the colour of the hour, keeping the sky clear
+    if (sky && sky.tint[1] > .01) {
+      const mg = mask.getContext('2d'); mg.clearRect(0, 0, W, H); mg.drawImage(fg, 0, 0);
+      g.globalCompositeOperation = 'multiply'; g.globalAlpha = sky.tint[1]; g.fillStyle = sky.tint[0]; g.fillRect(0, 0, W, H);
+      g.globalAlpha = 1; g.globalCompositeOperation = 'destination-in'; g.drawImage(mask, 0, 0);
+      g.globalCompositeOperation = 'source-over';
+    }
+    g = sg;
+    g.drawImage(fg, 0, 0);
+
+    if (!sky) return;
+    // a shimmering path of light on the water under the sun / moon
+    if (body && body.y > 20) {
+      g.globalAlpha = body.strength * (sky.up ? Math.max(sky.warm, .25) : sky.stars);
+      for (let y = HORIZON + 2, k = 0; y < H; y += 3, k++) {
+        const w = 4 + k * 1.3, wob = Math.round(Math.sin(t * 3 + k) * 2);
+        if ((k + Math.floor(t * 4)) % 3) rect(body.color, body.x - w / 2 + wob, y, Math.round(w * (.5 + .5 * Math.sin(k + t * 2))), 1);
+      }
+      g.globalAlpha = 1;
+    }
+    // after dark: the house window glows and fireflies dance
+    if (sky.glow > .05) {
+      g.globalCompositeOperation = 'lighter';
+      g.globalAlpha = sky.glow * .35; disc('#ffb85c', 190, 109, 8);
+      g.globalAlpha = sky.glow; rect('#ffd27a', 188, 107, 4, 4);
+      for (let k = 0; k < 9; k++) {
+        const b = (Math.sin(t * 2.5 + k * 2.1) + 1) / 2;
+        if (b < .4) continue;
+        g.globalAlpha = sky.glow * b;
+        rect('#e8f79a', 110 + ((k * 37) % 100) + Math.round(Math.sin(t * .8 + k) * 6), 100 + ((k * 13) % 22) + Math.round(Math.cos(t * .7 + k) * 3), 1, 1);
+      }
+      g.globalAlpha = 1; g.globalCompositeOperation = 'source-over';
+    }
   }
 
   let raf, start = performance.now();
   const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const frame = now => { drawScene(reduce ? 0 : (now - start) / 1000); if (!reduce) raf = requestAnimationFrame(frame); };
   raf = requestAnimationFrame(frame);
+  if (reduce) setInterval(() => { if (!intro.hidden) drawScene(0); }, 30000);
 
   // ---------- Buttons ----------
   const note = document.getElementById('introNote');
@@ -121,7 +194,7 @@
   };
   document.getElementById('mainMenuBtn')?.addEventListener('click', () => window.showIntro());
 
-  // Daily Star is provided by daily-star.js; keep a fallback if that script is unavailable.
+  // Daily Star: if window.startDailyStar exists it runs, otherwise show a "coming soon" note.
   document.getElementById('dailyStar').addEventListener('click', e => {
     if (typeof window.startDailyStar === 'function') return window.startDailyStar({ fromMenu: true });
     note.innerHTML = pi('star') + ' The Daily Star is twinkling soon! Check back tomorrow.';
