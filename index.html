@@ -41,14 +41,14 @@
     <nav class="tabs">
       <button data-tab="bank" class="active">🏦 Bank</button>
       <button data-tab="shop">🛍️ Shop</button>
-      <button data-tab="goals">🫙 Jars</button>
+      <button data-tab="goals">🎯 Goals</button>
       <button data-tab="daily">🔥 Daily</button>
       <button data-tab="town">🏘️ Town</button>
     </nav>
 
     <div class="panel active" id="tab-bank">
       <h2>Savings Account</h2>
-      <p class="muted">Log real money you saved. <b>Dollars fill your Wish Jars; coins reward consistency</b>, not size. $5 every week beats $5,000 once. Inflating numbers only fakes your own progress.</p>
+      <p class="muted">Log real money you saved. <b>Dollars add to your savings total; coins reward consistency</b>, not size. $5 every week beats $5,000 once. Inflating numbers only fakes your own progress.</p>
       <h3>How to earn 🪙</h3>
       <ul id="rules" class="list"></ul>
       <label>Amount ($)<input id="depAmount" type="number" min="1" value="20"></label>
@@ -60,7 +60,6 @@
           <option value="FHSA">FHSA (first home)</option>
         </select>
       </label>
-      <label>Into Wish Jar<select id="depJar"></select></label>
       <button id="depositBtn" class="primary">Deposit</button>
       <h3>History</h3>
       <ul id="history" class="list"></ul>
@@ -74,12 +73,12 @@
     </div>
 
     <div class="panel" id="tab-goals">
-      <h2>Wish Jars</h2>
-      <p class="muted">Your dream-life goals. Real dollars fill the jar; filling one earns a big coin bonus.</p>
-      <label>Goal<input id="goalName" placeholder="e.g. Trip to Japan"></label>
-      <label>Target ($)<input id="goalTarget" type="number" min="1" placeholder="3000"></label>
-      <button id="addGoal" class="primary">Add goal</button>
-      <div id="goals"></div>
+      <h2>Goals</h2>
+      <p class="muted">Create a savings goal, track progress, star important goals, and mark them complete.</p>
+      <label>Goal name<input id="personalGoalName" placeholder="e.g. Save for a bike"></label>
+      <label>Target ($)<input id="personalGoalTarget" type="number" min="1" placeholder="500"></label>
+      <button id="addPersonalGoal" class="primary">Add goal</button>
+      <div id="personalGoals"></div>
     </div>
 
     <div class="panel" id="tab-daily">
@@ -131,6 +130,7 @@
 <div id="toast"></div>
 <script src="intro.js"></script>
 <script src="game.js"></script>
+<script src="Set%20goals.js"></script>
 <script type="module" src="cloud.js"></script>
 <script type="module" src="town.js"></script>
 </body>

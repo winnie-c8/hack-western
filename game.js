@@ -1,7 +1,7 @@
 // ===== Future Me Island — MVP =====
 const TILE = 40, COLS = 20, ROWS = 14;
-// Coins reward the HABIT, not the amount. Dollars only fill your Wish Jars.
-const REWARDS = { dailyLog: 10, firstThisWeek: 50, weekStreak: 150, jarFilled: 300 };
+// Coins reward the HABIT, not the amount. Dollars track real savings.
+const REWARDS = { dailyLog: 10, firstThisWeek: 50, weekStreak: 150 };
 
 const SHOP = [
   { id: 'flower', emoji: '🌷', name: 'Tulip', price: 30 },
@@ -33,7 +33,7 @@ const today = () => fmt(new Date());
 const weekKey = (d = new Date()) => { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return fmt(x); };
 const defaultState = () => ({
   coins: 100, saved: 0, history: [], inventory: {}, placed: [],
-  goals: [], streak: 0, lastStreakDay: null, missionsDay: today(), missionsDone: [],
+  personalGoals: [], streak: 0, lastStreakDay: null, missionsDay: today(), missionsDone: [],
   player: { x: 9, y: 8 }, weeks: [], lastDepositDay: null,
 });
 let S;
@@ -332,8 +332,8 @@ document.querySelectorAll('.tabs button').forEach(b => b.onclick = () => {
 // consecutive weeks (ending this week) with at least one deposit
 function weekStreak() { let n = 0; const d = new Date(); while (S.weeks.includes(weekKey(d))) { n++; d.setDate(d.getDate() - 7); } return n; }
 
-// Log real-life saving. Amount fills Wish Jars; coins come only from consistency.
-function logSaving(amt, type, jarIdx) {
+// Log real-life saving. Coins come only from consistency.
+function logSaving(amt, type) {
   const rewards = [];
   if (S.lastDepositDay !== today()) { S.lastDepositDay = today(); rewards.push(['Saved today', REWARDS.dailyLog]); }
   const wk = weekKey();
@@ -344,36 +344,28 @@ function logSaving(amt, type, jarIdx) {
     if (ws >= 3) rewards.push([`${ws} weeks in a row`, REWARDS.weekStreak]);
   }
   S.saved += amt;
-  const g = S.goals[jarIdx];
-  if (g) {
-    g.saved += amt; g.log.push({ date: today(), amt });
-    if (!g.rewarded && g.saved >= g.target) { g.rewarded = true; rewards.push([`Wish Jar "${g.name}" filled`, REWARDS.jarFilled]); }
-  }
   const coins = rewards.reduce((t, r) => t + r[1], 0);
   S.coins += coins;
-  S.history.unshift({ amt, type, date: today(), jar: g?.name, coins });
+  S.history.unshift({ amt, type, date: today(), coins });
   save(); renderAll();
   toast(coins ? `+${coins} 🪙 · ${rewards.map(r => r[0]).join(' · ')}` : `$${amt} added to your progress. Coins come from showing up — see you tomorrow!`);
-  // share the habit (never the amount or jar name) with the town
-  if (coins) window.onHabit?.(rewards.map(r => r[0].startsWith('Wish Jar') ? 'filled a Wish Jar' : r[0].toLowerCase()).join(' · '), coins);
+  if (coins) window.onHabit?.(rewards.map(r => r[0].toLowerCase()).join(' · '), coins);
   completeMission('deposit');
-  if (g) completeMission('goal');
 }
 $('depositBtn').onclick = () => {
   const amt = Math.floor(+$('depAmount').value);
   if (!(amt > 0)) return toast('Enter an amount');
-  logSaving(amt, $('depType').value, $('depJar').value === '' ? -1 : +$('depJar').value);
+  logSaving(amt, $('depType').value);
 };
 function renderRules() {
   const ws = weekStreak();
   $('rules').innerHTML = `
     <li>${S.lastDepositDay === today() ? '✅' : '⬜'} Save anything today <b>+${REWARDS.dailyLog}🪙</b></li>
     <li>${S.weeks.includes(weekKey()) ? '✅' : '⬜'} First deposit this week <b>+${REWARDS.firstThisWeek}🪙</b></li>
-    <li>${ws >= 3 ? '✅' : '⬜'} 3+ weeks in a row <b>+${REWARDS.weekStreak}🪙/week</b> <span class="muted">(now: ${ws} wk)</span></li>
-    <li>🫙 Fill a Wish Jar <b>+${REWARDS.jarFilled}🪙</b></li>`;
+    <li>${ws >= 3 ? '✅' : '⬜'} 3+ weeks in a row <b>+${REWARDS.weekStreak}🪙/week</b> <span class="muted">(now: ${ws} wk)</span></li>`;
 }
 function renderHistory() {
-  $('history').innerHTML = S.history.slice(0, 20).map(h => `<li>${h.date} · <b>$${h.amt}</b> → ${h.type}${h.jar ? ' · 🫙 ' + esc(h.jar) : ''} <span class="muted">(+${h.coins ?? 0}🪙)</span></li>`).join('') || '<li class="muted">No deposits yet</li>';
+  $('history').innerHTML = S.history.slice(0, 20).map(h => `<li>${h.date} · <b>$${h.amt}</b> → ${h.type} <span class="muted">(+${h.coins ?? 0}🪙)</span></li>`).join('') || '<li class="muted">No deposits yet</li>';
 }
 
 // ---------- Shop / Inventory ----------
@@ -395,31 +387,6 @@ function renderInventory() {
   });
 }
 
-// ---------- Goals ----------
-$('addGoal').onclick = () => {
-  const name = $('goalName').value.trim(), target = +$('goalTarget').value;
-  if (!name || !(target > 0)) return toast('Add a name and target');
-  S.goals.push({ name, target, saved: 0, log: [] });
-  $('goalName').value = $('goalTarget').value = '';
-  save(); renderGoals();
-};
-function renderGoals() {
-  $('goals').innerHTML = S.goals.map((g, i) => {
-    const pct = Math.min(100, g.saved / g.target * 100), loggedToday = g.log.some(l => l.date === today());
-    return `<div class="goal"><b>${esc(g.name)}</b> ${pct >= 100 ? '🎉' : ''}
-      <div class="bar"><div style="width:${pct}%"></div></div>
-      <small>$${g.saved} / $${g.target} · ${loggedToday ? '✅ logged today' : '⏳ not logged today'}</small>
-      <div class="goal-row"><input type="number" min="1" placeholder="Today's $" id="gi${i}"><button data-i="${i}">Log</button></div></div>`;
-  }).join('') || '<p class="muted">What does your dream life look like? Add a Wish Jar!</p>';
-  const cur = $('depJar').value;
-  $('depJar').innerHTML = '<option value="">General savings</option>' + S.goals.map((g, i) => `<option value="${i}">🫙 ${esc(g.name)}</option>`).join('');
-  $('depJar').value = cur;
-  $('goals').querySelectorAll('button').forEach(b => b.onclick = () => {
-    const amt = Math.floor(+$('gi' + b.dataset.i).value);
-    if (!(amt > 0)) return toast('Enter an amount');
-    logSaving(amt, 'Savings', +b.dataset.i);
-  });
-}
 const esc = s => s.replace(/[&<>"']/g, c => `&#${c.charCodeAt(0)};`);
 
 // ---------- Daily missions & streak ----------
@@ -486,7 +453,11 @@ $('chatForm').onsubmit = async e => {
 };
 $('chatInput').addEventListener('keydown', e => { if (e.key === 'Escape') closeChat(); });
 
-function renderAll() { renderStats(); renderHistory(); renderRules(); renderShop(); renderInventory(); renderGoals(); renderMissions(); }
+function renderAll() {
+  renderStats(); renderHistory(); renderRules(); renderShop(); renderInventory();
+  window.renderPersonalGoals?.();
+  renderMissions();
+}
 renderAll();
 
 // Called by cloud.js when the cloud copy is newer than this browser's copy.
