@@ -4,7 +4,14 @@ import cors from "cors";
 import { GoogleGenAI } from "@google/genai";
 
 const app = express();
-app.use(cors());
+app.use(cors({
+  origin: [
+    "https://winnie-c8.github.io",
+    "https://hack-western-ef338.web.app",
+    "https://hack-western-ef338.firebaseapp.com",
+    /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/,
+  ],
+}));
 app.use(express.json());
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });

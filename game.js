@@ -1444,7 +1444,9 @@ async function askVillager(question) {
   const goals = (S.personalGoals || []).map(g => `${g.name}: $${g.saved}/$${g.target}`).join(', ') || 'none yet';
   const context = `(Player info: saved $${S.saved} total, ${S.streak}-day streak, goals: ${goals})`;
   try {
-    const res = await fetch('http://localhost:3001/api/fox', {
+    const API = ['localhost', '127.0.0.1'].includes(location.hostname)
+      ? 'http://localhost:3001' : 'https://future-me-cdzs.onrender.com';
+    const res = await fetch(`${API}/api/fox`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ history: chatHistory, message: `${question}\n${context}` }),
