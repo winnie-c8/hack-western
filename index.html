@@ -19,11 +19,81 @@
       <button id="dailyStar" class="intro-btn star">⭐ Play the Daily Star</button>
     </div>
     <p id="introNote" class="intro-note" aria-live="polite"></p>
+
+    <section id="starCard" class="star-card" hidden aria-labelledby="starTitle">
+      <div class="star-head">
+        <span id="starTitle">⭐ Daily Star · <span id="starNum"></span></span>
+        <button type="button" class="star-x" data-star-back aria-label="Back">✕</button>
+      </div>
+      <div class="star-body">
+        <p id="starStatus" class="star-status"></p>
+
+        <div data-view="guess">
+          <h3>How it started</h3>
+          <p id="starSetup" class="star-setup"></p>
+          <form id="starForm">
+            <label for="starGuess">How do you think it ended?</label>
+            <textarea id="starGuess" rows="3" placeholder="Type your guess for the happy ending..."></textarea>
+            <button class="primary star-go">✨ Catch the star!</button>
+          </form>
+        </div>
+
+        <div data-view="done" hidden>
+          <div class="star-score">
+            <div id="starDoneMeter" class="star-meter" role="img"></div>
+            <p id="starDoneCoins" class="star-coins"></p>
+          </div>
+          <p id="starDoneMsg" class="star-done-msg"></p>
+          <p id="starDoneTimer" class="star-done-timer"></p>
+          <div class="star-actions">
+            <button type="button" id="starDoneEnter" class="primary">🏝️ Enter my world!</button>
+            <button type="button" class="star-back" data-star-back>← Back</button>
+          </div>
+        </div>
+
+        <div data-view="reveal" hidden>
+          <div class="star-score">
+            <div id="starMeter" class="star-meter" role="img"></div>
+            <p id="starVerdict" class="star-verdict"></p>
+            <p id="starCoins" class="star-coins"></p>
+          </div>
+          <h3>Your guess</h3>
+          <p id="starYours" class="star-yours"></p>
+          <h3>What really happened</h3>
+          <p id="starEnding" class="star-setup"></p>
+          <ul id="starBeats" class="star-beats"></ul>
+          <div class="star-actions">
+            <button type="button" id="starEnter" class="primary">🏝️ Enter my world!</button>
+            <button type="button" class="star-back" data-star-back>← Back</button>
+          </div>
+          <p class="star-src">📰 Real story, paraphrased from: <a id="starSource" target="_blank" rel="noopener"></a></p>
+        </div>
+      </div>
+    </section>
   </div>
 </div>
 
 <header>
-  <h1>🏝️ Future Me Island</h1>
+  <h1><button id="homeBtn" class="home-btn" type="button" title="Back to the Future Me Island home screen">
+    <svg class="pixel-palm" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
+      <rect x="0" y="13" width="16" height="3" fill="#6cc3c8"/>
+      <rect x="1" y="15" width="3" height="1" fill="#a6e2dc"/><rect x="11" y="14" width="4" height="1" fill="#a6e2dc"/>
+      <rect x="2" y="12" width="12" height="1" fill="#d4f3ea"/>
+      <rect x="3" y="11" width="10" height="2" fill="#f3dcaa"/>
+      <rect x="4" y="10" width="8" height="1" fill="#a5ca8c"/>
+      <rect x="5" y="12" width="1" height="1" fill="#e5c48d"/><rect x="10" y="12" width="1" height="1" fill="#e5c48d"/>
+      <g class="palm-top">
+        <rect x="8" y="8" width="1" height="2" fill="#b98b5c"/><rect x="8" y="7" width="1" height="1" fill="#8d6440"/>
+        <rect x="7" y="5" width="1" height="2" fill="#b98b5c"/><rect x="7" y="4" width="1" height="1" fill="#8d6440"/>
+        <rect x="3" y="3" width="4" height="1" fill="#6f9a63"/><rect x="2" y="4" width="2" height="1" fill="#6f9a63"/><rect x="1" y="5" width="1" height="2" fill="#6f9a63"/>
+        <rect x="8" y="3" width="4" height="1" fill="#6f9a63"/><rect x="12" y="4" width="2" height="1" fill="#6f9a63"/><rect x="14" y="5" width="1" height="2" fill="#6f9a63"/>
+        <rect x="5" y="2" width="5" height="1" fill="#a5ca8c"/><rect x="6" y="1" width="3" height="1" fill="#6f9a63"/>
+        <rect x="4" y="4" width="2" height="1" fill="#a5ca8c"/><rect x="9" y="4" width="2" height="1" fill="#a5ca8c"/>
+        <rect x="6" y="4" width="1" height="1" fill="#8d6440"/><rect x="8" y="4" width="1" height="1" fill="#8d6440"/>
+      </g>
+    </svg>
+    <span>Future Me Island</span>
+  </button></h1>
   <div class="stats">
     <span id="coins">🪙 0</span>
     <span id="saved">💰 $0 saved</span>
@@ -133,5 +203,6 @@
 <script src="game.js"></script>
 <script type="module" src="cloud.js"></script>
 <script type="module" src="town.js"></script>
+<script src="dailystar.js"></script>
 </body>
 </html>

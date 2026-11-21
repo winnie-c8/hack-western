@@ -84,20 +84,41 @@
 
   // ---------- Buttons ----------
   const note = document.getElementById('introNote');
+  const enterBtn = document.getElementById('enterWorld');
 
-  document.getElementById('enterWorld').addEventListener('click', e => {
+  // Hide (not delete) the intro, so the header title can bring it back
+  const finish = () => {
+    if (!intro.classList.contains('leaving')) return;
+    cancelAnimationFrame(raf);
+    intro.hidden = true;
+    intro.classList.remove('leaving');
+    document.body.classList.remove('intro-open');
+    document.activeElement?.blur?.();
+  };
+  intro.addEventListener('animationend', ev => { if (ev.target === intro) finish(); });
+
+  enterBtn.addEventListener('click', e => {
     if (intro.classList.contains('leaving')) return;
     e.currentTarget.classList.add('picked');
     intro.classList.add('leaving');
-    const finish = () => {
-      cancelAnimationFrame(raf);
-      intro.remove();
-      document.body.classList.remove('intro-open');
-      document.activeElement?.blur?.();
-    };
     if (reduce) setTimeout(finish, 300);
-    else intro.addEventListener('animationend', ev => { if (ev.target === intro) finish(); });
   });
+
+  // Go back to the entrance screen (used by the header title). Unhiding it
+  // restarts all the CSS animations, so the sign drops in again.
+  window.showIntro = () => {
+    if (!intro.hidden) return;
+    document.querySelectorAll('.intro-btn').forEach(b => b.classList.remove('picked', 'wiggle'));
+    note.textContent = ''; note.classList.remove('show');
+    const card = document.getElementById('starCard');
+    if (card) card.hidden = true;
+    document.querySelector('.intro-stage').classList.remove('star-mode');
+    document.body.classList.add('intro-open');
+    intro.hidden = false;
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(frame);
+    enterBtn.focus({ preventScroll: true });
+  };
 
   // Daily Star: game code comes later. If window.startDailyStar exists it runs,
   // otherwise the screen shows a "coming soon" note.

@@ -500,3 +500,6 @@ window.getState = () => S;
 window.hasLocalSave = () => hadLocalSave;
 window.saveGame = () => save();
 window.toast = toast;
+
+// Header title goes back to the entrance screen
+$('homeBtn').addEventListener('click', () => window.showIntro?.());
