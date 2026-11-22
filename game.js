@@ -1904,7 +1904,7 @@ function renderShop() {
 function renderInventory() {
   const ids = Object.keys(S.inventory);
   $('inventory').innerHTML = ids.map(id => { const s = SHOP.find(i => i.id === id); return `<button class="item ${selectedItem === id ? 'selected' : ''}" data-id="${id}" title="${s.name}" aria-label="${s.name}, ${S.inventory[id]} in bag"><img src="${iconURL(s.id)}" alt=""><span class="count">×${S.inventory[id]}</span></button>`; }).join('')
-    || '<button type="button" class="empty walk-shop" title="Walk to the shop">Empty. Visit the shop!</button>';
+    || '<button type="button" class="empty walk-shop" title="Walk to the shop">empty. Visit the shop!</button>';
   $('inventory').querySelector('.walk-shop')?.addEventListener('click', walkToShop);
   $('inventory').querySelectorAll('.item').forEach(el => el.onclick = () => {
     selectedItem = selectedItem === el.dataset.id ? null : el.dataset.id;
