@@ -1,6 +1,6 @@
-// Copy the MP3 to audio/island-theme.mp3 and load this script after the page markup.
+// The MP3 is stored alongside this script in Updated/audio/.
 (() => {
-  const musicSrc = new URL('audio/island-theme.mp3', document.baseURI).href;
+  const musicSrc = new URL('Updated/audio/island-theme.mp3', document.baseURI).href;
   const audio = document.getElementById('backgroundMusic') || new Audio(musicSrc);
   audio.loop = true;
   audio.preload = 'none';
@@ -13,7 +13,7 @@
     toggle = document.createElement('button');
     toggle.id = 'musicToggle';
     toggle.type = 'button';
-    toggle.className = 'music-toggle';
+    toggle.className = 'menu-btn music-toggle';
     toggle.setAttribute('aria-label', 'Background music');
     toggle.setAttribute('aria-pressed', 'false');
     toggle.title = 'Play background music';

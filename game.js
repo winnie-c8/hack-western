@@ -1061,10 +1061,33 @@ addEventListener('keydown', e => {
   if (typing()) return;
   const dirKey = moveKey(e.key);
   if (dirKey) { keys[dirKey] = true; e.preventDefault(); }
-  if (e.key === ' ') { e.preventDefault(); if (nearVillager()) openChat(); else if (nearShop()) openPanel('shop'); else if (nearBuild()) window.openBuildInfo?.(nearBuild()); }
+  if (e.key === ' ') { e.preventDefault(); interact(); }
   if (e.key === 'Escape') { if (editMode) setEdit(false); selectedItem = null; renderInventory(); }
 });
 addEventListener('keyup', e => { const k = moveKey(e.key); if (k) keys[k] = false; });
+// Space / the on-screen A button: talk to Maple, enter the shop, or open a town building you're next to
+function interact() {
+  if (nearVillager()) openChat(); else if (nearShop()) openPanel('shop'); else if (nearBuild()) window.openBuildInfo?.(nearBuild());
+}
+
+// ---------- On-screen controls (touch screens only: shown by the (hover: none) and (pointer: coarse) rule in style.css) ----------
+// Holding a D-pad button works exactly like holding an arrow key.
+document.querySelectorAll('[data-pad]').forEach(btn => {
+  const key = btn.dataset.pad;
+  const release = () => { keys[key] = false; btn.classList.remove('on'); };
+  btn.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if (document.body.classList.contains('intro-open') || anyOpen()) return;
+    keys[key] = true; btn.classList.add('on');
+    btn.setPointerCapture?.(e.pointerId); // keep walking even if the thumb slides a little
+  });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => btn.addEventListener(t, release));
+  btn.addEventListener('contextmenu', e => e.preventDefault()); // no long-press menu
+});
+document.getElementById('padAction')?.addEventListener('click', () => {
+  if (document.body.classList.contains('intro-open') || anyOpen()) return;
+  interact();
+});
 
 function update() {
   const arrived = Math.abs(P.rx - P.x) < .01 && Math.abs(P.ry - P.y) < .01;
@@ -1449,7 +1472,7 @@ function drawFutureChart(st, rate, start) {
       <text x="${x}" y="${T - 10}" class="mslabel" text-anchor="${y === SPAN ? 'end' : 'middle'}">${yrs(y)}</text>
       <circle cx="${x}" cy="${sy(project(start, rate, y, false))}" r="${on ? 6 : 5}" fill="${FUTURE_COLORS.save}" class="end"/>
       <circle cx="${x}" cy="${sy(project(start, rate, y, true))}" r="${on ? 6 : 5}" fill="${FUTURE_COLORS.invest}" class="end"/>
-      <rect x="${x - 14}" y="${T - 24}" width="28" height="${H - B - T + 24}" fill="transparent"/>
+      <rect x="${x - 45}" y="${T - 24}" width="90" height="${H - B - T + 24}" fill="transparent"/>
     </g>`;
   }).join('');
   const endSave = project(start, rate, SPAN, false), endInv = project(start, rate, SPAN, true);
@@ -1751,40 +1774,124 @@ const TIPS = [
   "Small amounts add up — $5 a day is over $1,800 a year!",
   "An emergency fund of 3–6 months of expenses = peace of mind.",
 ];
-const chatHistory = [];
+// Maple's memory lives in the save file (and the cloud copy):
+// S.chat = past messages [{ role: 'user'|'model', text, at }], S.mapleNotes = facts she learned about you
+const CHAT_KEEP = 200, NOTES_KEEP = 40;
 async function askVillager(question) {
-  const goals = (S.personalGoals || []).map(g => `${g.name}: $${g.saved}/$${g.target}`).join(', ') || 'none yet';
-  const context = `(Player info: saved $${S.saved} total, ${S.streak}-day streak, goals: ${goals})`;
+  S.chat ||= []; S.mapleNotes ||= [];
+  const goals = (S.personalGoals || []).map(g => `${g.name}: $${g.saved}/$${g.target}${g.completed ? ' (done!)' : ''}`).join(', ') || 'none yet';
+  const context = `(Player info: today is ${today()}, saved $${S.saved} total, ${S.streak}-day streak, goals: ${goals})`;
   try {
     const API = ['localhost', '127.0.0.1'].includes(location.hostname)
       ? 'http://localhost:3001' : 'https://future-me-cdzs.onrender.com';
     const res = await fetch(`${API}/api/fox`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ history: chatHistory, message: `${question}\n${context}` }),
+      body: JSON.stringify({
+        history: S.chat.slice(-30).map(({ role, text }) => ({ role, text })),
+        notes: S.mapleNotes,
+        message: `${question}\n${context}`,
+      }),
     });
-    const { reply } = await res.json();
-    chatHistory.push({ role: 'user', text: question }, { role: 'model', text: reply });
-    return reply.replace(/[<>]/g, '');
+    if (!res.ok) throw new Error(res.status);
+    const { reply, remember = [] } = await res.json();
+    const clean = String(reply).replace(/[<>]/g, '');
+    const at = Date.now();
+    S.chat.push({ role: 'user', text: question, at }, { role: 'model', text: clean, at });
+    S.chat = S.chat.slice(-CHAT_KEEP);
+    for (const n of remember) if (n && !S.mapleNotes.includes(n)) S.mapleNotes.push(String(n).slice(0, 140));
+    S.mapleNotes = S.mapleNotes.slice(-NOTES_KEEP);
+    save();
+    return clean;
   } catch {
     return TIPS[Math.floor(Math.random() * TIPS.length)];
   }
 }
-function addMsg(text, who) { const d = document.createElement('div'); d.className = 'msg ' + who; d.innerHTML = pit(text); $('chatLog').append(d); $('chatLog').scrollTop = 1e9; }
+// Talk scene: the player on the left, Maple on the right, dialogue revealed letter by letter
+function drawPortrait(canvas, rows, pal) {
+  const c = canvas.getContext('2d'), w = rows[0].length;
+  c.clearRect(0, 0, canvas.width, canvas.height);
+  const top = canvas.height - 1 - rows.length, left = Math.floor((canvas.width - w) / 2);
+  const paint = (color, ox, oy) => rows.forEach((r, j) => { for (let i = 0; i < w; i++) if (r[i] !== '.') {
+    c.fillStyle = color || pal[r[i]]; c.fillRect(left + i + ox, top + j + oy, 1, 1);
+  } });
+  for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) paint(PAL.outline, ox, oy);
+  paint(null, 0, 0);
+}
+drawPortrait($('chatMe'), playerRows('right', false), PLAYER_PAL);
+drawPortrait($('chatFox'), FOX, FOX_PAL);
+
+let typingRun = 0, skipTyping = null;
+function addMsg(text, who) {
+  const run = ++typingRun, me = who === 'me', log = $('chatLog'), box = log.closest('.chat-box');
+  $('chatMe').classList.toggle('talking', me);
+  $('chatFox').classList.toggle('talking', !me);
+  $('chatName').textContent = me ? 'You' : 'Maple';
+  $('chatName').classList.toggle('me', me);
+  box.classList.remove('done'); log.innerHTML = '';
+  // Plain text appears one letter at a time; :icon: codes pop in whole
+  const parts = String(text).split(/(:[a-z]+:)/).filter(Boolean);
+  return new Promise(resolve => {
+    const finish = () => { if (run !== typingRun) return resolve(); log.innerHTML = pit(text); box.classList.add('done'); skipTyping = null; resolve(); };
+    skipTyping = finish;
+    (async () => {
+      for (const p of parts) {
+        if (/^:[a-z]+:$/.test(p)) { log.insertAdjacentHTML('beforeend', pit(p)); continue; }
+        const node = document.createTextNode(''); log.append(node);
+        for (const ch of p) {
+          if (run !== typingRun || skipTyping !== finish) return;
+          node.data += ch; log.scrollTop = 1e9;
+          await new Promise(r => setTimeout(r, /[.!?]/.test(ch) ? 180 : 28));
+        }
+      }
+      finish();
+    })();
+  });
+}
+$('chatLog').onclick = () => skipTyping?.();
 function openChat() {
   closePanels(); Object.keys(keys).forEach(k => keys[k] = false);
-  $('chat').classList.remove('hidden');
-  if (!$('chatLog').children.length) addMsg(`Hey there! I'm Maple :fox:. You've saved $${S.saved} so far — future you is cheering! Ask me about TFSAs, budgeting, FHSAs...`, 'bot');
+  $('chat').classList.remove('hidden'); showChatHistory(false);
+  const back = S.chat?.length;
+  addMsg(back
+    ? `Welcome back, friend! :fox: You've saved $${S.saved} so far. What's on your mind today — a goal, a worry, or a money question?`
+    : `Hey there! I'm Maple :fox:. The future can feel uncertain, but small steps add up — and I'm here to help. You've saved $${S.saved} so far. Ask me about TFSAs, budgeting, your goals... anything!`, 'bot');
   $('chatInput').focus();
 }
-function closeChat() { closePanels(); }
+function closeChat() { typingRun++; closePanels(); }
 $('closeChat').onclick = closeChat;
+
+// Chat history: every past message, newest at the bottom, plus what Maple remembers about you
+function showChatHistory(open = $('chatHistory').classList.contains('hidden')) {
+  $('chatHistory').classList.toggle('hidden', !open);
+  $('chatHistoryBtn').textContent = open ? 'Back' : 'History';
+  if (!open) return;
+  const chat = S.chat || [], notes = S.mapleNotes || [];
+  let lastDay = '';
+  $('chatHistoryList').innerHTML = chat.length ? chat.map(m => {
+    const day = m.at ? fmt(new Date(m.at)) : '';
+    const sep = day && day !== lastDay ? `<div class="hist-day">${day}</div>` : '';
+    lastDay = day || lastDay;
+    return `${sep}<div class="hist-msg ${m.role === 'user' ? 'me' : 'bot'}"><b>${m.role === 'user' ? 'You' : 'Maple'}</b>${pit(m.text)}</div>`;
+  }).join('') : '<p class="muted">No chats yet — say hi to Maple!</p>';
+  $('chatMemory').innerHTML = notes.length
+    ? `<b>Maple remembers:</b><ul>${notes.map(n => `<li>${pit(n)}</li>`).join('')}</ul>` : '';
+  $('chatHistoryList').scrollTop = 1e9;
+}
+$('chatHistoryBtn').onclick = () => showChatHistory();
+$('chatForget').onclick = () => {
+  if (!confirm('Clear your chat history and everything Maple remembers about you?')) return;
+  S.chat = []; S.mapleNotes = []; save(); showChatHistory(true);
+};
 $('chatForm').onsubmit = async e => {
   e.preventDefault();
   const q = $('chatInput').value.trim(); if (!q) return;
-  $('chatInput').value = ''; addMsg(q, 'me');
-  addMsg('...', 'bot'); const typing = $('chatLog').lastChild;
-  typing.innerHTML = pit(await askVillager(q));
+  $('chatInput').value = ''; showChatHistory(false);
+  const answer = askVillager(q);
+  await addMsg(q, 'me');
+  await new Promise(r => setTimeout(r, 400));
+  addMsg('...', 'bot');
+  addMsg(await answer, 'bot');
   completeMission('chat');
 };
 $('chatInput').addEventListener('keydown', e => { if (e.key === 'Escape') closeChat(); });

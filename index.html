@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Future Me Island</title>
 <link rel="preload" href="fonts/VCR_OSD_MONO.ttf" as="font" type="font/ttf" crossorigin>
-<link rel="stylesheet" href="style.css?v=27">
+<link rel="stylesheet" href="style.css?v=28">
 </head>
 <body>
 <div id="intro" class="intro" role="dialog" aria-label="Welcome to Future Me Island">
@@ -83,6 +83,7 @@
       <dt>Click the town island</dt><dd>Visit your town</dd>
       <dt><kbd>Esc</kbd></dt><dd>Close a window / cancel</dd>
     </dl>
+    <p class="music-credit">Background music: “Daydream” by Massobeats via <a href="https://freetouse.com" target="_blank" rel="noopener noreferrer">Free To Use</a>.</p>
   </div>
 
   <button class="town-isle" data-open="town" aria-label="Visit your town">
@@ -95,6 +96,17 @@
       <span class="bag-label"><i data-pi="backpack"></i> Bag</span>
       <div id="inventory" class="bag-items"></div>
     </div>
+  </div>
+
+  <!-- On-screen controls: only shown on touch screens (phones/tablets), never on a computer -->
+  <div id="touchControls" class="touch-controls">
+    <div class="dpad" role="group" aria-label="Walk">
+      <button type="button" class="pad up" data-pad="ArrowUp" aria-label="Walk up">&#9650;</button>
+      <button type="button" class="pad left" data-pad="ArrowLeft" aria-label="Walk left">&#9664;</button>
+      <button type="button" class="pad right" data-pad="ArrowRight" aria-label="Walk right">&#9654;</button>
+      <button type="button" class="pad down" data-pad="ArrowDown" aria-label="Walk down">&#9660;</button>
+    </div>
+    <button type="button" id="padAction" class="pad-action" aria-label="Talk or enter (same as Space)">A</button>
   </div>
 </main>
 
@@ -369,10 +381,23 @@
 </div>
 
 <div id="chat" class="modal bottom hidden" role="dialog" aria-label="Chat with Maple">
-  <div class="chat-box">
-    <div class="chat-head"><i data-pi="fox"></i> Maple the Money Fox <button id="closeChat" aria-label="Close">✕</button></div>
-    <div id="chatLog"></div>
-    <form id="chatForm"><input id="chatInput" placeholder="Ask Maple anything about money..." autocomplete="off"><button>Send</button></form>
+  <div class="chat-scene">
+    <div class="chat-stage">
+      <canvas id="chatMe" class="chat-portrait" width="12" height="14" aria-hidden="true"></canvas>
+      <canvas id="chatFox" class="chat-portrait" width="12" height="14" aria-hidden="true"></canvas>
+    </div>
+    <div class="chat-box">
+      <div id="chatName" class="chat-name">Maple</div>
+      <button id="closeChat" class="chat-close" aria-label="Close">✕</button>
+      <div id="chatHistory" class="chat-history hidden">
+        <div id="chatHistoryList"></div>
+        <div id="chatMemory" class="chat-memory"></div>
+        <button id="chatForget" type="button" class="chat-forget">Clear history &amp; memory</button>
+      </div>
+      <div id="chatLog" aria-live="polite"></div>
+      <span class="chat-next" aria-hidden="true">▼</span>
+      <form id="chatForm"><input id="chatInput" placeholder="Ask Maple anything about money..." autocomplete="off"><button>Send</button><button id="chatHistoryBtn" class="chat-hist-btn" type="button">History</button></form>
+    </div>
   </div>
 </div>
 
@@ -394,6 +419,7 @@
 <script src="icons.js?v=27"></script>
 <script src="sky.js?v=27"></script>
 <script src="intro.js?v=27"></script>
+<script src="Updated/Music%20for%20game.js?v=1"></script>
 <script src="game.js?v=27"></script>
 <script src="Set%20goals.js?v=27"></script>
 <script src="daily-star.js?v=27"></script>
