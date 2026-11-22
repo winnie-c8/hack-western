@@ -1449,3 +1449,7 @@ button.primary.sync-big:disabled { opacity: .5; cursor: not-allowed; }
 .sync-create-form input { margin-top: 0; }
 .sync-create-form .sync-note { margin-bottom: 4px; }
 .sync-island-name { text-align: center; font-size: 1.3rem; margin: 0 0 8px; }
+/* Synced devices list in the Sync window */
+.sync-devices { margin: 6px 0 10px; font-size: .95rem; }
+.sync-devices ul { list-style: none; margin: 4px 0 0; padding: 0; }
+.sync-devices li { padding: 3px 0; }

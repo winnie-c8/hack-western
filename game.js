@@ -448,7 +448,18 @@ const CHARACTER_OPTION_LABELS = {
   top: { tee: 'T-shirt', hoodie: 'Hoodie', sweater: 'Sweater', jacket: 'Jacket' },
   bottoms: { jeans: 'Jeans', 'charcoal-pants': 'Pants', shorts: 'Shorts', skirt: 'Skirt' },
 };
+// The look lives on the island (S.character) so it syncs across devices; older saves kept it only in
+// this browser (CHARACTER_KEY), which is still read once as a fallback and kept as a copy.
+function cleanCharacter(saved) {
+  if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return { ...CHARACTER_DEFAULTS };
+  return Object.fromEntries(Object.keys(CHARACTER_DEFAULTS).map(key => [
+    key, key === 'hairStyle' && saved[key] === 'short'
+      ? 'short-straight'
+      : CHARACTER_CHOICES[key].includes(saved[key]) ? saved[key] : CHARACTER_DEFAULTS[key],
+  ]));
+}
 function loadCharacter() {
+  if (S.character) return cleanCharacter(S.character);
   try {
     const saved = JSON.parse(localStorage.getItem(CHARACTER_KEY) || 'null');
     if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return { ...CHARACTER_DEFAULTS };
@@ -463,7 +474,9 @@ function loadCharacter() {
   }
 }
 let character = loadCharacter();
+if (!S.character) { S.character = { ...character }; saveLocal(); } // move an older browser-only look onto the island
 function saveCharacter() {
+  S.character = { ...character }; save(); // syncs to your other devices
   try {
     localStorage.setItem(CHARACTER_KEY, JSON.stringify(character));
   } catch (error) {
@@ -1447,7 +1460,7 @@ function renderEditTools() {
     : tap + ' or drag to pave. Paths go on grass and sand. Buy more styles in the shop.');
   document.body.classList.toggle('paving', editTool !== 'move');
 }
-function toast(msg) { const el = $('toast'); el.innerHTML = pit(msg); el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 2000); }
+function toast(msg, ms = 2000) { const el = $('toast'); el.innerHTML = pit(msg); el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), ms); }
 function renderStats() {
   $('coins').textContent = S.coins.toLocaleString();
   const savedTxt = `$${S.saved.toLocaleString()}`, savedEl = $('saved');
@@ -2163,13 +2176,18 @@ function showWelcome() {
 
 // Called by cloud.js when the cloud copy is newer than this browser's copy.
 window.loadCloudState = data => {
+  const here = S?.player; // your spot isn't synced: stay where you are on this device
   S = Object.assign(defaultState(), data);
   if (!data.worldV) S.worldV = 0;
   migrateWorld(); migrateJars();
+  if (here && onLand(here.x, here.y)) S.player = { x: here.x, y: here.y };
   try { localStorage.setItem('fmi', JSON.stringify(S)); } catch {}
   Object.assign(P, { x: S.player.x, y: S.player.y, rx: S.player.x, ry: S.player.y, moving: false });
   applyLayout(); applySavedPaths(); paintAll(); window.setTownBuilds(lastBuildList);
   followCam(true);
+  character = cleanCharacter(S.character || character); S.character ||= { ...character }; // the synced look
+  try { localStorage.setItem(CHARACTER_KEY, JSON.stringify(character)); } catch {}
+  syncCharacterSelections?.(); drawCharacterPreview();
   rollDay(); renderAll();
   window.onIslandLoaded?.(); // e.g. town.js re-checks which towns this island is in
 };
@@ -2195,6 +2213,7 @@ function renderSync() {
   if (!code && !offer && !$('syncIslandName').value) $('syncIslandName').value = suggestIslandName();
   if (!code || offer) return;
   $('syncIslandShow').textContent = S.islandName || 'Your island';
+  renderSyncDevices();
   $('syncCodeShow').textContent = fmtSync(code);
   $('syncQr').hidden = true;
   loadQr().then(qrcode => {
@@ -2240,6 +2259,24 @@ $('syncUnlink').onclick = async () => {
   if (!confirm("Stop syncing on this device? It keeps a copy of your island, but changes won't sync any more. Your other devices aren't affected.")) return;
   await window.sync.unlink(); syncStatus(''); renderSync();
   toast('This device is no longer synced');
+};
+// The devices synced with this island (from cloud.js), shown in the Sync window
+function renderSyncDevices() {
+  const { me, list } = window.sync?.devices?.() || { list: {} };
+  const ids = Object.keys(list).sort((a, b) => (a === me ? -1 : b === me ? 1 : 0));
+  const box = $('syncDevices');
+  box.innerHTML = ids.length ? `<b>Synced devices</b><ul>${ids.map(id =>
+    `<li>${/iPhone|Android phone/.test(list[id]) ? '📱' : '💻'} ${esc(list[id])}${id === me ? ' <span class="muted">(this device)</span>' : ''}</li>`).join('')}</ul>`
+    + (ids.length < 2 ? '<p class="muted sync-note">No other devices yet. Scan the QR code on your other device.</p>' : '') : '';
+}
+window.onSyncDevicesList = () => { if (!$('panel-sync').classList.contains('hidden')) renderSyncDevices(); };
+// Another device joined or stopped syncing (also noticed when this device opens later)
+window.onSyncDevicesChanged = ({ added, removed, others }) => {
+  const lines = [ // toast() escapes the text itself (device labels come from other browsers)
+    ...removed.map(l => `:island: Your ${l} stopped syncing with this island.${others ? '' : ' No other devices are synced now.'}`),
+    ...added.map(l => `:sparkle: ${l} is now synced with your island.`),
+  ];
+  toast(lines.join(' '), 7000);
 };
 // "You're syncing to Sam's island · $120 saved · 5-day streak": look up the island behind a sync link
 async function peekOffer(code) {
