@@ -1,4 +1,4 @@
-// ===== Future Me Island — MVP =====
+// ===== Tomo Island — MVP =====
 // The island is a 40×28-tile world; the view (camera) follows the player around it.
 const TILE = 40, COLS = 40, ROWS = 28;
 // Coins reward the HABIT, not the amount. Dollars only move your Goals forward.
@@ -1147,7 +1147,7 @@ addEventListener('keydown', e => {
   if (anyOpen()) { if (e.key === 'Escape' && !window.closeTownDetail?.()) closePanels(); return; }
   if (typing()) return;
   const dirKey = moveKey(e.key);
-  if (dirKey) { keys[dirKey] = true; e.preventDefault(); }
+  if (dirKey) { keys[dirKey] = true; autoPath = []; autoFace = null; e.preventDefault(); } // taking control stops any auto-walk
   if (e.key === ' ') { e.preventDefault(); interact(); }
   if (e.key === 'Escape') { if (editMode) setEdit(false); selectedItem = null; renderInventory(); }
 });
@@ -1176,8 +1176,72 @@ document.getElementById('padAction')?.addEventListener('click', () => {
   interact();
 });
 
+// ---------- Auto-walk: "Empty. Visit the shop!" walks you along the paths to the shop door ----------
+let autoPath = [], autoFace = null;
+function findPath(from, isGoal, canStep) {            // breadth-first search over tiles → list of steps (not incl. start)
+  const id = (x, y) => y * COLS + x, start = id(from.x, from.y);
+  const prev = new Map([[start, -1]]), q = [[from.x, from.y]];
+  for (let i = 0; i < q.length; i++) {
+    const [x, y] = q[i];
+    if (isGoal(x, y)) {
+      const path = []; let k = id(x, y);
+      while (k !== start) { path.unshift({ x: k % COLS, y: Math.floor(k / COLS) }); k = prev.get(k); }
+      return path;
+    }
+    for (const [dx, dy] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) {
+      const nx = x + dx, ny = y + dy, k = id(nx, ny);
+      if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS || prev.has(k) || !canStep(nx, ny)) continue;
+      prev.set(k, id(x, y)); q.push([nx, ny]);
+    }
+  }
+  return null;
+}
+function walkToShop() {
+  const onPath = (x, y) => map[y]?.[x] === 4;
+  // the spot right in front of the door (the shop's door faces south); otherwise any tile touching the shop
+  let doors = [0, 1].map(i => ({ x: SHOP_BLD.x + i, y: SHOP_BLD.y + SHOP_BLD.h })).filter(d => walkable(d.x, d.y));
+  if (!doors.length) {
+    for (let i = -1; i <= SHOP_BLD.w; i++) for (let j = -1; j <= SHOP_BLD.h; j++) {
+      const x = SHOP_BLD.x + i, y = SHOP_BLD.y + j;
+      const touching = (i >= 0 && i < SHOP_BLD.w) !== (j >= 0 && j < SHOP_BLD.h);
+      if (touching && walkable(x, y)) doors.push({ x, y });
+    }
+  }
+  const isDoor = (x, y) => doors.some(d => d.x === x && d.y === y);
+  const here = { x: P.x, y: P.y };
+  let route = isDoor(here.x, here.y) ? [] : null;
+  if (!route) {
+    // 1) off the grass onto the nearest path, 2) follow the paths to the shop door
+    const leg1 = onPath(here.x, here.y) ? [] : findPath(here, onPath, walkable);
+    const from = leg1?.length ? leg1[leg1.length - 1] : here;
+    const leg2 = leg1 && findPath(from, isDoor, (x, y) => walkable(x, y) && (onPath(x, y) || isDoor(x, y)));
+    route = leg2 ? [...leg1, ...leg2] : findPath(here, isDoor, walkable); // paths don't reach the shop → walk there directly
+  }
+  if (!route) return toast("Can't find a way to the shop from here");
+  closePanels();
+  autoPath = route;
+  const d = route.length ? route[route.length - 1] : here;  // face the shop when you get there
+  autoFace = d.y >= SHOP_BLD.y + SHOP_BLD.h ? 'up' : d.y < SHOP_BLD.y ? 'down' : d.x < SHOP_BLD.x ? 'right' : 'left';
+  if (!route.length) { P.dir = autoFace; autoFace = null; }
+}
+
 function update() {
   const arrived = Math.abs(P.rx - P.x) < .01 && Math.abs(P.ry - P.y) < .01;
+  if (arrived && Object.values(keys).some(Boolean)) { autoPath = []; autoFace = null; } // arrow keys / D-pad take over
+  if (arrived && autoPath.length) {
+    P.rx = P.x; P.ry = P.y;
+    const n = autoPath[0];
+    if (walkable(n.x, n.y) && Math.abs(n.x - P.x) + Math.abs(n.y - P.y) === 1) {
+      P.dir = n.x < P.x ? 'left' : n.x > P.x ? 'right' : n.y < P.y ? 'up' : 'down';
+      P.x = n.x; P.y = n.y; P.moving = true; autoPath.shift();
+      S.player = { x: P.x, y: P.y }; saveLocal();
+      document.getElementById('savedBanner')?.classList.add('compact');
+      document.querySelector('.hud-left')?.classList.add('tucked');
+      return;
+    }
+    autoPath = [];                       // something is in the way now → stop here
+  }
+  if (arrived && autoFace && !autoPath.length) { P.dir = autoFace; autoFace = null; P.moving = false; }
   if (arrived) {
     P.rx = P.x; P.ry = P.y;
     let dx = 0, dy = 0;
@@ -1191,8 +1255,10 @@ function update() {
     }
     if (P.moving && walkable(P.x + dx, P.y + dy)) { P.x += dx; P.y += dy; S.player = { x: P.x, y: P.y }; saveLocal(); } // walking: browser only, no cloud write
   } else {
-    P.rx += Math.sign(P.x - P.rx) * Math.min(.28, Math.abs(P.x - P.rx));
-    P.ry += Math.sign(P.y - P.ry) * Math.min(.28, Math.abs(P.y - P.ry));
+    // walking speed (tiles per frame): a bit quicker while auto-walking to the shop
+    const speed = autoPath.length || autoFace ? .12 : .08;
+    P.rx += Math.sign(P.x - P.rx) * Math.min(speed, Math.abs(P.x - P.rx));
+    P.ry += Math.sign(P.y - P.ry) * Math.min(speed, Math.abs(P.y - P.ry));
   }
 }
 const nearVillager = () => Math.abs(P.x - VILLAGER.x) + Math.abs(P.y - VILLAGER.y) <= 1;
@@ -1801,7 +1867,9 @@ function renderShop() {
 }
 function renderInventory() {
   const ids = Object.keys(S.inventory);
-  $('inventory').innerHTML = ids.map(id => { const s = SHOP.find(i => i.id === id); return `<button class="item ${selectedItem === id ? 'selected' : ''}" data-id="${id}" title="${s.name}" aria-label="${s.name}, ${S.inventory[id]} in bag"><img src="${iconURL(s.id)}" alt=""><span class="count">×${S.inventory[id]}</span></button>`; }).join('') || '<span class="empty">Empty. Visit the shop!</span>';
+  $('inventory').innerHTML = ids.map(id => { const s = SHOP.find(i => i.id === id); return `<button class="item ${selectedItem === id ? 'selected' : ''}" data-id="${id}" title="${s.name}" aria-label="${s.name}, ${S.inventory[id]} in bag"><img src="${iconURL(s.id)}" alt=""><span class="count">×${S.inventory[id]}</span></button>`; }).join('')
+    || '<button type="button" class="empty walk-shop" title="Walk to the shop">Empty. Visit the shop!</button>';
+  $('inventory').querySelector('.walk-shop')?.addEventListener('click', walkToShop);
   $('inventory').querySelectorAll('.item').forEach(el => el.onclick = () => {
     selectedItem = selectedItem === el.dataset.id ? null : el.dataset.id;
     renderInventory(); if (selectedItem) toast(`Click a spot on your island to place the ${SHOP.find(i => i.id === selectedItem).name}`);
@@ -1932,7 +2000,9 @@ function drawPortrait(canvas, rows, pal) {
   for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) paint(PAL.outline, ox, oy);
   paint(null, 0, 0);
 }
-drawPortrait($('chatMe'), playerRows('right', false), PLAYER_PAL);
+// your portrait uses your current character (hair, skin, clothes), redrawn every time the chat opens
+const drawMyPortrait = () => drawPortrait($('chatMe'), playerRows('right', false, character), playerPalette(character));
+drawMyPortrait();
 drawPortrait($('chatFox'), FOX, FOX_PAL);
 
 let typingRun = 0, skipTyping = null;
@@ -1965,6 +2035,7 @@ function addMsg(text, who) {
 $('chatLog').onclick = () => skipTyping?.();
 function openChat() {
   closePanels(); Object.keys(keys).forEach(k => keys[k] = false);
+  drawMyPortrait();
   $('chat').classList.remove('hidden'); showChatHistory(false);
   const back = S.chat?.length;
   addMsg(back

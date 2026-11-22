@@ -1143,6 +1143,13 @@ body.intro-open { overflow: hidden; }
   :is(button, a, summary, label, li):hover .pa-list .lt, .pa-list:hover .lt { animation: none; opacity: 1; }
 }
 
+/* empty bag: "Empty. Visit the shop!" walks you to the shop */
+.walk-shop {
+  background: none; border: none; padding: 0; margin: 0; font: inherit; color: inherit; cursor: pointer;
+  text-decoration: underline dotted; text-underline-offset: 4px;
+}
+.walk-shop:hover { color: var(--teal-dark); text-decoration-style: solid; }
+
 /* ===== Real money saved: the star of the HUD, on a hanging wooden sign, top middle ===== */
 .hud-top { top: 18px; left: 50%; transform: translateX(-50%); }
 .saved-banner {

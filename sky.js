@@ -1,4 +1,4 @@
-// ===== Future Me Island — sky & time of day =====
+// ===== Tomo Island — sky & time of day =====
 // The island's atmosphere follows the device's clock on a fixed daily schedule:
 //   night      8:00 PM – 5:00 AM
 //   sunrise    5:00 AM – 8:00 AM   (slow: night → dawn → pink sunrise → golden morning)
@@ -112,7 +112,19 @@
       return [x, y];
     };
     if (s.up) body(s.sun, '#f2c26b', 'rgba(248,220,156,.7)', 2);
-    else { const [x, y] = body(s.moon, '#fff7e6', 'rgba(255,247,230,.25)', 2); g.fillStyle = s.sky[1]; g.fillRect(x + 1, y - 2, 2, 3); }
+    else {
+      // tiny pixel crescent (no painted shadow): moon of radius 3 minus a smaller bite
+      const p = Math.max(0, Math.min(1, s.moon));
+      const x = Math.round(4 + p * (W - 8)), y = Math.round(HZ - Math.sin(Math.PI * p) * (HZ - 5));
+      g.fillStyle = 'rgba(255,247,230,.2)'; g.fillRect(x - 4, y - 3, 9, 7);
+      g.fillStyle = '#fff7e6';
+      for (let py = -3; py <= 3; py++) for (let px = -3; px <= 3; px++) {
+        if (px * px + py * py > 10) continue;
+        const dx = px - 2, dy = py + 1;
+        if (dx * dx + dy * dy <= 4) continue;
+        g.fillRect(x + px, y + py, 1, 1);
+      }
+    }
     g.fillStyle = 'rgba(255,247,230,.5)'; g.fillRect(0, HZ, W, 1);
   }
 
