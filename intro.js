@@ -1,4 +1,4 @@
-// ===== Future Me Island — entrance screen =====
+// ===== Tomo Island — entrance screen =====
 (() => {
   const intro = document.getElementById('intro');
   if (!intro) return;
@@ -79,9 +79,15 @@
       body = { x, y, color: SKY.mix('#ffe3a0', '#ffb07a', low), strength: .35 + low * .65 };
     } else {
       const x = Math.round(24 + sky.moon * (W - 48)), y = Math.round(HORIZON + 4 - Math.sin(Math.PI * Math.min(1, sky.moon)) * 78);
-      disc('rgba(255, 247, 230, .18)', x, y, 15 + Math.round(Math.sin(t * 1.5)));
-      disc('#fff3d6', x, y, 10);
-      disc(sky.sky[1], x + 5, y - 3, 9);                                          // crescent
+      disc('rgba(255, 247, 230, .14)', x, y, 13 + Math.round(Math.sin(t * 1.5)));  // soft glow
+      // crescent drawn pixel by pixel: moon minus a smaller "bite" (no painted shadow disc)
+      const R = 10, bx = x + 5, by = y - 1, br = 8;
+      for (let py = -R; py <= R; py++) for (let px = -R; px <= R; px++) {
+        if (px * px + py * py > R * R + R * .8) continue;                         // outside the moon
+        const dx = x + px - bx, dy = y + py - by;
+        if (dx * dx + dy * dy <= br * br + br * .8) continue;                      // inside the bite
+        rect(py > 6 ? '#e9dcc0' : '#fff3d6', x + px, y + py, 1, 1);              // a touch of shading along the bottom
+      }
       body = { x: x - 3, y, color: '#fff3d6', strength: .5 };
     }
     // each cloud fades in/out on its own as the sky gets cloudier or clearer
