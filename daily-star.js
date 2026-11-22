@@ -758,7 +758,11 @@
       body: JSON.stringify(body),
     });
     const result = await response.json();
-    if (!response.ok) throw new Error(result.error || `Request failed (${response.status}).`);
+    if (!response.ok) {
+      const error = new Error(result.error || `Request failed (${response.status}).`);
+      error.status = response.status;
+      throw error;
+    }
     return result;
   }
 
@@ -774,11 +778,22 @@
   }
 
   async function requestAccuracyScore(guess, puzzle) {
-    const { score } = await postDailyStar('score', { guesses: [guess], expectedAnswer: puzzle.answer });
-    if (!Number.isInteger(score) || score < 0 || score > 100) {
-      throw new Error('Gemini returned an invalid accuracy score.');
+    for (let attempt = 0; attempt < 2; attempt += 1) {
+      try {
+        const { score } = await postDailyStar('score', { guesses: [guess], expectedAnswer: puzzle.answer });
+        if (!Number.isInteger(score) || score < 0 || score > 100) {
+          throw new Error('Gemini returned an invalid accuracy score.');
+        }
+        return score;
+      } catch (error) {
+        const retryable = !Number.isInteger(error.status) || error.status >= 500;
+        if (attempt === 0 && retryable) {
+          await new Promise(resolve => setTimeout(resolve, 1000));
+          continue;
+        }
+        throw error;
+      }
     }
-    return score;
   }
 
   async function retryAccuracy(progress, puzzle, index, section) {
