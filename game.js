@@ -39,12 +39,19 @@ const SHOP = [
   { id: 'fence', name: 'Fence', price: 140, category: 'miscellaneous' },
   { id: 'park-bench', name: 'Bench', price: 130, category: 'miscellaneous' },
   { id: 'lamppost', name: 'Lamppost', price: 120, category: 'miscellaneous' },
+  { id: 'gazebo', name: 'Gazebo', price: 500, category: 'shelter' },
+  { id: 'greenhouse', name: 'Greenhouse', price: 900, category: 'shelter' },
+  { id: 'treehouse', name: 'Treehouse', price: 1200, category: 'shelter' },
+  { id: 'cabin', name: 'Cabin', price: 1500, category: 'shelter' },
+  { id: 'cottage', name: 'Cottage', price: 1800, category: 'shelter' },
+  { id: 'mushroom-house', name: 'Mushroom House', price: 2200, category: 'shelter' },
+  { id: 'small-shop', name: 'Small Shop', price: 2500, category: 'shelter' },
 ].sort((a, b) => a.price - b.price);
 // Shop tabs: one per category (Lina's categories), plus All and Paths; `icon` = pixel icon name
 const SHOP_CATEGORIES = [
   { id: 'nature', label: 'Nature', icon: 'leaf' },
   { id: 'miscellaneous', label: 'Miscellaneous', icon: 'bench' },
-  { id: 'shelter', label: 'Shelter', icon: 'home' },
+  { id: 'shelter', label: 'Structures', icon: 'home' },
   { id: 'vehicle', label: 'Vehicles', icon: 'car' },
 ];
 let shopTab = 'all';
@@ -454,7 +461,10 @@ function silhouette(id, color) {
 const emojiSprite = () => pixelSprite('crate');
 const urlCache = {};
 const iconURL = id => urlCache[id] || (urlCache[id] = (pixelSprite(id, true) || pixelSprite('crate', true)).toDataURL()); // outlined for the shop/bag
-const BIG = new Set(['tree', 'palm', 'house', 'castle', 'fountain', 'pine', 'hut', 'ferris', 'mountain', 'christmas-tree']);
+const BIG = new Set([
+  'tree', 'palm', 'house', 'castle', 'fountain', 'pine', 'hut', 'ferris', 'mountain', 'christmas-tree',
+  'gazebo', 'greenhouse', 'treehouse', 'cabin', 'cottage', 'mushroom-house', 'small-shop',
+]);
 function drawItem(id, x, y, alpha = 1) {
   const size = BIG.has(id) ? 56 : 36, cx = x * TILE + TILE / 2, bottom = y * TILE + TILE - 2;
   const left = cx - size / 2, top = bottom - size, o = Math.max(2, Math.round(size / 16));
