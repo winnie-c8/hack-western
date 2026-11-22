@@ -296,15 +296,14 @@ body.daily-star-open #intro { transform: translateY(-18vh); transition: transfor
   width: 100%; min-height: 100vh; min-height: 100dvh; max-height: 100vh; max-height: 100dvh;
   overflow-y: auto; padding: 18px clamp(12px, 4vw, 48px); background: transparent; border: 0; box-shadow: none;
 }
-#dailyStarModal .dialog-heading, #dailyStarModal #starRoundProgress, #dailyStarModal #starRoundMount { width: min(760px, 100%); }
+#dailyStarModal .dialog-heading, #dailyStarModal #starRoundMount { width: min(760px, 100%); }
 #dailyStarModal .dialog-heading {
   flex: none; margin: clamp(12px, 4vh, 42px) auto 10px; padding: 12px 16px;
   background: rgba(255,247,230,.93); border: 4px solid var(--wood-dark); box-shadow: 6px 6px 0 rgba(28,52,44,.3);
 }
-#dailyStarModal #starCountdown {
-  flex: none; width: min(760px, 100%); margin: 0 auto 10px; padding: 7px 12px;
-  color: var(--ink-soft); background: rgba(255,247,230,.9); text-align: center;
-}
+/* "A new mystery arrives in…": small, in the bottom right of the title box */
+#dailyStarModal .dialog-heading { display: grid; grid-template-columns: minmax(0, 1fr) auto; row-gap: 2px; }
+#dailyStarModal #starCountdown { grid-column: 1 / -1; margin: 0; color: var(--ink-soft); text-align: right; font-size: .78rem; }
 #dailyStarModal .daily-star-tabs {
   display: flex; flex: none; gap: 8px; width: min(760px, 100%); margin: 0 auto 10px;
 }
@@ -317,10 +316,6 @@ body.daily-star-open #intro { transform: translateY(-18vh); transition: transfor
 }
 #dailyStarModal .daily-star-tabs button:focus-visible,
 #dailyStarModal .daily-star-book-controls button:focus-visible { outline: 3px solid var(--teal-dark); outline-offset: 2px; }
-#dailyStarModal #starRoundProgress {
-  flex: none; margin: 0 auto 10px; padding: 8px 12px; color: var(--ink);
-  background: rgba(255,247,230,.9); text-align: center;
-}
 #dailyStarModal #starRoundMount {
   flex: none; margin: 0 auto 20px; padding: clamp(14px, 3vw, 26px);
   background: rgba(255,247,230,.93); border: 4px solid var(--wood-dark); box-shadow: 6px 6px 0 rgba(28,52,44,.3);
@@ -432,7 +427,7 @@ body.daily-star-open #intro { transform: translateY(-18vh); transition: transfor
 .earn { margin-top: 16px; }
 .earn summary {
   list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; font-size: 1rem;
-  color: var(--ink-soft); padding: 4px 2px; user-select: none;
+  color: var(--ink-soft); padding: 4px 2px; min-height: 36px; user-select: none; /* tall enough to tap on phones */
 }
 .earn summary::-webkit-details-marker { display: none; }
 .earn summary:hover { color: var(--ink); }
@@ -636,7 +631,7 @@ body.holding .bag { outline: 3px dashed var(--sun-dark); outline-offset: 3px; }
 .logistics .card p { margin: 0 0 8px; }
 .plain-list { margin: 0 0 8px; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; }
 .see-more summary {
-  list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; padding: 4px 2px;
+  list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; padding: 4px 2px; min-height: 36px;
   color: var(--ink-soft); text-decoration: underline dotted; text-underline-offset: 4px; user-select: none;
 }
 .see-more summary::-webkit-details-marker { display: none; }
@@ -923,11 +918,17 @@ body.holding .bag { outline: 3px dashed var(--sun-dark); outline-offset: 3px; }
 #chatForm { display: flex; gap: 8px; padding: 12px; border-top: 3px dotted var(--wood); } #chatForm input { margin: 0; }
 
 #toast {
-  position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 40; padding: 12px 20px; max-width: 90vw;
+  position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 40; padding: 12px 20px;
+  width: max-content; max-width: calc(100vw - 32px); text-align: center; /* fits its text instead of squeezing to half the screen */
   background: var(--paper); color: var(--ink); border: var(--px) solid var(--wood-dark); box-shadow: var(--shadow);
   opacity: 0; transition: opacity .2s; pointer-events: none; font-size: 1.05rem;
 }
 #toast.show { opacity: 1; }
+/* in the Daily Star, pop-ups show in front of it (it sits above everything else), with a little pop */
+body.daily-star-open #toast { z-index: 130; }
+body.daily-star-open #toast.show { animation: toastPop .32s cubic-bezier(.2,1.6,.4,1); }
+@keyframes toastPop { from { transform: translateX(-50%) scale(.85); } to { transform: translateX(-50%) scale(1); } }
+@media (prefers-reduced-motion: reduce) { body.daily-star-open #toast.show { animation: none; } }
 
 /* small screens: stack, shrink buttons */
 @media (max-width: 760px) {
@@ -1703,3 +1704,108 @@ button.primary.sync-big:disabled { opacity: .5; cursor: not-allowed; }
 .sync-devices { margin: 6px 0 10px; font-size: .95rem; }
 .sync-devices ul { list-style: none; margin: 4px 0 0; padding: 0; }
 .sync-devices li { padding: 3px 0; }
+
+/* ===== Daily Star: one pop-up card at a time ===== */
+#closeDailyStar { min-width: 40px; min-height: 40px; } /* easy to tap on any screen */
+.ds-card { display: grid; gap: 14px; justify-items: center; text-align: center; }
+.ds-card > * { margin: 0; }
+.ds-card-pop { animation: starCardPop .34s cubic-bezier(.2,1.5,.4,1) both; }
+.ds-card-enter { animation: starCardIn .32s cubic-bezier(.2,1.2,.4,1) both; }
+.ds-card-leave { transition: transform .22s ease-in, opacity .22s ease-in; transform: translateX(-48px); opacity: 0; }
+@keyframes starCardPop { from { transform: scale(.88); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes starCardIn { from { transform: translateX(56px) scale(.97); opacity: 0; } to { transform: none; opacity: 1; } }
+.ds-card-big { font-size: 1.2rem; line-height: 1.45; max-width: 34ch; }
+.ds-card-chip {
+  padding: 3px 10px; font-size: .8rem; color: var(--ink-soft);
+  background: rgba(255,255,255,.6); border: 2px dashed var(--wood);
+}
+.ds-card .primary.ds-card-next, .ds-card .daily-riddle-submit { min-height: 44px; padding: 10px 22px; }
+.ds-mode-note { font-size: .85rem; color: var(--ink-soft); }
+.ds-result-title { font-size: 1.4rem; color: var(--sage-dark); }
+.ds-result-score { font-weight: 700; }
+@media (prefers-reduced-motion: reduce) {
+  .ds-card-pop, .ds-card-enter,   .ds-card-leave, }
+/* phones: a bit smaller text, full-width buttons that are easy to tap */
+@media (max-width: 600px) {
+  .ds-card { gap: 12px; }
+  .ds-card-big { font-size: 1.05rem; }
+  .ds-card .primary.ds-card-next, .ds-card .daily-riddle-submit { width: 100%; }
+    #dailyStarModal #starCountdown { font-size: .72rem; }
+  #dailyStarTitle { font-size: clamp(1.1rem, 6vw, 1.5rem); }
+}
+
+/* ===== Daily Star rewards: coins, streak stars, share ===== */
+.ds-rewards { display: grid; gap: 6px; justify-items: center; width: 100%; padding: 12px; background: #fff8e8; border: 3px solid var(--wood); }
+.ds-rewards p { margin: 0; }
+.ds-reward-coins { display: flex; align-items: center; gap: 6px; font-size: 1.15rem; }
+.ds-reward-coins .pi { width: 22px; height: 22px; }
+.ds-reward-amount { font-size: 1.6rem; color: var(--sage-dark); min-width: 2.5ch; text-align: right; }
+.ds-reward-note { font-size: .82rem; color: var(--ink-soft); }
+.ds-streak-title { margin-top: 6px !important; font-weight: 700; }
+.ds-streak-stars { display: flex; gap: 6px; flex-wrap: wrap; justify-content: center; }
+.ds-streak-star { display: inline-grid; place-items: center; width: 30px; height: 30px; opacity: .25; filter: grayscale(1); }
+.ds-streak-star .pi { width: 24px; height: 24px; }
+.ds-streak-star.lit { opacity: 1; filter: none; animation: dsStarLight .4s cubic-bezier(.2,1.6,.4,1) both; animation-delay: calc(.35s + var(--i) * .09s); }
+@keyframes dsStarLight { from { transform: scale(.3); opacity: .25; } 60% { transform: scale(1.25); } to { transform: none; opacity: 1; } }
+@media (prefers-reduced-motion: reduce) { .ds-streak-star.lit { animation: none; } }
+@media (max-width: 600px) { .ds-streak-star { width: 26px; height: 26px; } .ds-streak-star .pi { width: 20px; height: 20px; } }
+
+/* ===== Daily Star: hot or cold board ===== */
+.ds-heat-scale {
+  display: flex; justify-content: space-between; width: min(320px, 100%); padding: 6px 10px; font-size: .8rem; font-weight: 700; color: #fff;
+  background: linear-gradient(90deg, hsl(0,78%,52%), hsl(60,78%,48%), hsl(120,70%,42%)); border: 3px solid var(--wood-dark);
+  text-shadow: 1px 1px 0 rgba(0,0,0,.35);
+}
+/* how-it-works: subheading, the colour rules, and the goal */
+.ds-subheading { font-size: .85rem; font-weight: 700; color: var(--sage-dark); text-transform: uppercase; letter-spacing: 1px; max-width: 36ch; }
+.ds-rules { font-size: 1.05rem; line-height: 1.55; max-width: 38ch; }
+.ds-c-red { color: hsl(0, 70%, 46%); } .ds-c-yellow { color: hsl(45, 85%, 38%); } .ds-c-green { color: hsl(120, 60%, 32%); }
+.ds-goal { padding: 6px 12px; font-weight: 700; background: #fff3c4; border: 2px dashed var(--wood); }
+.ds-goal-mini { margin-top: -10px !important; font-size: .8rem; color: var(--ink-soft); }
+.ds-counter { font-size: 1rem; color: var(--ink-soft); }
+.ds-counter b { font-size: 2rem; color: var(--ink); margin-right: 2px; }
+.ds-guess-form { display: flex; gap: 8px; width: 100%; }
+.ds-guess-form input {
+  flex: 1; min-width: 0; padding: 10px 12px; font: inherit; font-size: 16px; color: var(--ink);
+  background: #fff; border: 3px solid var(--wood);
+}
+.ds-guess-form input:focus { outline: 3px solid var(--teal-dark); outline-offset: 1px; }
+.ds-guess-form button.primary { flex: none; width: auto; margin: 0; min-height: 44px; padding: 8px 18px; } /* the base green button is full width */
+.ds-card-board .daily-riddle-feedback { min-height: 1.2em; }
+/* one guess: the row fills with its heat colour up to its score */
+.ds-guess {
+  position: relative; display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 8px 12px; min-height: 40px; text-align: left; background: #fff; border: 3px solid var(--wood-dark); overflow: hidden;
+}
+.ds-guess::before {
+  content: ""; position: absolute; inset: 0 auto 0 0; width: var(--fill); background: var(--heat); opacity: .85;
+  transition: width .6s cubic-bezier(.2,.8,.2,1);
+}
+.ds-guess > span { position: relative; }
+.ds-guess-word { font-weight: 700; overflow-wrap: anywhere; }
+.ds-guess-score { font-variant-numeric: tabular-nums; }
+.ds-guess.fresh { animation: dsGuessIn .45s cubic-bezier(.2,1.5,.4,1) both; }
+.ds-guess.fresh::before { animation: dsFill .7s cubic-bezier(.2,.8,.2,1) both; }
+@keyframes dsGuessIn { from { transform: scale(.85); opacity: 0; } to { transform: none; opacity: 1; } }
+@keyframes dsFill { from { width: 0; } }
+.ds-latest { display: grid; gap: 4px; width: 100%; }
+.ds-latest:empty { display: none; }
+.ds-latest-label { margin: 0; font-size: .75rem; color: var(--ink-soft); text-align: left; }
+.ds-heat-word { margin: 0; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; font-size: .85rem; color: var(--ink-soft); }
+.ds-list-label { margin: 4px 0 0; width: 100%; font-size: .75rem; color: var(--ink-soft); text-align: left; }
+.ds-list-label[hidden] { display: none; }
+.ds-guess-list { display: grid; gap: 6px; width: 100%; max-height: 320px; overflow-y: auto; margin: 0; padding: 0; list-style: none; }
+.ds-guess-list:empty { display: none; }
+.ds-give-up { margin-top: 2px; }
+/* result: the word glows in "hot" green */
+.ds-answer-word {
+  padding: 8px 18px; font-size: 1.6rem; font-weight: 700; color: #fff; background: var(--heat);
+  border: 3px solid var(--wood-dark); text-shadow: 2px 2px 0 rgba(0,0,0,.25);
+}
+.ds-tip-label { font-size: .8rem; color: var(--ink-soft); text-transform: uppercase; letter-spacing: 1px; }
+@media (max-width: 600px) {
+  .ds-counter b { font-size: 1.6rem; }
+  .ds-guess-list { max-height: 260px; }
+  .ds-answer-word { font-size: 1.3rem; }
+}
+@media (prefers-reduced-motion: reduce) { .ds-guess::before, .ds-guess.fresh::before { transition: none; animation: none; } }

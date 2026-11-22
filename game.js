@@ -6,6 +6,8 @@ const REWARDS = { dailyLog: 10, firstThisWeek: 50, weekStreak: 150, goalReached:
 
 const SHOP = [
   { id: 'flower', name: 'Tulip', price: 30, category: 'nature' },
+  // reward only (never for sale): every 7-day Daily Star streak puts one in your bag
+  { id: 'wishing-star', name: 'Wishing Star', price: 0, category: 'reward' },
   { id: 'tree', name: 'Oak Tree', price: 80, category: 'nature' },
   { id: 'palm', name: 'Palm Tree', price: 100, category: 'nature' },
   { id: 'bench', name: 'Chair', price: 120, category: 'miscellaneous' },
@@ -120,6 +122,7 @@ const defaultState = () => ({
   dailyStarLogbook: [],
 });
 function normalizeDailyStar(progress) {
+  if (progress?.version >= 8) return progress; // newer Daily Star formats: daily-star.js checks these itself
   let dailyStar = progress;
   if (dailyStar?.version === 5) {
     dailyStar = { ...dailyStar, version: 6, personalizedHints: [], similarityScore: null };
@@ -1770,7 +1773,7 @@ $('acctDone').onclick = () => $('acctEditor').classList.add('hidden');
 // LOG MY SAVINGS logs whatever new deposits Plaid shows today, through logSaving like before,
 // so coins still reward the habit, not the amount. Save again later the same day and you can log again.
 const SERVER = ['localhost', '127.0.0.1'].includes(location.hostname)
-  ? 'http://localhost:3001' : 'https://future-me-cdzs.onrender.com';
+  ? 'http://localhost:3001' : 'https://hack-western.onrender.com'; // same server as Maple's chat and the Daily Star
 const postJSON = (path, body = {}) => fetch(`${SERVER}${path}`, {
   method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
 }).then(r => r.json().then(d => (r.ok ? d : Promise.reject(d))));
@@ -2667,6 +2670,7 @@ window.saveGame = () => {
   window.cloudSave?.(s);
 };
 window.toast = toast;
+window.refreshIsland = () => renderAll(); // e.g. after the Daily Star adds coins or a reward to your bag
 
 // Header title goes back to the entrance screen
 $('homeBtn').addEventListener('click', () => window.showIntro?.());

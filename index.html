@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tomo Island</title>
 <link rel="preload" href="fonts/VCR_OSD_MONO.ttf" as="font" type="font/ttf" crossorigin>
-<link rel="stylesheet" href="style.css?v=59">
+<link rel="stylesheet" href="style.css?v=71">
 </head>
 <body>
 <div id="intro" class="intro" role="dialog" aria-label="Welcome to Tomo Island">
@@ -526,13 +526,13 @@
     <div class="dialog-heading">
       <h2 id="dailyStarTitle"><i data-pi="star"></i> The Daily Star</h2>
       <button type="button" id="closeDailyStar" class="dialog-close" aria-label="Close The Daily Star">✕</button>
+      <!-- small, tucked into the bottom right of the title box -->
+      <p id="starCountdown" class="daily-riddle-countdown"></p>
     </div>
-    <p id="starCountdown" class="daily-riddle-countdown"></p>
     <nav class="daily-star-tabs" role="tablist" aria-label="Daily Star pages">
       <button type="button" id="starPlayTab" role="tab" aria-selected="true" aria-controls="starRoundMount">Daily Star</button>
       <button type="button" id="starLogbookTab" role="tab" aria-selected="false" aria-controls="starRoundMount">Logbook</button>
     </nav>
-    <p id="starRoundProgress" class="muted"></p>
     <div id="starRoundMount"></div>
   </section>
 </div>
@@ -542,9 +542,9 @@
 <script src="sky.js?v=36"></script>
 <script src="intro.js?v=34"></script>
 <script src="Updated/Music%20for%20game.js?v=3"></script>
-<script src="game.js?v=55"></script>
+<script src="game.js?v=58"></script>
 <script src="Set%20goals.js?v=27"></script>
-<script src="daily-star.js?v=50"></script>
+<script src="daily-star.js?v=61"></script>
 <script src="tutorial.js?v=6"></script>
 <script type="module" src="cloud.js"></script>
 <script type="module" src="town.js?v=33"></script>
