@@ -1,31 +1,385 @@
-// ---------- Daily Star ----------
+// ---------- Daily Star: Niche Saver ----------
 (() => {
   const $ = id => document.getElementById(id);
-  const state = () => window.getState();
-  const ROUNDS_PER_DAY = 5;
-
-  const games = [
-    { id: 'clock', name: 'Stop the clock', description: 'Stop the hidden clock when you think the random target time has passed.' },
-    { id: 'middle', name: 'Find the middle', description: 'Tap the exact midpoint between the two dots.' },
-    { id: 'fill', name: 'Fill percentage', description: 'Estimate what percentage of the shape is filled.' },
-    { id: 'color', name: 'Color match', description: 'Remember the color, then recreate it with the red, green, and blue sliders.' },
-    { id: 'line', name: 'Line length', description: 'Memorize the line, then draw one of the same length.' },
-    { id: 'recall', name: 'Flash recall', description: 'Remember the 10 squares that light up in the grid, then tap their spots.' },
-    { id: 'upright', name: 'Make it upright', description: 'Rotate the tilted shape until it looks level.' },
-    { id: 'speed', name: 'Speed guess', description: 'Watch the car cross the screen and estimate its speed.' },
-    { id: 'shades', name: 'Shade ranking', description: 'Arrange the five gray squares from lightest to darkest.' },
-    { id: 'pitch', name: 'Pitch match', description: 'Listen to the tone, then slide to match its pitch.' },
+  const DAILY_STAR_VERSION = 7;
+  const MAX_GUESSES = 5;
+  const MAX_GUESS_LENGTH = 120;
+  const API = ['localhost', '127.0.0.1'].includes(location.hostname)
+    ? 'http://localhost:3001' : 'https://hack-western.onrender.com';
+  const PUZZLES = [
+    {
+      id: 'library-museum-pass',
+      answer: 'Borrow a free museum pass through your public library.',
+      accepted: ['museum pass', 'library pass', 'museum ticket', 'free museum admission'],
+      hints: [
+        'The savings come from a membership you may already have.',
+        'Look beyond books at services offered by your public library.',
+        'Some libraries lend passes to local cultural attractions.',
+      ],
+    },
+    {
+      id: 'tool-library',
+      answer: 'Borrow an occasional-use tool from a tool library or neighborhood lending group.',
+      accepted: ['tool library', 'borrow a tool', 'borrow tools', 'library of things', 'tool lending', 'tool share'],
+      hints: [
+        'You need something briefly, not something to own forever.',
+        'Think of a community lending service.',
+        'It shares its name with a place full of books, but lends hardware.',
+      ],
+    },
+    {
+      id: 'off-peak-laundry',
+      answer: 'Run laundry during off-peak hours on a time-of-use electricity plan.',
+      accepted: ['off peak', 'off-peak', 'time of use', 'laundry overnight', 'run laundry at night', 'offpeak electricity'],
+      hints: [
+        'The tip depends on when you use energy, not how much detergent you use.',
+        'Check whether your utility charges different rates by time of day.',
+        'Try scheduling energy-heavy laundry outside peak hours.',
+      ],
+    },
+    {
+      id: 'buy-nothing',
+      answer: 'Request a needed item from a Buy Nothing group or trade clothes in a swap with friends.',
+      accepted: ['buy nothing', 'freecycle', 'community gifting', 'neighborhood gifting', 'gifting group', 'clothing swap', 'clothes swap', 'clothing exchange', 'swap clothes'],
+      hints: [
+        'One route is finding a secondhand item without paying.',
+        'Look to neighbors or friends sharing things they no longer need.',
+        'Try a local Buy Nothing group or organize a clothing swap.',
+      ],
+    },
+    {
+      id: 'generic-prescription',
+      answer: 'Ask your pharmacist whether a generic version of a prescription is available.',
+      accepted: ['generic medication', 'generic medicine', 'generic prescription', 'generic drug', 'generic version'],
+      hints: [
+        'This is a question to ask a professional, not a change to make on your own.',
+        'The item is a prescription, and the alternative has the same active ingredient.',
+        'Ask your pharmacist about the non-brand-name option.',
+      ],
+    },
+    {
+      id: 'split-bulk',
+      answer: 'Split a bulk grocery purchase with a neighbor to get the discount without excess.',
+      accepted: ['split bulk', 'bulk purchase with a neighbor', 'bulk buy with a neighbor', 'share a bulk pack', 'split groceries'],
+      hints: [
+        'The lower unit price can be helpful, but the package may be too large.',
+        'Team up with someone nearby and divide the purchase.',
+        'Share a bulk-sized grocery item with a neighbor.',
+      ],
+    },
+    {
+      id: 'shop-freezer',
+      answer: 'Plan a meal from your freezer before grocery shopping to avoid buying duplicates.',
+      accepted: ['shop your freezer', 'freezer inventory', 'use the freezer first', 'plan from your freezer', 'freezer before grocery'],
+      hints: [
+        'Before shopping, take stock of what you already have at home.',
+        'Look in the coldest part of your kitchen for forgotten ingredients.',
+        'Build a meal around what is already in your freezer.',
+      ],
+    },
+    {
+      id: 'repair-cafe',
+      answer: 'Take a small broken item to a community repair cafe instead of replacing it.',
+      accepted: ['repair cafe', 'fix it clinic', 'community repair', 'repair workshop', 'repair clinic'],
+      hints: [
+        'The goal is to extend the life of something you already own.',
+        'Look for a volunteer event where people help fix everyday items.',
+        'It is a cafe in name, but people bring things to be repaired.',
+      ],
+    },
+    {
+      id: 'rotate-streaming',
+      answer: 'Keep one streaming service at a time, cancel it, and resubscribe when a show you want arrives.',
+      accepted: ['rotate streaming subscriptions', 'one streaming service at a time', 'cancel and resubscribe', 'subscription rotation'],
+      hints: [
+        'Rethink a recurring entertainment bill.',
+        'Instead of paying for several services all year, keep only one active.',
+        'Rotate streaming subscriptions by canceling and resubscribing when a show arrives.',
+      ],
+    },
+    {
+      id: 'student-discounts',
+      answer: 'Use eligible student or young-adult discounts on music, software, transit, or phone plans.',
+      accepted: ['student discount', 'student discounts', 'young adult discount', 'student transit discount', 'student pricing'],
+      hints: [
+        'Check whether your age or enrollment status qualifies you for a lower rate.',
+        'The deal can apply to recurring services and transportation.',
+        'Look for student or young-adult pricing on the services you already use.',
+      ],
+    },
+    {
+      id: 'prepaid-phone',
+      answer: 'Switch to a prepaid or budget phone plan from a smaller carrier.',
+      accepted: ['prepaid phone', 'prepaid plan', 'budget phone plan', 'smaller phone carrier', 'cheap phone carrier'],
+      hints: [
+        'Review a monthly bill for a service you already use.',
+        'A smaller provider may offer the same network coverage for less.',
+        'Compare prepaid or budget phone plans before renewing.',
+      ],
+    },
+    {
+      id: 'rescue-food',
+      answer: 'Use a food-rescue app like Too Good To Go for discounted surprise bags from local shops.',
+      accepted: ['too good to go', 'food rescue app', 'rescue food', 'discounted surprise bag', 'leftover bakery food'],
+      hints: [
+        'The discount helps a local business avoid throwing something away.',
+        'The offer is usually a surprise bag of food near closing time.',
+        'Try a food-rescue app such as Too Good To Go.',
+      ],
+    },
+    {
+      id: 'fakeaway',
+      answer: 'Recreate a favorite takeout order at home as a cheaper fakeaway meal.',
+      accepted: ['fakeaway', 'recreate takeout', 'takeout at home', 'homemade takeout', 'copycat takeout'],
+      hints: [
+        'Keep the meal you enjoy but change where it comes from.',
+        'Try making a favorite restaurant order in your own kitchen.',
+        'Make a homemade fakeaway instead of ordering takeout.',
+      ],
+    },
+    {
+      id: '72-hour-rule',
+      answer: 'Wait 72 hours before buying a nonessential item to let impulse purchases fade.',
+      accepted: ['72 hour rule', 'three day rule', 'wait 72 hours', 'wait three days', 'wait before buying'],
+      hints: [
+        'Add a pause between wanting something and paying for it.',
+        'Put the item in a cart or wishlist, then leave it there for a while.',
+        'Wait three days before buying; it is often called the 72-hour rule.',
+      ],
+    },
+    {
+      id: 'checkout-friction',
+      answer: 'Delete saved payment cards and turn off one-click checkout in shopping apps.',
+      accepted: ['delete saved cards', 'remove saved cards', 'disable one click checkout', 'turn off one click checkout', 'remove saved payment'],
+      hints: [
+        'Make impulse purchases take a few more steps.',
+        'Change a setting in shopping apps rather than relying on willpower.',
+        'Remove stored cards and disable one-click checkout.',
+      ],
+    },
+    {
+      id: 'secondhand-first',
+      answer: 'Check secondhand listings or thrift stores before buying an item new.',
+      accepted: ['buy secondhand', 'second hand first', 'thrift first', 'used before new', 'buy used first'],
+      hints: [
+        'A lower-cost version may already exist.',
+        'Search resale listings or a local shop before choosing a new item.',
+        'Make buying secondhand your first stop.',
+      ],
+    },
+    {
+      id: 'price-history',
+      answer: 'Check a product price-history tool to see whether a sale is actually a good deal.',
+      accepted: ['track prices', 'price history', 'price tracker', 'check price history', 'price history tool'],
+      hints: [
+        'A discount label does not always mean the price is low.',
+        "Look at how the item's cost changed over time.",
+        'Use a price-history tracker before trusting a sale.',
+      ],
+    },
+    {
+      id: 'mute-sales',
+      answer: 'Unsubscribe from sales emails and unfollow haul content that tempts you to shop.',
+      accepted: ['mute sales emails', 'unsubscribe from sales emails', 'unfollow haul accounts', 'mute haul content', 'unfollow shopping influencers'],
+      hints: [
+        'Reduce the reminders that make you want to buy things.',
+        'Clean up inbox subscriptions and social feeds.',
+        'Mute promotional emails and unfollow haul content.',
+      ],
+    },
+    {
+      id: 'library-apps',
+      answer: 'Use Libby or Hoopla with a library card for free ebooks, audiobooks, comics, and movies.',
+      accepted: ['libby', 'hoopla', 'library app', 'digital library', 'free audiobook app', 'borrow ebooks'],
+      hints: [
+        'A card you already have may unlock more than physical books.',
+        "Check your library's digital catalog on your phone.",
+        'Try a library app such as Libby or Hoopla.',
+      ],
+    },
+    {
+      id: 'free-admission',
+      answer: 'Look for museum free days, student nights, or matinee tickets before paying full price.',
+      accepted: ['free museum day', 'free museum days', 'student night', 'museum student night', 'matinee tickets', 'matinee show', 'free admission day'],
+      hints: [
+        'The same activity can cost less at a different time.',
+        'Check event calendars for discounted hours or daytime showings.',
+        'Try a museum free day, student night, or matinee.',
+      ],
+    },
+    {
+      id: 'pay-yourself-first',
+      answer: 'Schedule an automatic savings transfer for payday so you save before spending.',
+      accepted: ['pay yourself first', 'automatic savings transfer', 'auto transfer on payday', 'transfer on payday', 'payday savings transfer'],
+      hints: [
+        'Make saving happen before the rest of your budget gets spent.',
+        'Set up a recurring bank transfer tied to your pay schedule.',
+        'Pay yourself first with an automatic payday transfer.',
+      ],
+    },
+    {
+      id: 'roundup-savings',
+      answer: 'Use purchase round-ups to move spare change into savings.',
+      accepted: ['round ups', 'round-up savings', 'round up purchases', 'purchase roundups', 'spare change savings'],
+      hints: [
+        'Small amounts from everyday purchases can add up.',
+        'A bank or app can calculate the difference automatically.',
+        'Round purchases up and save the spare change.',
+      ],
+    },
+    {
+      id: 'fun-money-account',
+      answer: 'Keep a separate fun-money account for guilt-free discretionary spending.',
+      accepted: ['fun money account', 'separate fun account', 'separate spending account', 'guilt free spending account'],
+      hints: [
+        'Give optional spending a clear boundary in your budget.',
+        'Keep this money apart from bills and long-term savings.',
+        'Use a separate fun-money account for guilt-free spending.',
+      ],
+    },
+    {
+      id: 'negotiate-bill',
+      answer: 'Call your phone or internet provider to ask for a fee waiver or a lower rate.',
+      accepted: ['ask for fee waiver', 'fee waiver', 'lower phone bill', 'lower internet bill', 'negotiate phone bill', 'negotiate internet bill', 'ask provider for better rate'],
+      hints: [
+        'A short conversation can sometimes lower a recurring bill.',
+        'Contact the company that provides your phone or internet service.',
+        'Ask about a fee waiver or better rate, and mention if you are considering canceling.',
+      ],
+    },
+    {
+      id: 'employer-match',
+      answer: 'Check whether your employer matches contributions to a workplace retirement plan.',
+      accepted: ['employer match', 'retirement match', '401k match', 'workplace match', 'matching contribution', 'employer matching'],
+      hints: [
+        'Look for a benefit connected to your job.',
+        'Some employers add money when you contribute to a long-term savings plan.',
+        'Check whether your workplace offers a retirement contribution match.',
+      ],
+    },
   ];
-  const gameById = Object.fromEntries(games.map(game => [game.id, game]));
-
-  let run = null;
-  let pitchContext = null;
   let countdownInterval = null;
+  let activeTab = 'play';
+  let logbookPage = 0;
+  const scoringAttempts = new Set();
 
-  // The Daily Star follows the device's local date, same as daily missions in game.js
   function localDay() {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    const date = new Date();
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  }
+
+  function syncSceneBackdrop() {
+    const source = $('introScene');
+    const backdrop = $('dailyStarScene');
+    if (!source || !backdrop) throw new Error('The Daily Star background canvas is missing.');
+    const context = backdrop.getContext('2d');
+    if (!context) throw new Error('Could not draw the Daily Star background.');
+    context.imageSmoothingEnabled = false;
+    context.clearRect(0, 0, backdrop.width, backdrop.height);
+    context.drawImage(source, 0, 0, backdrop.width, backdrop.height);
+  }
+
+  function puzzleForDay(day) {
+    // Hash the date so the same daily mystery is selected across reloads and devices.
+    let seed = 2166136261;
+    for (let index = 0; index < day.length; index++) {
+      seed = Math.imul(seed ^ day.charCodeAt(index), 16777619);
+    }
+    seed ^= seed << 13;
+    seed ^= seed >>> 17;
+    seed ^= seed << 5;
+    return PUZZLES[(seed >>> 0) % PUZZLES.length];
+  }
+
+  function puzzleForCurrentDay(day) {
+    const savedProgress = ensureState().dailyStar;
+    if (savedProgress.date === day) {
+      const savedPuzzle = PUZZLES.find(puzzle => puzzle.id === savedProgress.puzzleId);
+      if (savedPuzzle) return savedPuzzle;
+    }
+    return puzzleForDay(day);
+  }
+
+  function emptyProgress(day = null, puzzleId = null) {
+    return {
+      version: DAILY_STAR_VERSION,
+      date: day,
+      puzzleId,
+      guesses: [],
+      personalizedHints: [],
+      accuracyScores: [],
+      completed: false,
+      won: false,
+    };
+  }
+
+  function ensureState() {
+    const gameState = window.getState();
+    if (!gameState.dailyStar || gameState.dailyStar.version !== DAILY_STAR_VERSION) {
+      gameState.dailyStar = emptyProgress();
+    }
+    return gameState;
+  }
+
+  function normalize(value) {
+    return value.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  }
+
+  function isCorrectGuess(guess, puzzle) {
+    const normalized = ` ${normalize(guess)} `;
+    return puzzle.accepted.some(answer => normalized.includes(` ${normalize(answer)} `));
+  }
+
+  function isWinningGuess(guess, puzzle, accuracyScore) {
+    return isCorrectGuess(guess, puzzle) || (accuracyScore !== null && accuracyScore > 90);
+  }
+
+  function winningGuessIndex(progress, puzzle) {
+    return progress.guesses.findIndex((guess, index) =>
+      isWinningGuess(guess, puzzle, progress.accuracyScores[index]));
+  }
+
+  function validProgress(progress, day, puzzle) {
+    if (!progress || progress.version !== DAILY_STAR_VERSION || progress.date !== day ||
+      progress.puzzleId !== puzzle.id || !Array.isArray(progress.guesses) ||
+      progress.guesses.length > MAX_GUESSES || progress.guesses.some(guess =>
+        typeof guess !== 'string' || !guess.trim() || guess.length > MAX_GUESS_LENGTH) ||
+      !Array.isArray(progress.personalizedHints) || progress.personalizedHints.length > MAX_GUESSES - 1 ||
+      progress.personalizedHints.some(hint => hint !== null &&
+        (typeof hint !== 'string' || !hint.trim() || hint.length > 200)) ||
+      !Array.isArray(progress.accuracyScores) || progress.accuracyScores.length !== progress.guesses.length ||
+      progress.accuracyScores.some(score => score !== null &&
+        (!Number.isInteger(score) || score < 0 || score > 100)) ||
+      typeof progress.completed !== 'boolean' || typeof progress.won !== 'boolean') return false;
+
+    const normalizedGuesses = progress.guesses.map(normalize);
+    if (new Set(normalizedGuesses).size !== normalizedGuesses.length) return false;
+    const winningIndex = winningGuessIndex(progress, puzzle);
+    const won = winningIndex >= 0;
+    const completed = won || progress.guesses.length === MAX_GUESSES;
+    return (!progress.won || won) && (!progress.completed || completed) &&
+      (!won || winningIndex === progress.guesses.length - 1);
+  }
+
+  function progressFor(day, puzzle) {
+    const gameState = ensureState();
+    if (!validProgress(gameState.dailyStar, day, puzzle)) {
+      if (gameState.dailyStar.date === day && gameState.dailyStar.version === DAILY_STAR_VERSION) {
+        console.warn('[daily-star] Saved riddle progress was invalid; starting a fresh riddle.');
+      }
+      gameState.dailyStar = emptyProgress(day, puzzle.id);
+      window.saveGame();
+    } else {
+      const progress = gameState.dailyStar;
+      const won = winningGuessIndex(progress, puzzle) >= 0;
+      const completed = won || progress.guesses.length === MAX_GUESSES;
+      if (progress.won !== won || progress.completed !== completed) {
+        progress.won = won;
+        progress.completed = completed;
+        window.saveGame();
+      }
+    }
+    return gameState.dailyStar;
   }
 
   function untilLocalMidnight() {
@@ -34,515 +388,474 @@
     return Math.max(0, midnight - Date.now());
   }
 
-  function countdownText() {
+  function updateCountdown() {
+    const countdown = $('starCountdown');
+    if (!countdown) return;
     const seconds = Math.ceil(untilLocalMidnight() / 1000);
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor(seconds % 3600 / 60);
-    return `${hours}h ${String(minutes).padStart(2, '0')}m ${String(seconds % 60).padStart(2, '0')}s`;
+    countdown.textContent = `A new mystery arrives in ${hours}h ${String(minutes).padStart(2, '0')}m.`;
   }
 
-  function resetCountdownMessage() {
-    return `The Daily Star resets in ${countdownText()}.`;
-  }
-
-  function updateCountdown() {
-    if (ensureState().dailyStar.date !== localDay() || !ensureState().dailyStar.completed) {
-      const note = $('introNote');
-      if (note.dataset.dailyLocked === 'true') {
-        note.dataset.dailyLocked = 'false';
-        note.innerHTML = pi('star') + ' The Daily Star is ready to twinkle again!';
-        note.classList.remove('show');
-        void note.offsetWidth;
-        note.classList.add('show');
-      }
-      const modalCountdown = $('starCountdown');
-      if (modalCountdown) modalCountdown.textContent = 'A new Daily Star is ready!';
-      clearInterval(countdownInterval);
-      countdownInterval = null;
-      return;
-    }
-    const message = countdownText();
-    const note = $('introNote');
-    if (note.dataset.dailyLocked === 'true') {
-      note.textContent = `Sorry, the daily star has twinkled already. Check back in ${message}.`;
-    }
-    const modalCountdown = $('starCountdown');
-    if (modalCountdown) modalCountdown.textContent = resetCountdownMessage();
-  }
-
-  function showAlreadyPlayed() {
-    const note = $('introNote');
-    note.dataset.dailyLocked = 'true';
-    note.classList.remove('show');
-    void note.offsetWidth;
-    note.classList.add('show');
-    updateCountdown();
+  function startCountdown() {
     if (!countdownInterval) countdownInterval = setInterval(updateCountdown, 1000);
+    updateCountdown();
   }
 
-  function ensureState() {
-    const s = state();
-    if (!s.dailyStar) s.dailyStar = { date: null, games: [], completed: false, score: null, rounds: [] };
-    return s;
+  function setActiveTab(tab) {
+    activeTab = tab;
+    $('starPlayTab').setAttribute('aria-selected', String(tab === 'play'));
+    $('starLogbookTab').setAttribute('aria-selected', String(tab === 'logbook'));
+    $('starRoundProgress').hidden = tab === 'logbook';
+    const mount = $('starRoundMount');
+    mount.classList.toggle('is-logbook', tab === 'logbook');
+    mount.setAttribute('role', 'tabpanel');
+    mount.setAttribute('aria-labelledby', tab === 'logbook' ? 'starLogbookTab' : 'starPlayTab');
+    mount.tabIndex = 0;
   }
-  function randomGames() {
-    const ids = games.map(game => game.id);
-    for (let i = ids.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [ids[i], ids[j]] = [ids[j], ids[i]];
+
+  function renderLogbook() {
+    setActiveTab('logbook');
+    const state = window.getState();
+    const entries = [...(state.dailyStarLogbook || [])].sort((a, b) => b.date.localeCompare(a.date));
+    const pageCount = Math.max(1, Math.ceil(entries.length / 2));
+    logbookPage = Math.max(0, Math.min(logbookPage, pageCount - 1));
+    const mount = $('starRoundMount');
+    mount.replaceChildren();
+
+    const book = document.createElement('section');
+    book.className = 'daily-star-book';
+    book.setAttribute('aria-label', 'Daily Star saving tips logbook');
+    const title = document.createElement('h3');
+    title.className = 'daily-star-book-title';
+    title.textContent = 'Saving Tips';
+    const spread = document.createElement('div');
+    spread.className = 'daily-star-book-spread';
+    spread.setAttribute('aria-live', 'polite');
+
+    const visibleEntries = entries.slice(logbookPage * 2, logbookPage * 2 + 2);
+    if (!visibleEntries.length) {
+      const empty = document.createElement('p');
+      empty.className = 'daily-star-logbook-empty';
+      empty.textContent = 'Complete a Daily Star to add your first saving tip.';
+      spread.append(empty);
+    } else {
+      visibleEntries.forEach(entry => {
+        const page = document.createElement('article');
+        page.className = 'daily-star-logbook-entry';
+        const date = document.createElement('time');
+        date.className = 'daily-star-logbook-date';
+        date.dateTime = entry.date;
+        const [year, month, day] = entry.date.split('-');
+        date.textContent = `${month}/${day}/${year}`;
+        const tip = document.createElement('p');
+        tip.className = 'daily-star-logbook-tip';
+        tip.textContent = entry.tip;
+        const accuracy = document.createElement('p');
+        accuracy.className = 'daily-star-logbook-accuracy';
+        accuracy.textContent = entry.accuracyScore === null
+          ? 'Accuracy Score: unavailable'
+          : `Accuracy Score: ${entry.accuracyScore}%`;
+        page.append(date, tip, accuracy);
+        spread.append(page);
+      });
+      if (visibleEntries.length === 1) {
+        const blankPage = document.createElement('div');
+        blankPage.className = 'daily-star-logbook-entry daily-star-logbook-blank';
+        blankPage.setAttribute('aria-hidden', 'true');
+        spread.append(blankPage);
+      }
     }
-    return ids.slice(0, ROUNDS_PER_DAY);
+
+    const controls = document.createElement('div');
+    controls.className = 'daily-star-book-controls';
+    const previous = document.createElement('button');
+    previous.type = 'button';
+    previous.className = 'secondary';
+    previous.textContent = '← Previous';
+    previous.disabled = logbookPage === 0;
+    previous.addEventListener('click', () => {
+      logbookPage--;
+      renderLogbook();
+    });
+    const pageNumber = document.createElement('span');
+    pageNumber.textContent = `Page ${logbookPage + 1} of ${pageCount}`;
+    const next = document.createElement('button');
+    next.type = 'button';
+    next.className = 'secondary';
+    next.textContent = 'Next →';
+    next.disabled = logbookPage >= pageCount - 1;
+    next.addEventListener('click', () => {
+      logbookPage++;
+      renderLogbook();
+    });
+    controls.append(previous, pageNumber, next);
+    book.append(title, spread, controls);
+    mount.append(book);
   }
 
-  function startDailyStar({ fromMenu = false } = {}) {
-    const s = ensureState();
-    if (s.dailyStar.date === localDay() && s.dailyStar.completed) {
-      if (fromMenu) {
-        showAlreadyPlayed();
+  function recordCompletedRound(progress, puzzle) {
+    if (!progress.completed || !progress.guesses.length) return;
+    const state = window.getState();
+    state.dailyStarLogbook ||= [];
+    const accuracyScore = progress.accuracyScores[progress.accuracyScores.length - 1] ?? null;
+    const existing = state.dailyStarLogbook.find(entry =>
+      entry.date === progress.date && entry.puzzleId === puzzle.id);
+    if (!existing) {
+      state.dailyStarLogbook.push({
+        date: progress.date,
+        puzzleId: puzzle.id,
+        tip: puzzle.answer,
+        accuracyScore,
+      });
+      window.saveGame();
+    } else if (accuracyScore !== null && existing.accuracyScore !== accuracyScore) {
+      existing.accuracyScore = accuracyScore;
+      window.saveGame();
+    }
+  }
+
+  function makeHints(puzzle, revealedCount, personalizedHints) {
+    const section = document.createElement('section');
+    section.className = 'daily-riddle-section';
+    const heading = document.createElement('h3');
+    heading.textContent = 'Hints';
+    section.append(heading);
+
+    if (!revealedCount) {
+      const note = document.createElement('p');
+      note.className = 'daily-riddle-note';
+      note.textContent = 'A new hint appears after each incorrect guess.';
+      section.append(note);
+      return section;
+    }
+
+    const list = document.createElement('ol');
+    list.className = 'daily-riddle-hints';
+    Array.from({ length: Math.min(revealedCount, MAX_GUESSES) }, (_, index) => {
+      const item = document.createElement('li');
+      const fallbackHint = puzzle.hints[Math.min(index, puzzle.hints.length - 1)];
+      const personalizedHint = index > 0 ? personalizedHints[index - 1] : null;
+      item.textContent = personalizedHint
+        ? `Based on your guess: ${personalizedHint}`
+        : `Hint ${index + 1}: ${fallbackHint}`;
+      list.append(item);
+    });
+    section.append(list);
+    return section;
+  }
+
+  function makeGuessHistory(progress, puzzle) {
+    if (!progress.guesses.length) return null;
+    const section = document.createElement('section');
+    section.className = 'daily-riddle-section';
+    const heading = document.createElement('h3');
+    heading.textContent = 'Your guesses';
+    const list = document.createElement('ol');
+    list.className = 'daily-riddle-guesses';
+    progress.guesses.forEach((guess, index) => {
+      const item = document.createElement('li');
+      const answer = document.createElement('span');
+      answer.textContent = guess;
+      const status = document.createElement('small');
+      status.id = `dailyStarGuessStatus${index}`;
+      status.textContent = guessStatus(progress, puzzle, index);
+      item.append(answer, status);
+      list.append(item);
+    });
+    section.append(heading, list);
+    return section;
+  }
+
+  function guessStatus(progress, puzzle, index) {
+    const accuracy = progress.accuracyScores[index];
+    const result = isWinningGuess(progress.guesses[index], puzzle, accuracy) ? 'Found it!' : 'Not quite';
+    if (accuracy !== null) return `${result} · Accuracy ${accuracy}%`;
+    return `${result} · ${scoringAttempts.has(index) ? 'Scoring...' : 'Accuracy unavailable'}`;
+  }
+
+  function makeAccuracyBar(progress, puzzle, finalResult = false) {
+    const section = document.createElement('section');
+    section.id = 'dailyStarAccuracy';
+    section.className = 'daily-riddle-accuracy';
+    const index = progress.guesses.length - 1;
+    const score = index >= 0 ? progress.accuracyScores[index] : null;
+    const label = document.createElement('p');
+    label.id = 'dailyStarAccuracyLabel';
+    label.className = 'daily-riddle-accuracy-label';
+    label.setAttribute('aria-live', 'polite');
+    if (index < 0) label.textContent = 'Accuracy will appear after your first guess.';
+    else if (score !== null) label.textContent = `${finalResult ? 'Accuracy Score' : 'Accuracy'}: ${score}%`;
+    else if (scoringAttempts.has(index)) label.textContent = 'Calculating accuracy...';
+    else label.textContent = 'Accuracy score unavailable.';
+
+    const track = document.createElement('div');
+    track.className = 'daily-riddle-accuracy-track';
+    track.setAttribute('role', 'progressbar');
+    track.setAttribute('aria-label', finalResult ? 'Final accuracy score' : 'Latest guess accuracy');
+    track.setAttribute('aria-valuemin', '0');
+    track.setAttribute('aria-valuemax', '100');
+    track.setAttribute('aria-valuetext', score === null ? label.textContent : `${score}%`);
+    if (score !== null) track.setAttribute('aria-valuenow', String(score));
+    const fill = document.createElement('div');
+    fill.className = 'daily-riddle-accuracy-fill';
+    if (score !== null) {
+      fill.classList.add(score < 30 ? 'accuracy-low' : score <= 65 ? 'accuracy-medium' : 'accuracy-high');
+    }
+    fill.style.width = `${score ?? 0}%`;
+    track.append(fill);
+    section.append(label, track);
+
+    if (index >= 0 && score === null && !scoringAttempts.has(index)) {
+      const retry = document.createElement('button');
+      retry.type = 'button';
+      retry.className = 'primary daily-riddle-submit daily-riddle-accuracy-retry';
+      retry.textContent = 'Retry accuracy score';
+      retry.addEventListener('click', () => retryAccuracy(progress, puzzle, index, section));
+      section.append(retry);
+    }
+    return section;
+  }
+
+  function renderRiddle(progress, puzzle, feedbackText = '', busy = false) {
+    $('starRoundProgress').textContent = progress.guesses.length
+      ? `${MAX_GUESSES - progress.guesses.length} ${MAX_GUESSES - progress.guesses.length === 1 ? 'guess' : 'guesses'} left`
+      : `You have ${MAX_GUESSES} guesses. Start with a hint, then unlock another after each miss.`;
+    const mount = $('starRoundMount');
+    mount.replaceChildren();
+
+    const prompt = document.createElement('p');
+    prompt.className = 'daily-riddle-prompt';
+    prompt.textContent = "A niche way to save money is hiding in today's mystery. Can you guess the tip?";
+
+    const setup = document.createElement('p');
+    setup.className = 'daily-riddle-setup';
+    setup.textContent = `Enter a short answer. Get it in ${MAX_GUESSES} guesses or fewer to solve today's Daily Star.`;
+
+    const revealedCount = progress.guesses.length + 1;
+    mount.append(prompt, setup, makeHints(puzzle, revealedCount, progress.personalizedHints));
+    const history = makeGuessHistory(progress, puzzle);
+    if (history) mount.append(history);
+
+    const form = document.createElement('form');
+    form.className = 'daily-riddle-form';
+    const label = document.createElement('label');
+    label.htmlFor = 'dailyStarGuess';
+    label.textContent = 'Your guess';
+    const input = document.createElement('input');
+    input.id = 'dailyStarGuess';
+    input.name = 'guess';
+    input.type = 'text';
+    input.maxLength = MAX_GUESS_LENGTH;
+    input.required = true;
+    input.autocomplete = 'off';
+    input.placeholder = 'What is the niche saving trick?';
+    input.setAttribute('aria-describedby', 'dailyStarFeedback');
+    const feedback = document.createElement('p');
+    feedback.id = 'dailyStarFeedback';
+    feedback.className = 'daily-riddle-feedback';
+    feedback.setAttribute('aria-live', 'polite');
+    feedback.textContent = feedbackText || (progress.guesses.length ? `Hint ${progress.guesses.length} unlocked. Take another guess.` : '');
+    const submit = document.createElement('button');
+    submit.type = 'submit';
+    submit.className = 'primary daily-riddle-submit';
+    submit.disabled = busy;
+    submit.textContent = busy ? 'Checking your answer...' : 'Lock in guess';
+    input.disabled = busy;
+    form.append(label, input, feedback, submit);
+    form.addEventListener('submit', async event => {
+      event.preventDefault();
+      const guess = input.value.trim().replace(/\s+/g, ' ');
+      if (!guess) {
+        feedback.textContent = 'Type a guess first.';
+        input.focus();
         return;
       }
-      $('dailyStarModal').classList.remove('hidden');
-      renderCompletedChallenge(s.dailyStar);
-      if (!countdownInterval) countdownInterval = setInterval(updateCountdown, 1000);
-      return;
-    }
-    $('dailyStarModal').classList.remove('hidden');
-    if (!run || run.day !== localDay()) {
-      const savedGames = s.dailyStar.date === localDay() &&
-        Array.isArray(s.dailyStar.games) &&
-        new Set(s.dailyStar.games).size === s.dailyStar.games.length &&
-        s.dailyStar.games.every(id => gameById[id]);
-      const savedRun = savedGames && s.dailyStar.games.length === ROUNDS_PER_DAY;
-      const migrateLongerRun = savedGames && s.dailyStar.games.length > ROUNDS_PER_DAY;
-      const ids = savedRun ? s.dailyStar.games : migrateLongerRun
-        ? s.dailyStar.games.slice(0, ROUNDS_PER_DAY) : randomGames();
-      const scores = (savedRun || migrateLongerRun) && Array.isArray(s.dailyStar.rounds) &&
-        s.dailyStar.rounds.length <= s.dailyStar.games.length &&
-        s.dailyStar.rounds.every(score => Number.isFinite(score) && score >= 0 && score <= 100)
-        ? s.dailyStar.rounds.slice(0, ROUNDS_PER_DAY) : [];
-      run = { day: localDay(), ids, index: scores.length, scores };
-      if (!savedRun) {
-        s.dailyStar = { date: run.day, games: ids, completed: false, score: null, rounds: [] };
-        window.saveGame();
+      if (progress.guesses.some(previous => normalize(previous) === normalize(guess))) {
+        feedback.textContent = 'You already tried that guess. Try a different one.';
+        input.focus();
+        return;
       }
-      if (run.index === ROUNDS_PER_DAY) finishChallenge();
-      else renderRound();
-    }
-  }
 
-  function renderCompletedChallenge(result) {
-    $('starRoundProgress').textContent = 'You have already played today. Come back tomorrow for a new set of games!';
-    $('starRoundMount').innerHTML = `<div class="star-result">
-      <div class="result-score">${Number(result.score).toFixed(1)}<small> / 10</small></div>
-      <p>Accuracy: ${Math.round(result.score * 10)}%</p>
-      <p>You completed all ${ROUNDS_PER_DAY} games today. Come back tomorrow for a new challenge!</p>
-      <p id="starCountdown">${resetCountdownMessage()}</p>
-    </div>`;
-    $('starNext').classList.add('hidden');
-  }
+      const guessIndex = progress.guesses.length;
+      progress.guesses.push(guess);
+      progress.accuracyScores.push(null);
+      progress.won = isCorrectGuess(guess, puzzle);
+      progress.completed = progress.won || progress.guesses.length === MAX_GUESSES;
+      window.saveGame();
+      scoringAttempts.add(guessIndex);
+      if (progress.completed) renderResult(progress, puzzle);
+      else renderRiddle(progress, puzzle, 'Checking this guess and preparing a hint...', true);
 
-  function renderRound() {
-    if (!run) return;
-    const id = run.ids[run.index];
-    const game = gameById[id];
-    $('starRoundProgress').textContent = `Round ${run.index + 1} of ${ROUNDS_PER_DAY} · ${run.scores.length} completed`;
-    $('starRoundMount').innerHTML = `<h3>${game.name}</h3><p>${game.description}</p><div id="starWork" class="star-work"></div><p id="starFeedback" class="star-feedback" aria-live="polite"></p>`;
-    $('starNext').classList.add('hidden');
-    renderMiniGame(id);
-  }
-
-  function scoreRound(score, detail) {
-    if (!run || run.scores.length !== run.index) return;
-    const value = Math.max(0, Math.min(100, score));
-    run.scores.push(value);
-    const s = ensureState();
-    s.dailyStar.rounds = run.scores.slice();
-    window.saveGame();
-    $('starFeedback').textContent = `${detail} Accuracy: ${Math.round(value)}%.`;
-    const next = $('starNext');
-    next.textContent = run.index + 1 === ROUNDS_PER_DAY ? 'See my score' : 'Next round';
-    next.classList.remove('hidden');
-  }
-
-  function addSubmitButton(work, text = 'Check my answer') {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.className = 'primary';
-    button.textContent = text;
-    work.append(button);
-    return button;
-  }
-
-  function renderMiniGame(id) {
-    const work = $('starWork');
-    if (id === 'clock') {
-      const targetSeconds = Math.floor(Math.random() * 9) + 2;
-      const targetMs = targetSeconds * 1000;
-      work.innerHTML = `<p>When you are ready, start the hidden clock. Stop it when you think ${targetSeconds} seconds have passed.</p><button id="clockButton" class="primary" type="button">Start hidden timer</button><p id="clockStatus" class="muted" aria-live="polite"></p>`;
-      let startedAt = null;
-      let finished = false;
-      $('clockButton').onclick = () => {
-        const button = $('clockButton');
-        if (startedAt === null) {
-          startedAt = performance.now();
-          button.textContent = 'Stop the clock';
-          $('clockStatus').textContent = 'The clock is running — trust your sense of time.';
-          setTimeout(() => {
-            if (finished || run?.ids[run.index] !== 'clock') return;
-            finished = true;
-            button.disabled = true;
-            scoreRound(0, 'The timer ran more than five seconds past the target.');
-          }, targetMs + 5000);
-          return;
-        }
-        finished = true;
-        const elapsed = performance.now() - startedAt;
-        const accuracy = Math.max(0, 100 - Math.abs(elapsed - targetMs) / targetMs * 100);
-        button.disabled = true;
-        $('clockStatus').textContent = `You stopped at ${(elapsed / 1000).toFixed(2)} seconds.`;
-        scoreRound(accuracy, `You stopped at ${(elapsed / 1000).toFixed(2)} seconds; the target was ${targetSeconds}.00.`);
-      };
-      return;
-    }
-
-    if (id === 'middle') {
-      const left = 8 + Math.random() * 22;
-      const right = 70 + Math.random() * 22;
-      const midpoint = (left + right) / 2;
-      work.innerHTML = `<p>Tap the track where the exact midpoint should be.</p><button id="midTrack" class="mid-track" type="button" aria-label="Tap to choose the midpoint"><span class="mid-dot" style="left:${left}%"></span><span class="mid-dot" style="left:${right}%"></span><span id="midGuess" class="mid-guess hidden"></span></button>`;
-      $('midTrack').onclick = event => {
-        const rect = event.currentTarget.getBoundingClientRect();
-        const guess = Math.max(0, Math.min(100, (event.clientX - rect.left) / rect.width * 100));
-        const marker = $('midGuess');
-        marker.style.left = `${guess}%`;
-        marker.classList.remove('hidden');
-        if (!$('midSubmit')) {
-          const button = addSubmitButton(work);
-          button.id = 'midSubmit';
-          button.onclick = () => {
-            $('midTrack').disabled = true;
-            button.disabled = true;
-            const accuracy = Math.max(0, 100 - Math.abs(guess - midpoint) * 2);
-            scoreRound(accuracy, `Your point was ${Math.round(Math.abs(guess - midpoint))} units from the midpoint.`);
-          };
-        }
-      };
-      return;
-    }
-
-    if (id === 'fill') {
-      const actual = 15 + Math.floor(Math.random() * 71);
-      work.innerHTML = `<div class="fill-shape" role="img" aria-label="A shape partly filled"><div class="fill-level" style="width:${actual}%"></div></div><label for="fillGuess">Your estimate: <output id="fillValue">50%</output></label><input id="fillGuess" type="range" min="0" max="100" value="50"><button id="fillSubmit" class="primary" type="button">Check my estimate</button>`;
-      $('fillGuess').oninput = event => { $('fillValue').value = `${event.target.value}%`; };
-      $('fillSubmit').onclick = () => {
-        const guess = Number($('fillGuess').value);
-        $('fillSubmit').disabled = true;
-        scoreRound(100 - Math.abs(guess - actual) * 2, `The shape was ${actual}% filled; your estimate was ${guess}%.`);
-      };
-      return;
-    }
-
-    if (id === 'color') {
-      const target = Array.from({ length: 3 }, () => Math.floor(Math.random() * 256));
-      work.innerHTML = `<p id="colorWait">You will see a color for two seconds, then recreate it with the sliders. Press start when you are ready.</p><button id="colorStart" class="primary" type="button">Start color preview</button><div id="targetColor" class="color-swatch hidden" role="img" aria-label="Color to remember"></div><div id="colorControls" class="color-controls hidden"><label>Red <output id="redValue">128</output><input data-channel="0" type="range" min="0" max="255" value="128"></label><label>Green <output id="greenValue">128</output><input data-channel="1" type="range" min="0" max="255" value="128"></label><label>Blue <output id="blueValue">128</output><input data-channel="2" type="range" min="0" max="255" value="128"></label><div id="colorGuess" class="color-swatch" aria-label="Your color"></div><button id="colorSubmit" class="primary" type="button">Compare colors</button></div>`;
-      const swatch = $('targetColor');
-      swatch.style.backgroundColor = `rgb(${target.join(',')})`;
-      const guess = [128, 128, 128];
-      const updateGuess = () => { $('colorGuess').style.backgroundColor = `rgb(${guess.join(',')})`; };
-      updateGuess();
-      $('colorControls').querySelectorAll('input').forEach(input => {
-        input.oninput = event => {
-          const channel = Number(event.target.dataset.channel);
-          guess[channel] = Number(event.target.value);
-          $(`${['red', 'green', 'blue'][channel]}Value`).value = event.target.value;
-          updateGuess();
-        };
-      });
-      $('colorStart').onclick = () => {
-        $('colorStart').classList.add('hidden');
-        swatch.classList.remove('hidden');
-        $('colorWait').textContent = 'Memorize the color. It will disappear in two seconds.';
-        setTimeout(() => {
-          if (run?.ids[run.index] !== 'color' || run.scores.length > run.index) return;
-          swatch.classList.add('color-hidden');
-          $('colorWait').textContent = 'Recreate the color from memory.';
-          $('colorControls').classList.remove('hidden');
-        }, 2000);
-      };
-      $('colorSubmit').onclick = () => {
-        $('colorSubmit').disabled = true;
-        const distance = Math.sqrt(target.reduce((sum, channel, index) => sum + (channel - guess[index]) ** 2, 0));
-        const accuracy = 100 * (1 - distance / Math.sqrt(3 * 255 ** 2));
-        swatch.classList.remove('color-hidden');
-        $('colorWait').textContent = `The correct color was RGB ${target.join(', ')}.`;
-        scoreRound(accuracy, `The target was RGB ${target.join(', ')}.`);
-      };
-      return;
-    }
-
-    if (id === 'line') {
-      work.innerHTML = '<p id="lineWait">You will see a line for two seconds, then draw one of the same length. Press start when you are ready.</p><button id="lineStart" class="primary" type="button">Start line preview</button><canvas id="lineCanvas" class="draw-canvas hidden" width="320" height="120" aria-label="Draw a line"></canvas><div class="line-actions"><button id="lineClear" class="secondary-btn" type="button" disabled>Clear</button><button id="lineSubmit" class="primary" type="button" disabled>Check my line</button></div>';
-      const canvas = $('lineCanvas');
-      const ctx = canvas.getContext('2d');
-      const targetLength = 55 + Math.random() * 190;
-      const draw = line => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.fillStyle = '#fff7e6';
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-        if (line) {
-          ctx.strokeStyle = '#4a98a6';
-          ctx.lineWidth = 5;
-          ctx.lineCap = 'round';
-          ctx.beginPath();
-          ctx.moveTo(line.x1, line.y1);
-          ctx.lineTo(line.x2, line.y2);
-          ctx.stroke();
-        }
-      };
-      const targetLine = { x1: 160 - targetLength / 2, y1: 60, x2: 160 + targetLength / 2, y2: 60 };
-      draw(targetLine);
-      let drawing = false, start = null, drawn = null, ready = false;
-      const point = event => {
-        const rect = canvas.getBoundingClientRect();
-        return { x: (event.clientX - rect.left) * canvas.width / rect.width, y: (event.clientY - rect.top) * canvas.height / rect.height };
-      };
-      canvas.onpointerdown = event => {
-        if (!ready) return;
-        drawing = true;
-        start = point(event);
-        drawn = { x1: start.x, y1: start.y, x2: start.x, y2: start.y };
-        canvas.setPointerCapture(event.pointerId);
-      };
-      canvas.onpointermove = event => {
-        if (!drawing) return;
-        const end = point(event);
-        drawn = { x1: start.x, y1: start.y, x2: end.x, y2: end.y };
-        draw(drawn);
-      };
-      canvas.onpointerup = () => {
-        if (!drawing) return;
-        drawing = false;
-        $('lineClear').disabled = false;
-        $('lineSubmit').disabled = false;
-      };
-      $('lineClear').onclick = () => { drawn = null; draw(null); $('lineSubmit').disabled = true; };
-      $('lineSubmit').onclick = () => {
-        if (!drawn) return;
-        const length = Math.hypot(drawn.x2 - drawn.x1, drawn.y2 - drawn.y1);
-        $('lineSubmit').disabled = true;
-        $('lineClear').disabled = true;
-        scoreRound(Math.max(0, 100 - Math.abs(length - targetLength) / targetLength * 100),
-          `Your line was ${Math.round(length)} units; the target was ${Math.round(targetLength)}.`);
-      };
-      $('lineStart').onclick = () => {
-        $('lineStart').classList.add('hidden');
-        canvas.classList.remove('hidden');
-        $('lineWait').textContent = 'Memorize the line length.';
-        setTimeout(() => {
-          if (run?.ids[run.index] !== 'line' || run.scores.length > run.index) return;
-          ready = true;
-          draw(null);
-          $('lineWait').textContent = 'Draw a line of the same length.';
-        }, 2000);
-      };
-      return;
-    }
-
-    if (id === 'recall') {
-      const targets = new Set();
-      while (targets.size < 10) targets.add(Math.floor(Math.random() * 36));
-      work.innerHTML = '<p id="recallWait">Ten squares will light up briefly. Memorize their positions, then tap those spots. Press start when you are ready.</p><button id="recallStart" class="primary" type="button">Start memory challenge</button><div id="recallGrid" class="recall-grid flash hidden"></div><button id="recallSubmit" class="primary hidden" type="button">Check my recall</button>';
-      const grid = $('recallGrid');
-      const selections = new Set();
-      for (let i = 0; i < 36; i++) {
-        const cell = document.createElement('button');
-        cell.type = 'button';
-        cell.className = 'recall-cell';
-        cell.setAttribute('aria-label', `Grid position ${i + 1}`);
-        if (targets.has(i)) cell.classList.add('target');
-        cell.onclick = () => {
-          if (grid.classList.contains('flash')) return;
-          if (selections.has(i)) { selections.delete(i); cell.classList.remove('selected'); }
-          else { selections.add(i); cell.classList.add('selected'); }
-        };
-        grid.append(cell);
+      const requests = [requestAccuracyScore(guess, puzzle)];
+      if (!progress.completed) {
+        requests.push(requestPersonalizedHint(guess, puzzle, progress.guesses.length + 1));
       }
-      $('recallStart').onclick = () => {
-        $('recallStart').classList.add('hidden');
-        grid.classList.remove('hidden');
-        $('recallWait').textContent = 'Memorize the ten lit squares.';
-        setTimeout(() => {
-          if (run?.ids[run.index] !== 'recall' || run.scores.length > run.index) return;
-          grid.classList.remove('flash');
-          grid.querySelectorAll('.target').forEach(cell => cell.classList.remove('target'));
-          $('recallWait').textContent = 'Tap the ten squares that lit up.';
-          $('recallSubmit').classList.remove('hidden');
-        }, 1000);
-      };
-      $('recallSubmit').onclick = () => {
-        const hits = [...selections].filter(index => targets.has(index)).length;
-        const misses = selections.size - hits;
-        const accuracy = Math.max(0, (hits - misses) / targets.size * 100);
-        $('recallSubmit').disabled = true;
-        grid.querySelectorAll('button').forEach(cell => { cell.disabled = true; });
-        scoreRound(accuracy, `You found ${hits} of 10 squares with ${misses} extra pick${misses === 1 ? '' : 's'}.`);
-      };
-      return;
-    }
+      const results = await Promise.allSettled(requests);
+      scoringAttempts.delete(guessIndex);
 
-    if (id === 'upright') {
-      let angle = Math.floor(Math.random() * 61) - 30;
-      if (angle === 0) angle = 18;
-      work.innerHTML = `<div class="upright-stage"><div id="tiltedShape" class="tilted-shape" style="transform:rotate(${angle}deg)"></div></div><label for="uprightSlider">Rotate: <output id="uprightValue">0°</output></label><input id="uprightSlider" type="range" min="-45" max="45" value="0"><button id="uprightSubmit" class="primary" type="button">Check angle</button>`;
-      $('uprightSlider').oninput = event => {
-        const adjustment = Number(event.target.value);
-        $('uprightValue').value = `${adjustment}°`;
-        $('tiltedShape').style.transform = `rotate(${angle + adjustment}deg)`;
-      };
-      $('uprightSubmit').onclick = () => {
-        const error = Math.abs(angle + Number($('uprightSlider').value));
-        $('uprightSubmit').disabled = true;
-        scoreRound(Math.max(0, 100 - error / 45 * 100), `The shape was ${Math.round(error)}° from level.`);
-      };
-      return;
-    }
-
-    if (id === 'speed') {
-      const speed = 80 + Math.floor(Math.random() * 121);
-      const distance = 220;
-      const duration = distance / speed * 1000;
-      work.innerHTML = `<p id="speedStatus">When you are ready, start the car and watch it cross the track. Then estimate its speed.</p><div class="speed-track"><span id="speedCar" aria-hidden="true">${pi('car')}</span></div><button id="speedStart" class="primary" type="button">Start speed challenge</button><div id="speedControls" class="hidden"><label for="speedGuess">Your estimate: <output id="speedValue">120</output> units/second</label><input id="speedGuess" type="range" min="20" max="250" value="120"><button id="speedSubmit" class="primary" type="button" disabled>Check my estimate</button></div>`;
-      $('speedGuess').oninput = event => { $('speedValue').value = event.target.value; };
-      $('speedStart').onclick = () => {
-        $('speedStart').disabled = true;
-        const car = $('speedCar');
-        car.style.setProperty('--race-time', `${duration}ms`);
-        car.classList.add('racing');
-        car.addEventListener('animationend', () => {
-          $('speedStatus').textContent = 'How fast was it moving?';
-          $('speedControls').classList.remove('hidden');
-          $('speedSubmit').disabled = false;
-        }, { once: true });
-      };
-      $('speedSubmit').onclick = () => {
-        const guess = Number($('speedGuess').value);
-        $('speedSubmit').disabled = true;
-        scoreRound(Math.max(0, 100 * (1 - Math.abs(guess - speed) / speed)),
-          `The car moved at ${speed} units per second; your estimate was ${guess}.`);
-      };
-      return;
-    }
-
-    if (id === 'shades') {
-      const shades = [40, 85, 130, 175, 220];
-      for (let i = shades.length - 1; i > 0; i--) {
-        const j = Math.floor(Math.random() * (i + 1));
-        [shades[i], shades[j]] = [shades[j], shades[i]];
+      if (results[0].status === 'fulfilled') {
+        const accuracyScore = results[0].value;
+        progress.accuracyScores[guessIndex] = accuracyScore;
+        if (accuracyScore > 90) progress.won = true;
+      } else {
+        console.error('[daily-star] Could not calculate guess accuracy.', results[0].reason);
       }
-      const list = document.createElement('ol');
-      list.id = 'shadeOrder';
-      list.className = 'shade-order';
-      const render = () => {
-        list.replaceChildren(...shades.map((shade, index) => {
-          const row = document.createElement('li');
-          const swatch = document.createElement('span');
-          swatch.className = 'shade-swatch';
-          swatch.style.backgroundColor = `rgb(${shade},${shade},${shade})`;
-          swatch.setAttribute('aria-label', `Gray shade ${shade}`);
-          const label = document.createElement('span');
-          label.textContent = `Position ${index + 1}`;
-          const up = document.createElement('button');
-          up.type = 'button'; up.className = 'secondary-btn'; up.textContent = '↑';
-          up.setAttribute('aria-label', `Move shade at position ${index + 1} up`);
-          up.disabled = index === 0;
-          up.onclick = () => { [shades[index - 1], shades[index]] = [shades[index], shades[index - 1]]; render(); };
-          const down = document.createElement('button');
-          down.type = 'button'; down.className = 'secondary-btn'; down.textContent = '↓';
-          down.setAttribute('aria-label', `Move shade at position ${index + 1} down`);
-          down.disabled = index === shades.length - 1;
-          down.onclick = () => { [shades[index + 1], shades[index]] = [shades[index], shades[index + 1]]; render(); };
-          row.append(swatch, label, up, down);
-          return row;
-        }));
-      };
-      work.append(list);
-      render();
-      const button = addSubmitButton(work);
-      button.onclick = () => {
-        let errors = 0;
-        for (let i = 0; i < shades.length; i++) {
-          for (let j = i + 1; j < shades.length; j++) if (shades[i] < shades[j]) errors++;
+      progress.completed = progress.won || progress.guesses.length === MAX_GUESSES;
+      if (!progress.completed) {
+        if (results[1].status === 'fulfilled') {
+          progress.personalizedHints.push(results[1].value);
+        } else {
+          console.error('[daily-star] Could not generate a personalized hint.', results[1].reason);
+          progress.personalizedHints.push(null);
         }
-        button.disabled = true;
-        scoreRound(100 * (1 - errors / 10), 'The squares are ranked from lightest to darkest.');
-      };
-      return;
-    }
+      }
+      window.saveGame();
+      if (progress.completed) recordCompletedRound(progress, puzzle);
+      if (activeTab === 'logbook') renderLogbook();
+      else if (progress.completed) renderResult(progress, puzzle);
+      else renderRiddle(progress, puzzle, results[1].status === 'fulfilled'
+        ? 'Not quite. Here is a hint based on your guess.'
+        : "Not quite. Gemini couldn't make a personalized hint, so here's a standard hint instead.");
+    });
+    mount.append(form, makeAccuracyBar(progress, puzzle));
+  }
 
-    if (id === 'pitch') {
-      const target = Math.round(220 + Math.random() * 660);
-      work.innerHTML = '<p id="pitchStatus">Play the tone, then match it by ear. You can listen again if needed.</p><button id="pitchPlay" class="secondary-btn" type="button">' + pi('play') + ' Play tone</button><label for="pitchGuess">Your pitch: <output id="pitchValue">440</output> Hz</label><input id="pitchGuess" type="range" min="220" max="880" value="440"><button id="pitchSubmit" class="primary" type="button">Check my pitch</button>';
-      $('pitchGuess').oninput = event => { $('pitchValue').value = event.target.value; };
-      $('pitchPlay').onclick = async () => {
-        try {
-          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-          if (!AudioContextClass) throw new Error('This browser does not support audio playback.');
-          if (!pitchContext) pitchContext = new AudioContextClass();
-          if (pitchContext.state === 'suspended') await pitchContext.resume();
-          const oscillator = pitchContext.createOscillator();
-          const gain = pitchContext.createGain();
-          oscillator.type = 'sine';
-          oscillator.frequency.value = target;
-          gain.gain.setValueAtTime(0.0001, pitchContext.currentTime);
-          gain.gain.exponentialRampToValueAtTime(0.15, pitchContext.currentTime + 0.04);
-          gain.gain.setTargetAtTime(0.0001, pitchContext.currentTime + 0.45, 0.08);
-          oscillator.connect(gain).connect(pitchContext.destination);
-          oscillator.start();
-          oscillator.stop(pitchContext.currentTime + 0.8);
-          $('pitchStatus').textContent = 'Listen to the tone, then adjust the slider to match.';
-        } catch (error) {
-          $('pitchStatus').textContent = `Audio could not play: ${error.message}`;
-        }
-      };
-      $('pitchSubmit').onclick = () => {
-        const guess = Number($('pitchGuess').value);
-        const accuracy = 100 * (1 - Math.abs(Math.log(guess / target)) / Math.log(4));
-        $('pitchSubmit').disabled = true;
-        scoreRound(accuracy, `The note was ${target} Hz; your estimate was ${guess} Hz.`);
-      };
+  function renderResult(progress, puzzle) {
+    recordCompletedRound(progress, puzzle);
+    $('starRoundProgress').textContent = progress.won
+      ? `Solved in ${progress.guesses.length} of ${MAX_GUESSES} guesses!`
+      : "That was the last guess. Here is today's saving tip.";
+    const mount = $('starRoundMount');
+    mount.replaceChildren();
+
+    const result = document.createElement('section');
+    result.className = 'daily-riddle-result';
+    const title = document.createElement('h3');
+    title.textContent = progress.won ? 'You found it!' : "Today's niche saver";
+    const answer = document.createElement('p');
+    answer.className = 'daily-riddle-answer';
+    answer.textContent = puzzle.answer;
+    const message = document.createElement('p');
+    message.textContent = progress.won
+      ? `Nice work - you solved the mystery in ${progress.guesses.length} ${progress.guesses.length === 1 ? 'guess' : 'guesses'}.`
+      : 'Come back tomorrow for a new money-saving mystery.';
+    result.append(title, answer, message);
+    mount.append(result);
+
+    const revealedCount = progress.won ? progress.guesses.length : MAX_GUESSES;
+    if (revealedCount) mount.append(makeHints(puzzle, revealedCount, progress.personalizedHints));
+    const history = makeGuessHistory(progress, puzzle);
+    if (history) mount.append(history);
+    mount.append(makeAccuracyBar(progress, puzzle, true));
+    updateCountdown();
+  }
+
+  async function postDailyStar(path, body) {
+    const response = await fetch(`${API}/api/daily-star/${path}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const result = await response.json();
+    if (!response.ok) throw new Error(result.error || `Request failed (${response.status}).`);
+    return result;
+  }
+
+  async function requestPersonalizedHint(guess, puzzle, guessNumber) {
+    const { hint } = await postDailyStar('hint', {
+      guess,
+      expectedAnswer: puzzle.answer,
+      baselineHint: puzzle.hints[Math.min(guessNumber - 1, puzzle.hints.length - 1)],
+      guessNumber,
+    });
+    if (typeof hint !== 'string' || !hint.trim()) throw new Error('Gemini returned an empty hint.');
+    return hint.trim().slice(0, 200);
+  }
+
+  async function requestAccuracyScore(guess, puzzle) {
+    const { score } = await postDailyStar('score', { guesses: [guess], expectedAnswer: puzzle.answer });
+    if (!Number.isInteger(score) || score < 0 || score > 100) {
+      throw new Error('Gemini returned an invalid accuracy score.');
+    }
+    return score;
+  }
+
+  async function retryAccuracy(progress, puzzle, index, section) {
+    if (scoringAttempts.has(index)) return;
+    scoringAttempts.add(index);
+    section.replaceWith(makeAccuracyBar(progress, puzzle, progress.completed));
+    try {
+      progress.accuracyScores[index] = await requestAccuracyScore(progress.guesses[index], puzzle);
+    } catch (error) {
+      console.error('[daily-star] Could not calculate guess accuracy.', error);
+    } finally {
+      scoringAttempts.delete(index);
+      if (progress.completed) recordCompletedRound(progress, puzzle);
+      window.saveGame();
+      const status = $(`dailyStarGuessStatus${index}`);
+      if (status) status.textContent = guessStatus(progress, puzzle, index);
+      const current = $('dailyStarAccuracy');
+      if (activeTab === 'logbook') renderLogbook();
+      else if (current) current.replaceWith(makeAccuracyBar(progress, puzzle, progress.completed));
     }
   }
 
-  function finishChallenge() {
-    const s = ensureState();
-    const rawScore = run.scores.reduce((sum, value) => sum + value, 0) / ROUNDS_PER_DAY / 10;
-    const score = Math.round(rawScore * 10) / 10;
-    s.dailyStar = {
-      date: run.day,
-      games: run.ids,
-      completed: true,
-      score,
-      rounds: run.scores.slice(),
+  function showDailyStarTab() {
+    setActiveTab('play');
+    const day = localDay();
+    const puzzle = puzzleForCurrentDay(day);
+    const progress = progressFor(day, puzzle);
+    if (progress.completed) renderResult(progress, puzzle);
+    else renderRiddle(progress, puzzle);
+  }
+
+  function startDailyStar() {
+    setActiveTab('play');
+    logbookPage = 0;
+    const day = localDay();
+    const puzzle = puzzleForCurrentDay(day);
+    const progress = progressFor(day, puzzle);
+    const modal = $('dailyStarModal');
+    const shouldEnter = modal.classList.contains('hidden');
+    syncSceneBackdrop();
+    if (shouldEnter) {
+      document.body.classList.add('daily-star-open');
+      modal.classList.remove('hidden', 'skyward-visible');
+    }
+    if (progress.completed) renderResult(progress, puzzle);
+    else renderRiddle(progress, puzzle);
+    if (shouldEnter) {
+      requestAnimationFrame(() => requestAnimationFrame(() => modal.classList.add('skyward-visible')));
+    }
+    requestAnimationFrame(() => $('dailyStarGuess')?.focus({ preventScroll: true }));
+    startCountdown();
+  }
+
+  function closeDailyStar() {
+    const modal = $('dailyStarModal');
+    if (modal.classList.contains('hidden')) return;
+    modal.classList.remove('skyward-visible');
+    document.body.classList.remove('daily-star-open');
+    clearInterval(countdownInterval);
+    countdownInterval = null;
+    const finishExit = () => {
+      if (!modal.classList.contains('skyward-visible')) modal.classList.add('hidden');
     };
-    window.saveGame();
-    $('starRoundProgress').textContent = 'Challenge complete!';
-    $('starRoundMount').innerHTML = `<div class="star-result">
-      <div class="result-score">${score.toFixed(1)}<small> / 10</small></div>
-      <p>Accuracy: ${Math.round(score * 10)}%</p>
-      <p>You completed all ${ROUNDS_PER_DAY} games today. Come back tomorrow for a new challenge!</p>
-    </div>`;
-    $('starNext').classList.add('hidden');
-    run = null;
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) finishExit();
+    else setTimeout(finishExit, 720);
+    $('dailyStar').focus({ preventScroll: true });
   }
 
-  $('closeDailyStar').addEventListener('click', () => $('dailyStarModal').classList.add('hidden'));
-  $('starNext').addEventListener('click', () => {
-    if (!run) return;
-    run.index++;
-    if (run.index >= ROUNDS_PER_DAY) finishChallenge();
-    else renderRound();
+  $('starPlayTab').addEventListener('click', showDailyStarTab);
+  $('starLogbookTab').addEventListener('click', () => {
+    logbookPage = 0;
+    renderLogbook();
   });
-
+  $('closeDailyStar').addEventListener('click', closeDailyStar);
+  document.addEventListener('keydown', event => {
+    if (event.key === 'Escape' && !$('dailyStarModal').classList.contains('hidden')) closeDailyStar();
+  });
   window.getGameDay = localDay;
   window.startDailyStar = startDailyStar;
 })();
