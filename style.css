@@ -1312,6 +1312,66 @@ body.intro-open { overflow: hidden; }
   .hud-top { justify-content: flex-start; padding-left: 10px; }   /* line the sign up with the bag, away from the town island */
 }
 
+/* ===== Maple's tour (tutorial.js): a speech card from Maple, plus a pulsing outline on what she's talking about ===== */
+.tut {
+  position: fixed; z-index: 35; left: 50%; bottom: 16px; transform: translateX(-50%);   /* above pop-ups, below the toast */
+  width: 580px; max-width: calc(100vw - 32px); box-sizing: border-box;
+  display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px;
+  background: var(--paper); border: var(--px) solid var(--wood-dark); box-shadow: 8px 8px 0 rgba(28,52,44,.3);
+}
+.tut[data-pos="top"] { bottom: auto; top: 16px; }
+.tut-fox {
+  flex: none; width: 60px; height: 70px; image-rendering: pixelated;
+  background: var(--cream); border: 3px solid var(--wood); animation: tutBob 1.6s steps(2) infinite;
+}
+@keyframes tutBob { 50% { transform: translateY(-3px); } }
+.tut-main { flex: 1; min-width: 0; }
+.tut-top { display: flex; align-items: baseline; gap: 10px; }
+.tut-step { flex: none; font-size: .8rem; color: var(--ink-soft); }
+.tut h3 { flex: 1; margin: 0; font-size: 1.15rem; }
+.tut-skip { flex: none; padding: 4px; font: inherit; font-size: .85rem; color: var(--ink-soft); text-decoration: underline; background: none; border: none; cursor: pointer; }
+.tut-skip:hover { color: var(--ink); }
+.tut p { margin: 6px 0 10px; font-size: 1rem; line-height: 1.4; }
+.tut-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.tut-actions button.primary, .tut-actions button.secondary { width: auto; margin: 0; padding: 8px 16px; font-size: 1rem; }
+
+/* while the card is at the bottom, pop-ups move up and shrink so nothing hides behind it */
+body.tut-bottom .modal:not(.side):not(.bottom), body.tut-bottom .sub-modal { align-items: flex-start; padding-top: 12px; padding-bottom: calc(var(--tut-h, 200px) + 28px); }
+body.tut-bottom .modal:not(.side):not(.bottom) .window, body.tut-bottom .sub-modal .window { max-height: calc(100vh - var(--tut-h, 200px) - 52px); }
+body.tut-bottom .modal.side { padding-bottom: calc(var(--tut-h, 200px) + 28px); }
+body.tut-bottom .modal.side .window { max-height: calc(100vh - var(--tut-h, 200px) - 140px); }
+
+/* the spotlight: everything outside the hole goes dark; clicks still go through (pointer-events: none) */
+.tut-spot {
+  position: fixed; z-index: 34; pointer-events: none; box-sizing: border-box;
+  border: 4px dashed var(--sun); box-shadow: 0 0 0 200vmax rgba(20, 32, 30, .62);
+  animation: tutPulse 1s ease-in-out infinite;
+}
+@keyframes tutPulse { 50% { border-color: #fff7e6; } }
+@media (prefers-reduced-motion: reduce) { .tut-fox, .tut-spot { animation: none; } }
+@media (max-width: 520px) {
+  .tut { left: 16px; right: 16px; width: auto; max-width: none; transform: none; gap: 10px; padding: 10px 12px; bottom: 10px; }
+  .tut[data-pos="top"] { top: 10px; }
+  .tut-fox { width: 44px; height: 52px; }
+  .tut p { font-size: .95rem; }
+}
+body.tut-on:not(.tut-bottom) #toast { top: auto; bottom: 20px; }   /* card at the top: toasts pop up at the bottom instead */
+
+/* tour: labels pinned beside the more-menu options, pointing at them */
+.tut-tip {
+  position: fixed; z-index: 36; transform: translate(-100%, -50%); pointer-events: none; width: max-content; box-sizing: border-box;
+  padding: 4px 10px; font-size: .85rem; color: var(--ink); background: var(--paper);
+  border: 3px solid var(--sun-dark); box-shadow: 3px 3px 0 rgba(28,52,44,.3);
+}
+.tut-tip::after {   /* little pixel arrow pointing right, at the option */
+  content: ""; position: absolute; right: -11px; top: 50%; transform: translateY(-50%);
+  border: 6px solid transparent; border-left: 6px solid var(--sun-dark); border-right: 0;
+}
+/* "Redo the tutorial" at the bottom of the ? pop-up */
+.help-pop .help-tour { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; }
+.help-pop .help-tour .pi { width: 1.4em; height: 1.4em; }
+@media (max-width: 520px) { .tut-tip { font-size: .75rem; padding: 3px 6px; line-height: 1.25; } }
+
 /* while the top-left cards are open, the whole area (including the gaps between cards) counts as hovering */
 .hud-left.peek { pointer-events: auto; }
 

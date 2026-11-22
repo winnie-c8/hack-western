@@ -39,7 +39,10 @@ const personOf = (t, uid) => t?.members?.[uid]?.island || uid;
 const joining = new Set(); // towns this device is currently auto-joining
 
 // ---------- which towns am I in ----------
-function myTowns() {
+// During the tutorial a made-up practice town is shown instead (see townDemo below); it never touches Firestore.
+let demo = null;
+const myTowns = () => demo ? demo.codes : realTowns();
+function realTowns() {
   const s = S();
   if (!Array.isArray(s.townIds)) s.townIds = s.townId ? [s.townId] : []; // migrate single-town saves
   return s.townIds;
@@ -51,8 +54,9 @@ function setTowns(ids) {
 }
 
 // ---------- live data for every town ----------
-const towns = new Map();  // code -> town doc
-const feeds = new Map();  // code -> recent feed items
+const live = { towns: new Map(), feeds: new Map() }; // what Firestore says, kept up to date even mid-tutorial
+let towns = live.towns;   // code -> town doc (the practice town's during the tutorial)
+let feeds = live.feeds;   // code -> recent feed items
 const unsubs = new Map(); // code -> [unsubDoc, unsubFeed]
 let openCode = null;      // town shown in the detail view (null = gallery)
 let showForm = false;     // "start or join" form open in the gallery
@@ -61,7 +65,7 @@ function watch(code) {
   const uDoc = onSnapshot(doc(db, 'towns', code), snap => {
     const me = auth.currentUser?.uid;
     if (!snap.exists()) { // town deleted
-      setTowns(myTowns().filter(c => c !== code));
+      setTowns(realTowns().filter(c => c !== code));
       return syncWatches();
     }
     const mine = snap.data().members?.[me];
@@ -79,7 +83,7 @@ function watch(code) {
     const island = islandKey();
     if ((mine.island || null) !== island) // synced / unsynced since joining: keep the island tag right
       updateDoc(doc(db, 'towns', code), { [`members.${me}.island`]: island || deleteField() }).catch(e => console.warn('[town] island tag failed', e));
-    towns.set(code, snap.data());
+    live.towns.set(code, snap.data());
     render();
   }, err => {
     console.warn('[town] listen failed', code, err);
@@ -87,21 +91,21 @@ function watch(code) {
   });
   const feedQ = query(collection(db, 'towns', code, 'feed'), orderBy('createdAt', 'desc'), limit(12));
   const uFeed = onSnapshot(feedQ, snap => {
-    feeds.set(code, snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    live.feeds.set(code, snap.docs.map(d => ({ id: d.id, ...d.data() })));
     render();
   }, err => console.warn('[town] feed failed', code, err));
   unsubs.set(code, [uDoc, uFeed]);
 }
 
 function syncWatches() {
-  const ids = myTowns();
+  const ids = realTowns();
   for (const [code, fns] of unsubs) if (!ids.includes(code)) {
-    fns.forEach(f => f()); unsubs.delete(code); towns.delete(code); feeds.delete(code);
+    fns.forEach(f => f()); unsubs.delete(code); live.towns.delete(code); live.feeds.delete(code);
     const me = auth.currentUser?.uid; // take this device off the member list too
     if (me) updateDoc(doc(db, 'towns', code), { [`members.${me}`]: deleteField() }).catch(e => console.warn('[town] leave failed', code, e));
   }
   for (const code of ids) if (!unsubs.has(code)) watch(code);
-  if (openCode && !ids.includes(openCode)) openCode = null;
+  if (openCode && !myTowns().includes(openCode)) openCode = null;
   render();
 }
 
@@ -148,7 +152,7 @@ function renderBoard(target, codes) {
 }
 function newsPoster(f, showTown) {
   const p = newsPosterBody(f, showTown);
-  if (f.id && f.code) p.append(posterActions(f, p));
+  if (f.id && f.code && !demo) p.append(posterActions(f, p));
   return p;
 }
 // heart for everyone else's posts; edit / delete on your own notes
@@ -233,8 +237,10 @@ window.openBuildInfo = async b => {
   $('buildContrib').replaceChildren(el('li', 'muted', 'Loading…'));
   $('buildNews').replaceChildren();
   try {
-    const snap = await getDocs(query(collection(db, 'towns', b.code, 'feed'), where('project', '==', b.name)));
-    const items = snap.docs.map(d => ({ id: d.id, code: b.code, ...d.data() }))
+    const items = (demo
+      ? (feeds.get(b.code) || []).filter(f => f.project === b.name).map(f => ({ ...f, code: b.code }))
+      : (await getDocs(query(collection(db, 'towns', b.code, 'feed'), where('project', '==', b.name))))
+        .docs.map(d => ({ id: d.id, code: b.code, ...d.data() })))
       .sort((x, y) => (y.createdAt?.seconds ?? 9e9) - (x.createdAt?.seconds ?? 9e9));
     const tasks = items.filter(f => !f.started && f.points > 0);
     const by = new Map(), town = towns.get(b.code);
@@ -345,7 +351,8 @@ function pushBuilds() {
 function render() {
   const ids = myTowns();
   if (openCode && !towns.has(openCode)) openCode = ids.includes(openCode) ? openCode : null;
-  status(ids.length ? `You're in ${ids.length} town${ids.length === 1 ? '' : 's'}. Click one to see more.` : 'You are not in a town yet.');
+  status(demo ? 'This is a practice town. Start or join a real one after the tour!'
+    : ids.length ? `You're in ${ids.length} town${ids.length === 1 ? '' : 's'}. Click one to see more.` : 'You are not in a town yet.');
   renderBoard('townBoard', ids);                 // gallery board: news from all your towns
   const pick = $('noteTown').value;
   $('noteTown').replaceChildren(...ids.filter(c => towns.has(c)).map(c => { const o = el('option', null, towns.get(c).name); o.value = c; return o; }));
@@ -359,7 +366,9 @@ function render() {
 }
 
 // ---------- projects ----------
+const practiceOnly = () => window.toast('This is a practice town. You can do that in your own town after the tour!');
 async function startProject() {
+  if (demo) return practiceOnly();
   const code = openCode, name = $('projName').value.trim(), goal = Math.round(+$('projGoal').value);
   if (!code) return;
   if (!name) return window.toast('Give the project a name first!');
@@ -415,9 +424,10 @@ async function contributeTo(code, text, points, user) {
   }
 }
 async function contribute(text, coins) {
+  const points = Math.min(MAX_POINTS, Math.max(1, Math.round(coins)));
+  if (demo) return demoContribute(text, points);
   const user = auth.currentUser;
   if (!user) return;
-  const points = Math.min(MAX_POINTS, Math.max(1, Math.round(coins)));
   for (const code of myTowns()) await contributeTo(code, text, points, user); // your habit helps every town you're in
 }
 window.onHabit = contribute;
@@ -425,6 +435,7 @@ window.onIslandLoaded = () => syncWatches(); // a synced island arrived (cloud.j
 
 // ---------- create / join / leave ----------
 async function createTown() {
+  if (demo) return practiceOnly();
   const name = $('townName').value.trim();
   if (!name) return window.toast('Give your town a name first!');
   const uid = auth.currentUser.uid;
@@ -456,6 +467,7 @@ async function createTown() {
 }
 
 async function joinTown() {
+  if (demo) return practiceOnly();
   const code = $('townCode').value.trim().toUpperCase();
   if (code.length !== 6) return window.toast('Town codes are 6 characters.');
   if (myTowns().includes(code)) return window.toast("You're already in that town!");
@@ -480,6 +492,7 @@ async function joinTown() {
 }
 
 async function leaveTown() {
+  if (demo) return practiceOnly();
   const code = openCode;
   if (!code || !confirm(`Leave ${towns.get(code)?.name || 'this town'}?`)) return;
   openCode = null;
@@ -494,7 +507,7 @@ $('playerName').addEventListener('input', () => {
   window.saveGame();
   clearTimeout(nameTimer);
   nameTimer = setTimeout(() => {
-    for (const code of myTowns())
+    for (const code of realTowns()) // (never the tutorial's practice town)
       updateDoc(doc(db, 'towns', code), { [`members.${auth.currentUser.uid}.name`]: playerName() })
         .catch(e => console.warn('[town] rename failed', e));
   }, 800);
@@ -505,6 +518,13 @@ async function postNote(code, input) {
   const text = input.value.trim().slice(0, 100);
   if (!code) return window.toast('Join a town first!');
   if (!text) return window.toast('Write a note first!');
+  if (demo) { // practice town: pin it locally only
+    feeds.get(code)?.unshift({ id: 'practice-' + Date.now(), uid: me(), name: playerName(), text, points: 0, note: true, createdAt: justNow() });
+    input.value = '';
+    window.toast(':pin: Note pinned!');
+    render();
+    return dispatchEvent(new CustomEvent('fmi:pinned')); // the tutorial waits for this
+  }
   try {
     await addDoc(collection(db, 'towns', code, 'feed'), {
       ...withIsland({}), uid: auth.currentUser.uid, name: playerName(), text, points: 0, note: true, createdAt: serverTimestamp(),
@@ -534,9 +554,45 @@ $('copyCode').onclick = () => {
 };
 setInterval(() => { if (!$('panel-town').classList.contains('hidden')) render(); }, 60000); // keep "5m ago" fresh
 
+// ---------- practice town for the tutorial (tutorial.js) ----------
+// Same screens as a real town, filled with made-up townsfolk and news. Your habits during the tour
+// really push its project forward and pin notices, so you can see how tasks feed the town.
+const me = () => auth.currentUser?.uid || 'me';
+const justNow = () => ({ seconds: Math.floor(Date.now() / 1000) });
+function demoContribute(text, points) {
+  for (const code of demo.codes) {
+    const t = towns.get(code), p = t?.project;
+    if (!isActive(p)) continue;
+    const np = { ...p, progress: Math.min(p.goal, p.progress + points) };
+    const done = np.progress >= np.goal;
+    t.project = np;
+    feeds.get(code).unshift({ id: 'practice-' + Date.now() + Math.random(), uid: me(), name: playerName(), text,
+      points: np.progress - p.progress, project: p.name, createdAt: justNow(), ...(done ? { done: true } : {}) });
+    if (done) window.toast(`:party: ${t.name} finished building the ${p.name}!`);
+  }
+  render();
+}
+window.townDemo = {
+  // make({ uid, name }) returns { towns: [[code, town]], feeds: [[code, items]] }
+  start(make) {
+    const data = make({ uid: me(), name: playerName() });
+    demo = { codes: data.towns.map(([code]) => code) };
+    towns = new Map(data.towns); feeds = new Map(data.feeds);
+    openCode = null; showForm = false;
+    render();
+  },
+  stop() {
+    if (!demo) return;
+    demo = null; towns = live.towns; feeds = live.feeds;
+    openCode = null; showForm = false;
+    render();
+  },
+  open(code) { openCode = code; render(); },
+};
+
 ready.then(user => {
   if (!user) return status('Offline: towns need an internet connection.');
   $('playerName').value = S().name || '';
-  myTowns();
+  realTowns();
   syncWatches();
 });
