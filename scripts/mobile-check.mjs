@@ -17,7 +17,13 @@ const PHONES = [
   { name: "iPhone 13", engine: "webkit" },
   { name: "Pixel 5", engine: "chromium" },
   { name: "Galaxy S9+", engine: "chromium" },
+  { name: "iPhone 13 landscape", engine: "webkit" },
+  { name: "Pixel 5 landscape", engine: "chromium" },
 ];
+// Fixed on-screen pieces of the island HUD that must never cover each other
+// (".hud-right > *" = each menu button on its own: the menu's invisible container is bigger than the buttons)
+const HUD_PIECES = [".hud-left .home-title", ".hud-left .stats", ".hud-left .sky-clock", ".hud-right > *",
+  ".hud-bottom .bag", ".dpad", ".town-isle"];
 const PANELS = ["shop", "goals", "history", "daily", "town"]; // opened one at a time on the island
 const MIN_TAP = 32;        // px, smallest allowed button/link/input side
 const MIN_INPUT_FONT = 16; // px, smaller makes iOS Safari zoom on focus
@@ -132,14 +138,27 @@ for (const { name, engine } of PHONES) {
   await page.evaluate(() => closePanels());
   await page.waitForTimeout(200);
   await check("island");
+  const overlaps = await page.evaluate((sels) => {
+    const boxes = sels.flatMap((s) => [...document.querySelectorAll(s)].map((el) => [s, el]))
+      .filter(([, el]) => getComputedStyle(el).display !== "none" && el.getBoundingClientRect().width > 0)
+      .map(([s, el]) => [s, el.getBoundingClientRect()]);
+    const out = [];
+    for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
+      const [a, ra] = boxes[i], [b, rb] = boxes[j];
+      if (a === b) continue; // pieces of the same group (e.g. two menu buttons) are laid out by that group
+      if (ra.left < rb.right - 1 && rb.left < ra.right - 1 && ra.top < rb.bottom - 1 && rb.top < ra.bottom - 1) out.push(`${a} overlaps ${b}`);
+    }
+    return out;
+  }, HUD_PIECES);
+  for (const o of overlaps) fail(`${where} · island`, `HUD pieces overlap: ${o}`);
+  count += overlaps.length;
 
   // 4. on-screen controls: visible on a phone, and holding the D-pad really walks
   const pad = await page.evaluate(() => {
     const vis = (el) => el && getComputedStyle(el).display !== "none" && el.getBoundingClientRect().width > 0;
-    return { dpad: vis(document.querySelector(".dpad")), action: vis(document.getElementById("padAction")) };
+    return { dpad: vis(document.querySelector(".dpad")) };
   });
   if (!pad.dpad) fail(where, "on-screen D-pad is not shown on this phone");
-  if (!pad.action) fail(where, "on-screen A button is not shown on this phone");
   if (pad.dpad) {
     let walked = false;
     for (const dir of ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"]) {
@@ -164,6 +183,41 @@ for (const { name, engine } of PHONES) {
     await check(panel);
   }
   await page.evaluate(() => closePanels());
+
+  // 5a. tapping Maple on the island opens her chat (there's no A button; you tap things to use them)
+  const tapped = await page.evaluate(() => {
+    closePanels(); followCam(true);
+    const r = cv.getBoundingClientRect();
+    const px = (VILLAGER.x * TILE + TILE / 2 - Math.round(cam.x)) * r.width / cv.width + r.left;
+    const py = (VILLAGER.y * TILE + TILE / 2 - Math.round(cam.y)) * r.height / cv.height + r.top;
+    if (px < r.left || px > r.right || py < r.top || py > r.bottom) return "off-screen";
+    cv.dispatchEvent(new MouseEvent("click", { clientX: px, clientY: py, bubbles: true }));
+    const open = !document.getElementById("chat").classList.contains("hidden");
+    closeChat();
+    return open ? "ok" : "closed";
+  });
+  if (tapped === "closed") fail(where, "tapping Maple doesn't open her chat");
+
+  // 5b. Maple's chat: both portraits (player + Maple) and the Send box must stay fully on screen,
+  //     with the dialogue showing and with a long History open
+  const offScreen = () => ["chatMe", "chatFox", "chatForm"].filter((id) => {
+    const r = document.getElementById(id).getBoundingClientRect();
+    return r.top < -1 || r.bottom > innerHeight + 1 || r.left < -1 || r.right > innerWidth + 1;
+  });
+  for (const screen of ["chat", "chat-history"]) {
+    await page.evaluate((hist) => {
+      const saved = S.chat;
+      if (hist) S.chat = Array.from({ length: 30 }, (_, i) => ({ role: i % 2 ? "model" : "user", text: "A fairly long practice message about saving money, number " + i, at: Date.now() }));
+      openChat();
+      if (hist) { showChatHistory(true); S.chat = saved; }
+    }, screen === "chat-history");
+    await page.waitForTimeout(400);
+    await check(screen);
+    const cut = await page.evaluate(offScreen);
+    for (const id of cut) fail(`${where} · ${screen}`, `#${id} is cut off the screen`);
+    count += cut.length;
+    await page.evaluate(() => closeChat());
+  }
 
   // 6. the Daily Star game
   const star = await page.evaluate(() => {
