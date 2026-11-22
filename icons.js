@@ -1,4 +1,4 @@
-// ===== Future Me Island — pixel icon kit =====
+// ===== Tomo Island — pixel icon kit =====
 // Every icon in the game is drawn here on a 16×16 pixel grid using the game's palette
 // (no emojis anywhere). Three ways to use it:
 //   pi('coin')                    → animated inline <svg> string for HTML templates

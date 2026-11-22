@@ -25,6 +25,17 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const newCode = () => Array.from({ length: 6 }, () => ALPHABET[Math.floor(Math.random() * ALPHABET.length)]).join('');
 const playerName = () => (S().name || '').trim() || 'Islander';
+// Each device signs in with its own uid, but synced devices share one island. Member entries carry this
+// public island id, so a player's phone + laptop count as one member. (Not the secret sync code.)
+function islandKey() {
+  const s = S();
+  if (!s.islandId) { s.islandId = Array.from(crypto.getRandomValues(new Uint8Array(8)), b => b.toString(16).padStart(2, '0')).join(''); window.saveGame(); }
+  return s.islandId;
+}
+const memberEntry = () => ({ name: playerName(), joinedAt: serverTimestamp(), island: islandKey() });
+// who a member "is" for display: their island if known, else their device uid
+const personOf = (t, uid) => t?.members?.[uid]?.island || uid;
+const joining = new Set(); // towns this device is currently auto-joining
 
 // ---------- which towns am I in ----------
 function myTowns() {
@@ -48,10 +59,24 @@ let showForm = false;     // "start or join" form open in the gallery
 function watch(code) {
   const uDoc = onSnapshot(doc(db, 'towns', code), snap => {
     const me = auth.currentUser?.uid;
-    if (!snap.exists() || !snap.data().members?.[me]) { // town deleted or we were removed
+    if (!snap.exists()) { // town deleted
       setTowns(myTowns().filter(c => c !== code));
       return syncWatches();
     }
+    const mine = snap.data().members?.[me];
+    if (!mine) {
+      // the town is on this island but this device isn't a member yet: the island was synced from another
+      // device, so join from here too (leaving always takes the town off the island first, see syncWatches)
+      if (me && !joining.has(code)) {
+        joining.add(code);
+        updateDoc(doc(db, 'towns', code), { [`members.${me}`]: memberEntry() })
+          .catch(e => console.warn('[town] auto-join failed', code, e))
+          .finally(() => joining.delete(code));
+      }
+      return;
+    }
+    if (!mine.island) // older member entry: tag it with this island so synced devices show as one person
+      updateDoc(doc(db, 'towns', code), { [`members.${me}.island`]: islandKey() }).catch(() => {});
     towns.set(code, snap.data());
     render();
   }, err => {
@@ -70,6 +95,8 @@ function syncWatches() {
   const ids = myTowns();
   for (const [code, fns] of unsubs) if (!ids.includes(code)) {
     fns.forEach(f => f()); unsubs.delete(code); towns.delete(code); feeds.delete(code);
+    const me = auth.currentUser?.uid; // take this device off the member list too
+    if (me) updateDoc(doc(db, 'towns', code), { [`members.${me}`]: deleteField() }).catch(e => console.warn('[town] leave failed', code, e));
   }
   for (const code of ids) if (!unsubs.has(code)) watch(code);
   if (openCode && !ids.includes(openCode)) openCode = null;
@@ -202,17 +229,18 @@ window.openBuildInfo = async b => {
     const items = snap.docs.map(d => ({ id: d.id, code: b.code, ...d.data() }))
       .sort((x, y) => (y.createdAt?.seconds ?? 9e9) - (x.createdAt?.seconds ?? 9e9));
     const tasks = items.filter(f => !f.started && f.points > 0);
-    const by = new Map();
+    const by = new Map(), town = towns.get(b.code);
     for (const f of tasks) {
-      const c = by.get(f.uid) || { name: f.name, n: 0, pts: 0 };
-      c.n++; c.pts += f.points; by.set(f.uid, c);
+      const who = personOf(town, f.uid); // synced devices count as one person
+      const c = by.get(who) || { name: f.name, n: 0, pts: 0, uid: f.uid };
+      c.n++; c.pts += f.points; by.set(who, c);
     }
     const rows = [...by.entries()].sort((a, c) => c[1].n - a[1].n).map(([uid, c]) => {
       const pct = Math.round(c.n / tasks.length * 100);
       const li = el('li', 'contrib');
       const bar = el('div', 'town-bar'), fill = el('div', 'fill');
-      fill.style.width = pct + '%'; fill.style.background = playerPaper(uid); bar.append(fill);
-      li.append(el('span', null, `${c.name}${uid === auth.currentUser?.uid ? ' (you)' : ''}`), el('b', null, `${pct}% · ${c.n} task${c.n === 1 ? '' : 's'} · ${c.pts} :hammer:`), bar);
+      fill.style.width = pct + '%'; fill.style.background = playerPaper(c.uid); bar.append(fill);
+      li.append(el('span', null, `${c.name}${uid === personOf(town, auth.currentUser?.uid) ? ' (you)' : ''}`), el('b', null, `${pct}% · ${c.n} task${c.n === 1 ? '' : 's'} · ${c.pts} :hammer:`), bar);
       return li;
     });
     $('buildContrib').replaceChildren(...(rows.length ? rows : [el('li', 'muted', 'No one has helped yet. Save something to add the first brick!')]));
@@ -264,12 +292,16 @@ function renderDetail(code) {
   const t = towns.get(code);
   if (!t) return;
   const me = auth.currentUser?.uid;
+  const seen = new Set(), founder = personOf(t, t.createdBy), myself = personOf(t, me);
   const members = Object.entries(t.members || {})
-    .sort(([, a], [, b]) => (a.joinedAt?.seconds || 0) - (b.joinedAt?.seconds || 0));
+    .sort(([, a], [, b]) => (a.joinedAt?.seconds || 0) - (b.joinedAt?.seconds || 0))
+    .filter(([uid]) => { const p = personOf(t, uid); if (seen.has(p)) return false; seen.add(p); return true; }); // synced devices = one person
   $('townTitle').innerHTML = window.pit(':town: ' + t.name);
   $('townCodeShow').textContent = t.code;
-  $('townMembers').replaceChildren(...members.map(([uid, m]) =>
-    el('li', null, (uid === t.createdBy ? ':crown: ' : ':island: ') + m.name + (uid === me ? ' (you)' : '') + (uid === t.createdBy ? ' · founder' : ''))));
+  $('townMembers').replaceChildren(...members.map(([uid, m]) => {
+    const p = personOf(t, uid);
+    return el('li', null, (p === founder ? ':crown: ' : ':island: ') + m.name + (p === myself ? ' (you)' : '') + (p === founder ? ' · founder' : ''));
+  }));
 
   const p = t.project, active = isActive(p);
   show('projActive', isNamed(p));
@@ -381,6 +413,7 @@ async function contribute(text, coins) {
   for (const code of myTowns()) await contributeTo(code, text, points, user); // your habit helps every town you're in
 }
 window.onHabit = contribute;
+window.onIslandLoaded = () => syncWatches(); // a synced island arrived (cloud.js -> game.js loadCloudState)
 
 // ---------- create / join / leave ----------
 async function createTown() {
@@ -396,7 +429,7 @@ async function createTown() {
         if ((await tx.get(ref)).exists()) return false;
         tx.set(ref, {
           name, code, createdBy: uid, createdAt: serverTimestamp(),
-          members: { [uid]: { name: playerName(), joinedAt: serverTimestamp() } },
+          members: { [uid]: memberEntry() },
         });
         return true;
       });
@@ -424,7 +457,7 @@ async function joinTown() {
     const name = await runTransaction(db, async tx => {
       const snap = await tx.get(ref);
       if (!snap.exists()) return null;
-      tx.update(ref, { [`members.${uid}`]: { name: playerName(), joinedAt: serverTimestamp() } });
+      tx.update(ref, { [`members.${uid}`]: memberEntry() });
       return snap.data().name;
     });
     if (!name) return window.toast('No town with that code.');
@@ -441,14 +474,9 @@ async function joinTown() {
 async function leaveTown() {
   const code = openCode;
   if (!code || !confirm(`Leave ${towns.get(code)?.name || 'this town'}?`)) return;
-  try {
-    await updateDoc(doc(db, 'towns', code), { [`members.${auth.currentUser.uid}`]: deleteField() });
-  } catch (e) {
-    console.warn('[town] leave failed', e);
-  }
   openCode = null;
   setTowns(myTowns().filter(c => c !== code));
-  syncWatches();
+  syncWatches(); // stops watching and removes this device from the member list
 }
 
 // Keep your name in sync on your island and in every town's member list
