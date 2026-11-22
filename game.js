@@ -90,6 +90,7 @@ const defaultState = () => ({
   dailyStar: { date: null, games: [], completed: false, score: null, rounds: [] },
 });
 let S;
+let realS = null;         // while the tutorial's practice island is showing, the player's real island waits here
 let hadLocalSave = false; // a brand-new local island must never overwrite the cloud copy
 try {
   const raw = localStorage.getItem('fmi');
@@ -122,8 +123,10 @@ function migrateJars() {
 }
 migrateJars();
 // stamp=false for automatic housekeeping (e.g. daily reset) so it doesn't count as "newer" than the cloud
-const saveLocal = () => { try { localStorage.setItem('fmi', JSON.stringify(S)); } catch {} };
+// (the practice island is never saved: saveLocal always writes the real island, save() does nothing)
+const saveLocal = () => { try { localStorage.setItem('fmi', JSON.stringify(realS || S)); } catch {} };
 const save = (stamp = true) => {
+  if (realS) return;
   if (stamp) S.updatedAt = Date.now();
   saveLocal();
   window.cloudSave?.(S); // set by cloud.js once signed in
@@ -994,6 +997,7 @@ const draw = () => {
     const b = nearBuild();
     if (b) drawBubble(`${b.f >= 1 ? `${b.name} ✓` : `${b.name} · ${Math.floor(b.f * 100)}%`} · Space for info`, (b.x + 1) * TILE, b.y * TILE - 7 * PX);
   }
+  drawTutorialArrow();
 
   // edit mode: outline whatever is under the mouse / where paving will go
   if (editMode && !held && hover && editTool === 'move') {
@@ -1031,6 +1035,49 @@ const draw = () => {
     ctx.globalAlpha = 1;
   }
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+};
+
+// ---------- Tutorial: a bouncing arrow over whatever Maple is pointing at ('shop' | 'bank' | 'fox' | 'build') ----------
+let tutorialArrow = null;
+window.setTutorialArrow = target => { tutorialArrow = target; };
+const ARROW = ['..XXX..', '..XXX..', '..XXX..', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...'];
+function drawTutorialArrow() {
+  let cx, top;
+  if (tutorialArrow === 'shop' && !nearShop()) { cx = (SHOP_BLD.x + 1) * TILE; top = SHOP_BLD.y * TILE - 8 * PX; }
+  else if (tutorialArrow === 'bank' && !nearBank()) { cx = (BANK_BLD.x + 2) * TILE; top = BANK_BLD.y * TILE - 25 * PX; }
+  else if (tutorialArrow === 'fox' && !nearVillager()) { cx = VILLAGER.x * TILE + TILE / 2; top = VILLAGER.y * TILE - 2 * PX; }
+  else if (tutorialArrow === 'build' && !nearBuild()) {
+    const b = townBuilds.find(b => b.f < 1) || townBuilds[0];
+    if (!b) return;
+    cx = (b.x + 1) * TILE; top = b.y * TILE - 6 * PX;
+  } else return;
+  const bob = Math.round(Math.abs(Math.sin(t / 12)) * 3) * PX;
+  drawSprite(ARROW, { X: '#f2c26b' }, cx, top - bob);
+}
+// Where Maple / the town build (plus its arrow) is on the screen, in page pixels: the tutorial cuts its spotlight here
+window.tutorialWorldRect = target => {
+  const b = townBuilds.find(b => b.f < 1) || townBuilds[0];
+  let [x, y, w, h] = target === 'fox' ? [VILLAGER.x - .2, VILLAGER.y - 1.1, 1.4, 2.1]
+    : target.startsWith('build') && b ? [b.x - .3, b.y - 1.5, 2.6, 3.5] : [];
+  if (x === undefined) return null;
+  if (target === 'buildPlayer') { // the build and you, so you can see yourself walk up to it
+    const x2 = Math.max(x + w, P.rx + 1.2), y2 = Math.max(y + h, P.ry + 1.1);
+    x = Math.min(x, P.rx - .2); y = Math.min(y, P.ry - .6); w = x2 - x; h = y2 - y;
+  }
+  const r = cv.getBoundingClientRect(), k = r.width / cv.width;
+  return { left: r.left + (x * TILE - Math.round(cam.x)) * k, top: r.top + (y * TILE - Math.round(cam.y)) * k, width: w * TILE * k, height: h * TILE * k };
+};
+// Practice island only: hop the player a couple of tiles from the town build / Maple, so it's on screen with its arrow
+// (beside the build, one step away from being next to it: the tour has you walk up and press Space)
+window.tutorialHopTo = target => {
+  if (!realS) return;
+  const b = townBuilds.find(b => b.f < 1) || townBuilds[0], V = VILLAGER;
+  const spots = target === 'build' && b ? [[b.x - 2, b.y + 1], [b.x + 3, b.y + 1], [b.x, b.y + 3], [b.x + 1, b.y + 3]]
+    : target === 'fox' ? [[V.x - 2, V.y], [V.x, V.y + 2], [V.x + 2, V.y], [V.x - 2, V.y + 1]] : [];
+  const spot = spots.find(([x, y]) => walkable(x, y) && !(x === P.x && y === P.y));
+  if (!spot) return;
+  Object.assign(P, { x: spot[0], y: spot[1], rx: spot[0], ry: spot[1], dir: 'up', moving: false });
+  S.player = { x: P.x, y: P.y };
 };
 
 // ---------- Time of day (sky.js): tint the island, cloud shadows, lamp glow, fireflies, stars on the sea ----------
@@ -1231,13 +1278,17 @@ cv.addEventListener('click', e => {
   }
   if (!selectedItem) return;
   if (!canPlace(x, y)) return toast("Can't place there");
-  S.placed.push({ id: selectedItem, x, y });
+  const placed = selectedItem;
+  S.placed.push({ id: placed, x, y });
   if (--S.inventory[selectedItem] <= 0) { delete S.inventory[selectedItem]; selectedItem = null; }
   save(); renderInventory();
+  emit('placed', placed);
 });
 
 // ---------- UI helpers ----------
 const $ = id => document.getElementById(id);
+// little events other scripts can listen for (the tutorial waits on these): 'fmi:panel', 'fmi:saved', 'fmi:task', 'fmi:bought', 'fmi:placed'
+const emit = (type, detail) => dispatchEvent(new CustomEvent('fmi:' + type, { detail }));
 
 // ---------- Edit mode: drag items around your island, or drop them on the bag to put them away ----------
 function setEdit(on) {
@@ -1394,6 +1445,7 @@ function openPanel(name) {
     el.querySelector('.close')?.focus();
   }
   if (name === 'history') { animateChart = true; renderFuture(); } // draw the graph in, line by line
+  emit('panel', name);
 }
 document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openPanel(b.dataset.open));
 paintTownIsle();
@@ -1433,6 +1485,7 @@ function logSaving(amt, type, goalIdx) {
   toast(coins ? `+${coins} :coin: · ${rewards.map(r => r[0]).join(' · ')}` : `$${amt} added to your progress. Coins come from showing up — see you tomorrow!`);
   // share the habit (never the amount or goal name) with the town
   if (coins) window.onHabit?.(rewards.map(r => r[0].startsWith('Goal "') ? 'reached a goal' : r[0].toLowerCase()).join(' · '), coins);
+  emit('saved', { amt, goal: g?.name });
   completeMission('deposit');
   if (g) completeMission('goal');
 }
@@ -1791,12 +1844,14 @@ function renderShop() {
     if (S.coins < k.price) return toast(`Need ${k.price - S.coins} more :coin: — keep your saving streak going!`);
     S.coins -= k.price; S.pathKits = [...(S.pathKits || ['dirt']), k.id];
     save(); renderAll(); toast(`Bought ${k.name}! Open :pencil: edit mode to start paving.`);
+    emit('bought', k.id);
   });
   $('shop').querySelectorAll('[data-id]').forEach(el => el.onclick = () => {
     const s = SHOP.find(i => i.id === el.dataset.id);
     if (S.coins < s.price) return toast(`Need ${s.price - S.coins} more :coin: — keep your saving streak going!`);
     S.coins -= s.price; S.inventory[s.id] = (S.inventory[s.id] || 0) + 1;
     save(); renderAll(); toast(`Bought ${s.name}! It's in your bag at the bottom.`);
+    emit('bought', s.id);
   });
 }
 function renderInventory() {
@@ -1850,6 +1905,7 @@ function completeMission(id) {
   S.coins += m.reward + bonus;
   save(); renderAll();
   window.onHabit?.(bonus ? `kept a ${S.streak}-day streak` : 'finished a daily task', m.reward + bonus);
+  emit('task', id);
 }
 function renderMissions() {
   const isDone = m => S.missionsDone.includes(m.id);
@@ -1966,6 +2022,7 @@ $('chatLog').onclick = () => skipTyping?.();
 function openChat() {
   closePanels(); Object.keys(keys).forEach(k => keys[k] = false);
   $('chat').classList.remove('hidden'); showChatHistory(false);
+  emit('panel', 'chat');
   const back = S.chat?.length;
   addMsg(back
     ? `Welcome back, friend! :fox: You've saved $${S.saved} so far. What's on your mind today — a goal, a worry, or a money question?`
@@ -2013,14 +2070,20 @@ $('chatInput').addEventListener('keydown', e => { if (e.key === 'Escape') closeC
 function renderAll() { if (editMode) renderEditTools(); renderAccounts(); renderStats(); renderHistory(); renderRules(); renderShop(); renderInventory(); window.renderPersonalGoals?.(); renderGoalPick(); renderMissions(); }
 renderAll();
 
+// First time through "Enter my world!": Maple's tour (tutorial.js); after that, the bank says hello
+const firstEntry = () => {
+  if (window.tutorial?.shouldRun()) window.tutorial.start();
+  else { openPanel('bank'); showWelcome(); }
+};
 if (document.body.classList.contains('intro-open')) {
   new MutationObserver((_, obs) => {
     if (!document.body.classList.contains('intro-open')) {
       obs.disconnect();
-      openPanel('bank'); showWelcome();
+      firstEntry();
     }
   }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 } else { openPanel('bank'); showWelcome(); }
+window.showBankWelcome = () => { openPanel('bank'); showWelcome(); };
 
 // A warm hello at the top of the bank, the first time it pops up after entering the island
 function showWelcome() {
@@ -2037,20 +2100,51 @@ function showWelcome() {
   box.hidden = false;
 }
 
+// Redraw everything (map, buildings, player, panels) for whichever island S is now
+function showIsland(swap = false) {
+  if (swap) { setEdit(false); selectedItem = null; closePanels(); } // swapping islands: start clean
+  Object.assign(P, { x: S.player.x, y: S.player.y, rx: S.player.x, ry: S.player.y, moving: false });
+  Object.keys(keys).forEach(k => keys[k] = false);
+  applyLayout(); applySavedPaths(); paintAll(); window.setTownBuilds(lastBuildList);
+  followCam(true);
+  rollDay(); renderAll();
+}
+
 // Called by cloud.js when the cloud copy is newer than this browser's copy.
+let pendingCloud = null; // arrived during the tutorial: applied once the practice island is put away
 window.loadCloudState = data => {
+  if (realS) { pendingCloud = data; return; }
   S = Object.assign(defaultState(), data);
   if (!data.worldV) S.worldV = 0;
   migrateWorld(); migrateJars();
   try { localStorage.setItem('fmi', JSON.stringify(S)); } catch {}
-  Object.assign(P, { x: S.player.x, y: S.player.y, rx: S.player.x, ry: S.player.y, moving: false });
-  applyLayout(); applySavedPaths(); paintAll(); window.setTownBuilds(lastBuildList);
-  followCam(true);
-  rollDay(); renderAll();
+  showIsland();
 };
-window.getState = () => S;
+
+// ---------- Tutorial sandbox: a practice island shown in place of the real one, never saved ----------
+let realBuildList = [];
+window.enterPracticeIsland = practice => {
+  if (realS) return;
+  realS = S; realBuildList = lastBuildList;
+  S = Object.assign(defaultState(), practice);
+  showIsland(true);
+};
+window.leavePracticeIsland = () => {
+  if (!realS) return;
+  S = realS; realS = null; lastBuildList = realBuildList;
+  showIsland(true);
+  if (pendingCloud) { const data = pendingCloud; pendingCloud = null; window.loadCloudState(data); }
+};
+
+// getState / saveGame always mean the player's real island (cloud.js and town.js use them), even mid-tutorial
+window.getState = () => realS || S;
 window.hasLocalSave = () => hadLocalSave;
-window.saveGame = () => save();
+window.saveGame = () => {
+  const s = realS || S;
+  s.updatedAt = Date.now();
+  saveLocal();
+  window.cloudSave?.(s);
+};
 window.toast = toast;
 
 // Header title goes back to the entrance screen

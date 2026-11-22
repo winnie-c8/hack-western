@@ -94,6 +94,8 @@ const fail = (where, msg) => failures.push(`[${where}] ${msg}`);
 
 async function newPage(contextOptions) {
   const ctx = await (engines[contextOptions.engine] || engines.chromium).newContext({ ...contextOptions.device, reducedMotion: "reduce" });
+  // Skip Maple's first-visit tour (tutorial.js) so these checks see the normal island, with the bank popping up on arrival.
+  await ctx.addInitScript(() => { try { localStorage.setItem("fmi-tutorial-done", "1"); } catch {} });
   const page = await ctx.newPage();
   // External services (Firebase, fonts, APIs) aren't needed to check layout.
   await page.route((u) => !u.href.startsWith(url), (r) => r.abort());
