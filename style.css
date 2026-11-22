@@ -1232,4 +1232,6 @@ body.intro-open { overflow: hidden; }
   .hud-left.tucked:not(:hover) .stats, .hud-left.tucked:not(:hover) .sky-clock { transform: none; }
   .saved-banner.compact:not(:hover) .saved-text small { font-size: .7rem; }   /* 11.2px: still readable when slim */
   .saved-text small { white-space: nowrap; }   /* one line, so the sign stays short and clear of the D-pad */
+  .hud-top { left: 0; right: 0; transform: none; display: flex; justify-content: center; }   /* centre the sign on the full width (left:50% capped it at half the screen) */
+  .hud-bottom { max-width: calc(100vw - 150px); }   /* a bit more room so the bag's text takes 2 lines, not 3 */
 }
