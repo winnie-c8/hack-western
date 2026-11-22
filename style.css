@@ -691,8 +691,9 @@ body.holding .bag { outline: 3px dashed var(--sun-dark); outline-offset: 3px; }
 #chatMe.talking { animation: slideL .25s ease-out, talkBob .5s steps(2) .25s infinite; }
 #chatFox.talking { animation: slideR .25s ease-out, talkBob .5s steps(2) .25s infinite; }
 @keyframes talkBob { 50% { transform: translateY(-6px); } }
-@keyframes slideL { from { transform: translateX(-40px); opacity: 0; } }
-@keyframes slideR { from { transform: translateX(40px); opacity: 0; } }
+@keyframes slideL { from { transform: translateX(-12px); opacity: 0; } }
+@keyframes slideR { from { transform: translateX(12px); opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .chat-portrait.talking, #chatMe.talking, #chatFox.talking { animation: none; } }
 .chat-box {
   position: relative; width: 100%; background: var(--paper); border-radius: 28px;
   border: 6px solid var(--wood-dark); box-shadow: 10px 10px 0 rgba(62,47,34,.35); animation: pop .18s ease-out;
@@ -702,7 +703,7 @@ body.holding .bag { outline: 3px dashed var(--sun-dark); outline-offset: 3px; }
   background: var(--peach); border: 4px solid var(--wood-dark); border-radius: 14px; transform: rotate(-3deg);
 }
 .chat-name.me { right: auto; left: 48px; background: #dff1ef; border-color: var(--teal-dark); transform: rotate(3deg); }
-.chat-close { position: absolute; top: 10px; right: 14px; width: 32px; height: 32px; background: transparent; border: 2px solid var(--ink-soft); color: var(--ink); cursor: pointer; border-radius: 50%; }
+.chat-close { position: absolute; top: 10px; right: 14px; width: 36px; height: 36px; background: transparent; border: 2px solid var(--ink-soft); color: var(--ink); cursor: pointer; border-radius: 50%; }
 #chatForm .chat-hist-btn { flex: none; background: transparent; border: 2px solid var(--ink-soft); color: var(--ink); box-shadow: none; }
 #chatForm .chat-hist-btn:hover, .chat-close:hover { background: var(--sun); }
 .chat-history { padding: 50px 20px 12px; border-bottom: 3px dotted var(--wood); }
@@ -713,7 +714,7 @@ body.holding .bag { outline: 3px dashed var(--sun-dark); outline-offset: 3px; }
 .hist-msg b { display: block; font-size: .8rem; color: var(--wood-dark); }
 .hist-msg.me { margin-left: auto; background: #dff1ef; border-color: var(--teal-dark); }
 .chat-memory { font-size: .9rem; margin-top: 10px; } .chat-memory ul { margin: 4px 0 0 18px; padding: 0; }
-.chat-forget { margin-top: 10px; background: transparent; border: 2px solid var(--ink-soft); color: var(--ink-soft); padding: 4px 10px; cursor: pointer; font: inherit; font-size: .8rem; }
+.chat-forget { margin-top: 10px; background: transparent; border: 2px solid var(--ink-soft); color: var(--ink-soft); padding: 4px 10px; min-height: 36px; cursor: pointer; font: inherit; font-size: .8rem; }
 .chat-next { position: absolute; right: 28px; bottom: 72px; color: var(--wood-dark); opacity: 0; animation: nextBlink .8s steps(2) infinite; }
 .chat-box.done .chat-next { opacity: 1; }
 @keyframes nextBlink { 50% { transform: translateY(4px); } }

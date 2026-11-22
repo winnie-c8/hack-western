@@ -21,7 +21,8 @@ const PHONES = [
   { name: "Pixel 5 landscape", engine: "chromium" },
 ];
 // Fixed on-screen pieces of the island HUD that must never cover each other
-const HUD_PIECES = [".hud-left .home-title", ".hud-left .stats", ".hud-left .sky-clock", ".hud-right",
+// (".hud-right > *" = each menu button on its own: the menu's invisible container is bigger than the buttons)
+const HUD_PIECES = [".hud-left .home-title", ".hud-left .stats", ".hud-left .sky-clock", ".hud-right > *",
   ".hud-bottom .bag", ".dpad", ".town-isle"];
 const PANELS = ["shop", "goals", "history", "daily", "town"]; // opened one at a time on the island
 const MIN_TAP = 32;        // px, smallest allowed button/link/input side
@@ -138,12 +139,13 @@ for (const { name, engine } of PHONES) {
   await page.waitForTimeout(200);
   await check("island");
   const overlaps = await page.evaluate((sels) => {
-    const boxes = sels.map((s) => [s, document.querySelector(s)])
-      .filter(([, el]) => el && getComputedStyle(el).display !== "none" && el.getBoundingClientRect().width > 0)
+    const boxes = sels.flatMap((s) => [...document.querySelectorAll(s)].map((el) => [s, el]))
+      .filter(([, el]) => getComputedStyle(el).display !== "none" && el.getBoundingClientRect().width > 0)
       .map(([s, el]) => [s, el.getBoundingClientRect()]);
     const out = [];
     for (let i = 0; i < boxes.length; i++) for (let j = i + 1; j < boxes.length; j++) {
       const [a, ra] = boxes[i], [b, rb] = boxes[j];
+      if (a === b) continue; // pieces of the same group (e.g. two menu buttons) are laid out by that group
       if (ra.left < rb.right - 1 && rb.left < ra.right - 1 && ra.top < rb.bottom - 1 && rb.top < ra.bottom - 1) out.push(`${a} overlaps ${b}`);
     }
     return out;
