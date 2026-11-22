@@ -401,18 +401,172 @@ const swatchCache = {};
 const swatchURL = type => swatchCache[type] ||= pathPainter.swatch(type);
 
 // Sprites as pixel strings (each char = one art pixel; '.' = transparent)
-function playerRows(dir, step) {
-  const hair = ['..HHHHHH..', '.HHhHHHHH.', 'HHhHHHHHHH'];
-  const face = {
+const CHARACTER_KEY = 'fmi-character';
+const CHARACTER_DEFAULTS = {
+  gender: 'unspecified', hairStyle: 'short-straight', hairColor: 'brown',
+  skinColor: 'light', top: 'tee', topColor: 'coral', bottoms: 'jeans', bottomsColor: 'blue',
+};
+const CHARACTER_CHOICES = {
+  gender: ['girl', 'boy', 'nonbinary', 'unspecified'],
+  hairStyle: ['short-straight', 'short-curly', 'spiky', 'bald', 'buzz-cut', 'mullet', 'long', 'curly', 'ponytail', 'braids', 'bun'],
+  hairColor: ['brown', 'black', 'blonde', 'auburn', 'red', 'pink', 'purple', 'blue', 'teal', 'silver', 'white'],
+  skinColor: ['porcelain', 'light', 'light-medium', 'peach', 'golden', 'olive', 'medium', 'tan', 'deep-medium', 'brown', 'deep', 'dark'],
+  top: ['tee', 'hoodie', 'sweater', 'jacket'], topColor: ['coral', 'teal', 'yellow', 'lavender', 'blue', 'red'],
+  bottoms: ['jeans', 'charcoal-pants', 'shorts', 'skirt'], bottomsColor: ['blue', 'charcoal', 'green', 'purple', 'brown', 'pink'],
+};
+const CHARACTER_CATEGORIES = {
+  hair: { title: 'Hair', colorField: 'hairColor', colorLabel: 'Hair colour', optionField: 'hairStyle', optionLabel: 'Hair style' },
+  skin: { title: 'Skin colour', colorField: 'skinColor', colorLabel: 'Skin colour' },
+  top: { title: 'Top', colorField: 'topColor', colorLabel: 'Top colour', optionField: 'top', optionLabel: 'Style' },
+  bottoms: { title: 'Bottoms', colorField: 'bottomsColor', colorLabel: 'Bottoms colour', optionField: 'bottoms', optionLabel: 'Style' },
+};
+const CHARACTER_OPTION_LABELS = {
+  hairStyle: {
+    'short-straight': 'Short straight', 'short-curly': 'Short curly', spiky: 'Spiky', bald: 'Bald',
+    'buzz-cut': 'Buzz cut', mullet: 'Mullet', long: 'Long', curly: 'Curly', ponytail: 'Ponytail',
+    braids: 'Braids', bun: 'Bun',
+  },
+  top: { tee: 'T-shirt', hoodie: 'Hoodie', sweater: 'Sweater', jacket: 'Jacket' },
+  bottoms: { jeans: 'Jeans', 'charcoal-pants': 'Pants', shorts: 'Shorts', skirt: 'Skirt' },
+};
+function loadCharacter() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CHARACTER_KEY) || 'null');
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return { ...CHARACTER_DEFAULTS };
+    return Object.fromEntries(Object.keys(CHARACTER_DEFAULTS).map(key => [
+      key, key === 'hairStyle' && saved[key] === 'short'
+        ? 'short-straight'
+        : CHARACTER_CHOICES[key].includes(saved[key]) ? saved[key] : CHARACTER_DEFAULTS[key],
+    ]));
+  } catch (error) {
+    console.warn('Could not load character settings from this browser.', error);
+    return { ...CHARACTER_DEFAULTS };
+  }
+}
+let character = loadCharacter();
+function saveCharacter() {
+  try {
+    localStorage.setItem(CHARACTER_KEY, JSON.stringify(character));
+  } catch (error) {
+    console.error('Could not save character settings on this device.', error);
+    toast('Character settings could not be saved in this browser.');
+  }
+}
+const HAIR_ROWS = {
+  'short-straight': ['..HHHHHH..', '.HHhHHHHH.', 'HHhHHHHHHH'],
+  'short-curly': ['.hHHHhHHh.', 'HHhHHHHhHH', 'HhHHHHHHhH'],
+  spiky: ['..H.HHHH..', '.HHHHHHHH.', 'HHHhHHHHHH'],
+  bald: ['..........', '..........', '..........'],
+  'buzz-cut': ['..........', '.HHHHHHHH.', 'HHHHHHHHHH'],
+  mullet: ['..HHHHHH..', '.HHhHHHHH.', 'HHhHHHHHHH'],
+  long: ['..HHHHHH..', '.HHhHHHHH.', 'HHhHHHHHHH'],
+  curly: ['.hHHHhHHh.', 'HHhHHHHhHH', 'HhHHHHHHhH'],
+  ponytail: ['..HHHHHHH.', '.HHhHHHHH.', 'HHhHHHHHHH'],
+  braids: ['..HHHHHH..', '.HHhHHHHH.', 'HHhHHHHHHH'],
+  bun: ['...HHHH...', '..HHHHHH..', '.HHhHHHHH.'],
+};
+const TOP_ROWS = {
+  tee: ['.sSSSSSSs.', '..BWBBBB..', '.SBBBBBBS.', '..BbBBbB..'],
+  hoodie: ['.sSSSSSSs.', '..bBBBBb..', '.BBBBBBBB.', '..BBWWBB..'],
+  sweater: ['.sSSSSSSs.', '..BBBBBB..', '.BBBBBBBB.', '..WWBBWW..'],
+  jacket: ['.sSSSSSSs.', '..BWBWBB..', '.BWBWBBBB.', '..BWBWBB..'],
+};
+const HAIR_COLORS = {
+  brown: ['#6b4a3a', '#8a634f'], black: ['#30251f', '#59483d'],
+  blonde: ['#bd843b', '#e7bf62'], auburn: ['#873f2b', '#c06c43'], red: ['#a83632', '#d46754'],
+  pink: ['#a93c78', '#e776b2'], purple: ['#7447a8', '#aa80d5'], blue: ['#3b5f99', '#75a8df'],
+  teal: ['#287f7b', '#62bcb2'], silver: ['#7c8494', '#cbd0d9'], white: ['#b9b8b2', '#f4f1e8'],
+};
+const SKIN_COLORS = {
+  porcelain: ['#fff0dd', '#f2d9bf'], light: ['#ffe0c2', '#f0c8a4'],
+  'light-medium': ['#f3c6a0', '#d99c78'], peach: ['#f4c19b', '#d99a72'],
+  golden: ['#e8b278', '#c88d5b'], olive: ['#d4a47b', '#ad7955'],
+  medium: ['#d99b6c', '#b97851'], tan: ['#c88759', '#a76b43'],
+  'deep-medium': ['#a8734c', '#815333'], brown: ['#82583d', '#65432f'],
+  deep: ['#754a36', '#553323'], dark: ['#563728', '#3f291f'],
+};
+const TOP_COLORS = {
+  coral: ['#f2a0a8', '#d9838d', '#ffd3d8'],
+  teal: ['#75b8aa', '#4b9185', '#c9e8dc'],
+  yellow: ['#efc45c', '#c99a3c', '#ffe6a1'],
+  lavender: ['#ad95d2', '#8269a9', '#ded2ef'],
+  blue: ['#719bc5', '#4f759e', '#c5dcf0'],
+  red: ['#d96f64', '#ae504b', '#f2b4a3'],
+};
+const BOTTOM_COLORS = {
+  blue: '#7b8fb8', charcoal: '#676b7e', green: '#71a88b',
+  purple: '#af7da9', brown: '#9c714e', pink: '#d58494',
+};
+const CHARACTER_COLOR_SWATCHES = {
+  hairColor: [
+    { value: 'brown', label: 'Brown', color: '#6b4a3a' }, { value: 'black', label: 'Black', color: '#30251f' },
+    { value: 'blonde', label: 'Blonde', color: '#bd843b' }, { value: 'auburn', label: 'Auburn', color: '#873f2b' },
+    { value: 'red', label: 'Red', color: '#a83632' }, { value: 'pink', label: 'Pink', color: '#a93c78' },
+    { value: 'purple', label: 'Purple', color: '#7447a8' }, { value: 'blue', label: 'Blue', color: '#3b5f99' },
+    { value: 'teal', label: 'Teal', color: '#287f7b' }, { value: 'silver', label: 'Silver', color: '#7c8494' },
+    { value: 'white', label: 'White', color: '#b9b8b2' },
+  ],
+  skinColor: [
+    { value: 'porcelain', label: 'Porcelain', color: '#fff0dd' }, { value: 'light', label: 'Light', color: '#ffe0c2' },
+    { value: 'light-medium', label: 'Light-medium', color: '#f3c6a0' }, { value: 'peach', label: 'Peach', color: '#f4c19b' },
+    { value: 'golden', label: 'Golden', color: '#e8b278' }, { value: 'olive', label: 'Olive', color: '#d4a47b' },
+    { value: 'medium', label: 'Medium', color: '#d99b6c' }, { value: 'tan', label: 'Tan', color: '#c88759' },
+    { value: 'deep-medium', label: 'Deep-medium', color: '#a8734c' }, { value: 'brown', label: 'Brown', color: '#82583d' },
+    { value: 'deep', label: 'Deep', color: '#754a36' }, { value: 'dark', label: 'Dark', color: '#563728' },
+  ],
+  topColor: [
+    { value: 'coral', label: 'Coral', color: '#f2a0a8' }, { value: 'teal', label: 'Teal', color: '#75b8aa' },
+    { value: 'yellow', label: 'Yellow', color: '#efc45c' }, { value: 'lavender', label: 'Lavender', color: '#ad95d2' },
+    { value: 'blue', label: 'Blue', color: '#719bc5' }, { value: 'red', label: 'Red', color: '#d96f64' },
+  ],
+  bottomsColor: [
+    { value: 'blue', label: 'Blue', color: '#7b8fb8' }, { value: 'charcoal', label: 'Charcoal', color: '#676b7e' },
+    { value: 'green', label: 'Green', color: '#71a88b' }, { value: 'purple', label: 'Purple', color: '#af7da9' },
+    { value: 'brown', label: 'Brown', color: '#9c714e' }, { value: 'pink', label: 'Pink', color: '#d58494' },
+  ],
+};
+function playerRows(dir, step, appearance = character) {
+  const hair = HAIR_ROWS[appearance.hairStyle] || HAIR_ROWS['short-straight'];
+  const faceRows = {
     down: ['HHSSSSSSHH', 'HSSESSESSH', 'HSCSSSSCSH'],
     up: ['HHHHHHHHHH', 'HHHHHHHHHH', '.HHHHHHHH.'],
     right: ['HHHSSSSSSH', 'HHSSSESSES', 'HHSSSSSSCS'],
-  }[dir === 'left' ? 'right' : dir];
-  const body = ['.sSSSSSSs.', '..BWBBBB..', '.SBBBBBBS.', '..BbBBbB..', '..PPPPPP..'];
-  const legs = step ? '..F....F..' : '..FF..FF..';
+  };
+  const baldFaceRows = {
+    down: ['..SSSSSS..', '.SSESSESS.', '.SCSSSSCS.'],
+    up: ['..SSSSSS..', '.SSSSSSSS.', '..SSSSSS..'],
+    right: ['..SSSSSSS.', '..SSESSE..', '..SSSSSSC.'],
+  };
+  const face = (appearance.hairStyle === 'bald' ? baldFaceRows : faceRows)[dir === 'left' ? 'right' : dir];
+  const body = [...(TOP_ROWS[appearance.top] || TOP_ROWS.tee)];
+  body.push(appearance.bottoms === 'skirt' ? '.PPPPPPPP.' : '..PPPPPP..');
+  if (appearance.hairStyle === 'long' || appearance.hairStyle === 'braids') {
+    body[0] = `H${body[0].slice(1, -1)}H`;
+    body[1] = `H${body[1].slice(1, -1)}H`;
+    if (appearance.hairStyle === 'braids') body[2] = `h${body[2].slice(1, -1)}h`;
+  } else if (appearance.hairStyle === 'curly') {
+    body[0] = `H${body[0].slice(1, -1)}H`;
+  } else if (appearance.hairStyle === 'ponytail') {
+    body[0] = `${body[0].slice(0, -1)}H`;
+  } else if (appearance.hairStyle === 'mullet') {
+    body[1] = `H${body[1].slice(1, -1)}H`;
+    body[2] = `h${body[2].slice(1, -1)}h`;
+  }
+  const legs = appearance.bottoms === 'shorts' || appearance.bottoms === 'skirt'
+    ? '..sF..Fs..'
+    : step ? '..F....F..' : '..FF..FF..';
   return [...hair, ...face, ...body, legs];
 }
 const PLAYER_PAL = { H: '#6b4a3a', h: '#8a634f', S: '#ffe0c2', s: '#f0c8a4', E: '#3d2b22', C: '#f4a6a6', B: '#f2a0a8', b: '#d9838d', W: '#ffd3d8', P: '#7b8fb8', F: '#5a4636' };
+function playerPalette(appearance = character) {
+  const [hair, hairHighlight] = HAIR_COLORS[appearance.hairColor] || HAIR_COLORS.brown;
+  const [skin, skinShade] = SKIN_COLORS[appearance.skinColor] || SKIN_COLORS.light;
+  const [top, topShade, topHighlight] = TOP_COLORS[appearance.topColor] || TOP_COLORS.coral;
+  return {
+    ...PLAYER_PAL, H: hair, h: hairHighlight, S: skin, s: skinShade,
+    B: top, b: topShade, W: topHighlight, P: BOTTOM_COLORS[appearance.bottomsColor] || BOTTOM_COLORS.blue,
+  };
+}
 const FOX = [
   '.O......O.', '.OK....KO.', '.OOOOOOOO.', 'OOEOOOOEOO', 'OWWWNNWWWO', '.WWWWWWWW.',
   '..GGGGGG..', '.OGgGGgGO.', '..GGWWGG..', '..OO..OO..', '..DD..DD..',
@@ -424,14 +578,57 @@ let ctx = cv.getContext('2d'); // `let` so the future preview can borrow the ren
 let selectedItem = null, hover = null, t = 0;
 
 // Pixel sprite with a 1-pixel dark outline (like the reference art)
-function drawSprite(rows, pal, cx, bottom, flip = false) {
+function drawSprite(rows, pal, cx, bottom, flip = false, target = ctx) {
   const w = rows[0].length, left = Math.round(cx - w * PX / 2), top = Math.round(bottom - rows.length * PX);
   const paint = (color, ox, oy) => rows.forEach((r, j) => { for (let i = 0; i < w; i++) {
     const c = r[flip ? w - 1 - i : i];
-    if (c !== '.') { ctx.fillStyle = color || pal[c]; ctx.fillRect(left + i * PX + ox, top + j * PX + oy, PX, PX); }
+    if (c !== '.') { target.fillStyle = color || pal[c]; target.fillRect(left + i * PX + ox, top + j * PX + oy, PX, PX); }
   } });
   for (const [ox, oy] of [[-PX, 0], [PX, 0], [0, -PX], [0, PX]]) paint(PAL.outline, ox, oy);
   paint(null, 0, 0);
+}
+function drawCharacterPreview() {
+  const canvas = $('characterPreview');
+  if (!canvas) return;
+  const previewCtx = canvas.getContext('2d');
+  previewCtx.clearRect(0, 0, canvas.width, canvas.height);
+  const rows = playerRows('down', false);
+  drawSprite(rows, playerPalette(), canvas.width / 2, (canvas.height + rows.length * PX) / 2, false, previewCtx);
+}
+let activeCharacterCategory = 'hair';
+function syncCharacterSelections() {
+  document.querySelectorAll('[data-character-field][data-character-value]').forEach(button => {
+    button.setAttribute('aria-pressed', button.dataset.characterValue === character[button.dataset.characterField]);
+  });
+  document.querySelectorAll('[data-character-category]').forEach(button => {
+    button.setAttribute('aria-pressed', button.dataset.characterCategory === activeCharacterCategory);
+  });
+}
+function renderCharacterCategory() {
+  const category = CHARACTER_CATEGORIES[activeCharacterCategory];
+  const colors = CHARACTER_COLOR_SWATCHES[category.colorField].map(({ value, label, color }) =>
+    `<button class="character-swatch" type="button" data-character-field="${category.colorField}" data-character-value="${value}" aria-label="${label}" title="${label}" style="--swatch:${color}"><span aria-hidden="true"></span></button>`
+  ).join('');
+  const options = category.optionField
+    ? `<section class="character-choice-section"><h4>${category.optionLabel}</h4><div class="character-options-list" role="group" aria-label="${category.optionLabel}">${CHARACTER_CHOICES[category.optionField].map(value =>
+      `<button class="character-option" type="button" data-character-field="${category.optionField}" data-character-value="${value}">${CHARACTER_OPTION_LABELS[category.optionField][value]}</button>`
+    ).join('')}</div></section>`
+    : '<p class="character-help">Choose the skin colour that feels right for your character.</p>';
+  $('characterOptions').innerHTML = `
+    <h3 id="characterOptionsTitle">${category.title}</h3>
+    <section class="character-choice-section"><h4>${category.colorLabel}</h4><div class="character-colours" role="group" aria-label="${category.colorLabel}">${colors}</div></section>
+    ${options}`;
+  syncCharacterSelections();
+}
+function chooseCharacterOption(field, value) {
+  if (!CHARACTER_CHOICES[field]?.includes(value)) {
+    console.error('Ignoring an invalid character customization option.', { field, value });
+    return;
+  }
+  character[field] = value;
+  saveCharacter();
+  syncCharacterSelections();
+  drawCharacterPreview();
 }
 // Hard, flat shadow pushed down-right (light from the top-left)
 function shadow(cx, bottom, w = 6) {
@@ -702,7 +899,7 @@ const draw = () => {
     } }]),
     { y: P.ry + .01, draw: () => {
       const cx = P.rx * TILE + TILE / 2, bottom = P.ry * TILE + TILE - 2;
-      shadow(cx, bottom); drawSprite(playerRows(P.dir, step), PLAYER_PAL, cx, bottom - (step ? PX : 0), P.dir === 'left');
+      shadow(cx, bottom); drawSprite(playerRows(P.dir, step), playerPalette(), cx, bottom - (step ? PX : 0), P.dir === 'left');
     } },
   ].sort((a, b) => a.y - b.y);
   ents.forEach(e => e.draw());
@@ -984,7 +1181,7 @@ function dropHeld(e) {
 }
 $('editBtn').onclick = () => { closeMore(); setEdit(!editMode); };
 
-// "more" menu (three grey dots): edit island, goals, history
+// "more" menu (three grey dots): edit island, history, character
 function closeMore() { $('moreMenu').classList.add('hidden'); $('moreBtn').setAttribute('aria-expanded', 'false'); }
 $('moreBtn').onclick = e => {
   e.stopPropagation();
@@ -996,6 +1193,23 @@ $('moreMenu').querySelectorAll('[data-open]').forEach(b => b.addEventListener('c
 addEventListener('click', e => { if (!e.target.closest('.more-wrap')) closeMore(); });
 addEventListener('keydown', e => { if (e.key === 'Escape' && !$('moreMenu').classList.contains('hidden')) { closeMore(); $('moreBtn').focus(); } }, true);
 $('editDone').onclick = () => setEdit(false);
+const characterOptions = $('characterOptions');
+const handleCharacterChoice = e => {
+  const button = e.target.closest('button[data-character-field]');
+  if (button && e.currentTarget.contains(button)) {
+    chooseCharacterOption(button.dataset.characterField, button.dataset.characterValue);
+  }
+};
+characterOptions.addEventListener('click', handleCharacterChoice);
+$('characterGenderOptions').addEventListener('click', handleCharacterChoice);
+$('characterCategories').addEventListener('click', e => {
+  const button = e.target.closest('button[data-character-category]');
+  if (!button || !CHARACTER_CATEGORIES[button.dataset.characterCategory]) return;
+  activeCharacterCategory = button.dataset.characterCategory;
+  renderCharacterCategory();
+});
+renderCharacterCategory();
+drawCharacterPreview();
 function paintAt({ x, y }) {
   if (!canPave(x, y)) return;
   const type = editTool === 'unpave' ? null : editTool.slice(5);
