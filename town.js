@@ -25,14 +25,15 @@ const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls)
 const ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const newCode = () => Array.from({ length: 6 }, () => ALPHABET[Math.floor(Math.random() * ALPHABET.length)]).join('');
 const playerName = () => (S().name || '').trim() || 'Islander';
-// Each device signs in with its own uid, but synced devices share one island. Member entries carry this
-// public island id, so a player's phone + laptop count as one member. (Not the secret sync code.)
-function islandKey() {
-  const s = S();
-  if (!s.islandId) { s.islandId = Array.from(crypto.getRandomValues(new Uint8Array(8)), b => b.toString(16).padStart(2, '0')).join(''); window.saveGame(); }
-  return s.islandId;
-}
-const memberEntry = () => ({ name: playerName(), joinedAt: serverTimestamp(), island: islandKey() });
+// Each device signs in with its own uid, but synced devices share one island. When synced, member entries,
+// posts and hearts carry the island's public id (cloud.js: sha256 of the sync code; never the code itself),
+// so a player's phone + laptop count as one person and either can edit their notes. The database only lets
+// a device use that id after registering with the real code (pubs/{id}/devices, firestore.rules).
+const islandKey = () => window.sync?.pub?.() || null;
+const memberEntry = () => { const island = islandKey(); return { name: playerName(), joinedAt: serverTimestamp(), ...(island ? { island } : {}) }; };
+const withIsland = data => { const island = islandKey(); return island ? { ...data, island } : data; };
+// is this post mine? (written on this device, or on another device of my synced island)
+const isMine = f => f.uid === auth.currentUser?.uid || (!!f.island && f.island === islandKey());
 // who a member "is" for display: their island if known, else their device uid
 const personOf = (t, uid) => t?.members?.[uid]?.island || uid;
 const joining = new Set(); // towns this device is currently auto-joining
@@ -75,8 +76,9 @@ function watch(code) {
       }
       return;
     }
-    if (!mine.island) // older member entry: tag it with this island so synced devices show as one person
-      updateDoc(doc(db, 'towns', code), { [`members.${me}.island`]: islandKey() }).catch(() => {});
+    const island = islandKey();
+    if ((mine.island || null) !== island) // synced / unsynced since joining: keep the island tag right
+      updateDoc(doc(db, 'towns', code), { [`members.${me}.island`]: island || deleteField() }).catch(e => console.warn('[town] island tag failed', e));
     towns.set(code, snap.data());
     render();
   }, err => {
@@ -159,27 +161,33 @@ function posterActions(f, p) {
   const heart = el('button', 'heart');
   heart.type = 'button';
   const paint = () => {
-    const n = Object.keys(hearts).length, mine = !!hearts[me];
+    const town = towns.get(f.code), island = islandKey();
+    const n = new Set(Object.keys(hearts).map(k => personOf(town, k))).size; // a person's devices count once
+    const mine = !!hearts[me] || (!!island && !!hearts[island]);
     heart.className = 'heart' + (mine ? ' on' : '');
     heart.textContent = `${mine ? '♥' : '♡'} ${n || ''}`.trim();
-    if (f.uid === me) heart.title = n ? `${n} heart${n === 1 ? '' : 's'}` : 'No hearts yet';
+    if (isMine(f)) heart.title = n ? `${n} heart${n === 1 ? '' : 's'}` : 'No hearts yet';
     else heart.setAttribute('aria-label', mine ? 'Remove heart' : 'Heart this');
   };
   paint();
-  if (f.uid === me) heart.disabled = true;
+  if (isMine(f)) heart.disabled = true;
   else heart.onclick = () => {
     // update the button right away, then save; put it back if the save fails
-    const on = !hearts[me];
-    if (on) hearts[me] = true; else delete hearts[me];
+    const island = islandKey(), key = island || me; // heart as the island when synced
+    const on = !(hearts[me] || (island && hearts[island]));
+    const before = { ...hearts };
+    const change = { heartBy: key };
+    if (on) { hearts[key] = true; change[`hearts.${key}`] = true; }
+    else for (const k of [me, island]) if (k && hearts[k]) { delete hearts[k]; change[`hearts.${k}`] = deleteField(); }
     paint();
-    updateDoc(ref, { [`hearts.${me}`]: on ? true : deleteField() }).catch(e => {
-      if (on) delete hearts[me]; else hearts[me] = true;
+    updateDoc(ref, change).catch(e => {
+      for (const k of Object.keys(hearts)) delete hearts[k]; Object.assign(hearts, before);
       paint();
       console.warn('[town] heart failed', e); window.toast('Could not heart (' + e.code + ')');
     });
   };
   row.append(heart);
-  if (f.note && f.uid === me) {
+  if (f.note && isMine(f)) {
     const edit = el('button', null, ':pencil:'), del = el('button', null, ':trash:');
     edit.type = del.type = 'button';
     edit.setAttribute('aria-label', 'Edit note'); del.setAttribute('aria-label', 'Delete note');
@@ -231,7 +239,7 @@ window.openBuildInfo = async b => {
     const tasks = items.filter(f => !f.started && f.points > 0);
     const by = new Map(), town = towns.get(b.code);
     for (const f of tasks) {
-      const who = personOf(town, f.uid); // synced devices count as one person
+      const who = f.island || personOf(town, f.uid); // synced devices count as one person
       const c = by.get(who) || { name: f.name, n: 0, pts: 0, uid: f.uid };
       c.n++; c.pts += f.points; by.set(who, c);
     }
@@ -370,7 +378,7 @@ async function startProject() {
         built,
       });
       tx.set(doc(collection(ref, 'feed')), {
-        uid: user.uid, name: playerName(), text: 'started a new project', points: 0,
+        ...withIsland({}), uid: user.uid, name: playerName(), text: 'started a new project', points: 0,
         project: name, started: true, createdAt: serverTimestamp(),
       });
       return 'ok';
@@ -396,7 +404,7 @@ async function contributeTo(code, text, points, user) {
       const done = np.progress >= np.goal;
       tx.update(townRef, { project: np });
       tx.set(doc(collection(townRef, 'feed')), {
-        uid: user.uid, name: playerName(), text, points: np.progress - p.progress, project: p.name,
+        ...withIsland({}), uid: user.uid, name: playerName(), text, points: np.progress - p.progress, project: p.name,
         createdAt: serverTimestamp(), ...(done ? { done: true } : {}),
       });
       return done ? p.name : null;
@@ -499,7 +507,7 @@ async function postNote(code, input) {
   if (!text) return window.toast('Write a note first!');
   try {
     await addDoc(collection(db, 'towns', code, 'feed'), {
-      uid: auth.currentUser.uid, name: playerName(), text, points: 0, note: true, createdAt: serverTimestamp(),
+      ...withIsland({}), uid: auth.currentUser.uid, name: playerName(), text, points: 0, note: true, createdAt: serverTimestamp(),
     });
     input.value = '';
     window.toast(':pin: Note pinned!');
