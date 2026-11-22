@@ -1,12 +1,15 @@
 name: Mobile layout check
 
 on:
+  # PRs get one run; main is re-checked after each merge (pushing a PR branch no longer runs it twice)
   push:
+    branches: [main]
   pull_request:
 
 jobs:
   mobile:
-    runs-on: ubuntu-latest
+    # Pinned: Playwright 1.49's WebKit needs Ubuntu 24.04 system libraries (ubuntu-latest moved past it)
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
