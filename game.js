@@ -28,7 +28,7 @@ const SHOP = [
   { id: 'mailbox', name: 'Mailbox', price: 100, category: 'miscellaneous' },
   { id: 'umbrella', name: 'Beach Umbrella', price: 180, category: 'miscellaneous' },
   { id: 'canoe', name: 'Canoe', price: 350, category: 'vehicle' },
-  { id: 'playground', name: 'Slide', price: 450, category: 'miscellaneous' },
+  { id: 'playground', name: 'Playground', price: 450, category: 'shelter' },
   { id: 'hut', name: 'Cozy Hut', price: 700, category: 'shelter' },
   { id: 'ferris', name: 'Ferris Wheel', price: 3000, category: 'miscellaneous' },
   // added with the shop categories (Lina)
@@ -46,6 +46,30 @@ const SHOP = [
   { id: 'cottage', name: 'Cottage', price: 1800, category: 'shelter' },
   { id: 'mushroom-house', name: 'Mushroom House', price: 2200, category: 'shelter' },
   { id: 'small-shop', name: 'Small Shop', price: 2500, category: 'shelter' },
+  { id: 'bush', name: 'Plain Bush', price: 40, category: 'nature' },
+  { id: 'flower-bush', name: 'Flower Bush', price: 65, category: 'nature' },
+  { id: 'soccer-ball', name: 'Soccer Ball', price: 25, category: 'miscellaneous' },
+  { id: 'basketball', name: 'Basketball', price: 30, category: 'miscellaneous' },
+  { id: 'birdhouse', name: 'Birdhouse', price: 55, category: 'miscellaneous' },
+  { id: 'water-well', name: 'Water Well', price: 200, category: 'miscellaneous' },
+  { id: 'fire-hydrant', name: 'Fire Hydrant', price: 80, category: 'miscellaneous' },
+  { id: 'campfire', name: 'Campfire', price: 100, category: 'miscellaneous' },
+  { id: 'windmill', name: 'Windmill', price: 1100, category: 'shelter' },
+  { id: 'bakery', name: 'Bakery', price: 1800, category: 'shelter' },
+  { id: 'school', name: 'School', price: 3500, category: 'shelter' },
+  { id: 'post-office', name: 'Post Office', price: 1600, category: 'shelter' },
+  { id: 'movie-theater', name: 'Movie Theater', price: 4500, category: 'shelter' },
+  { id: 'library', name: 'Library', price: 2600, category: 'shelter' },
+  { id: 'church', name: 'Church', price: 3200, category: 'shelter' },
+  { id: 'hospital', name: 'Hospital', price: 5000, category: 'shelter' },
+  { id: 'sports-car', name: 'Sports Car', price: 2000, category: 'vehicle' },
+  { id: 'truck', name: 'Truck', price: 1200, category: 'vehicle' },
+  { id: 'bicycle', name: 'Bicycle', price: 250, category: 'vehicle' },
+  { id: 'scooter', name: 'Scooter', price: 350, category: 'vehicle' },
+  { id: 'bus', name: 'Bus', price: 1500, category: 'vehicle' },
+  { id: 'motorcycle', name: 'Motorcycle', price: 800, category: 'vehicle' },
+  { id: 'camper-van', name: 'Camper Van', price: 1800, category: 'vehicle' },
+  { id: 'carousel', name: 'Carousel', price: 1800, category: 'miscellaneous' },
 ].sort((a, b) => a.price - b.price);
 // Shop tabs: one per category (Lina's categories), plus All and Paths; `icon` = pixel icon name
 const SHOP_CATEGORIES = [
@@ -61,6 +85,7 @@ const PATH_KITS = [
   { id: 'wood', name: 'Boardwalk', price: 120 },
   { id: 'stone', name: 'Cobblestone', price: 150 },
   { id: 'brick', name: 'Red Brick', price: 220 },
+  { id: 'asphalt', name: 'Asphalt Road', price: 250 },
 ];
 // small things you can walk over
 const WALK_OVER = new Set(['flower', 'sunflower', 'mushroom']);
@@ -344,7 +369,7 @@ const paintTile = (() => {
   const pebble = (x, y, px, py) => { dot(x, y, px, py, PAL.stone, 2, 1); dot(x, y, px, py + 1, PAL.stoneDark, 2, 1); };
 
   // one path tile in a given style; `edges` adds the curb/grass fringe where it meets grass
-  const PATH_EDGE = { dirt: PAL.pathEdge, stone: '#9d9584', brick: '#a85a47', wood: '#7e5636' };
+  const PATH_EDGE = { dirt: PAL.pathEdge, stone: '#9d9584', brick: '#a85a47', wood: '#7e5636', asphalt: '#3e4246' };
   function drawPath(x, y, type, edges) {
     if (type === 'stone') {
       dot(x, y, 0, 0, '#b3ab9b', 10, 10);                                  // mortar
@@ -370,6 +395,11 @@ const paintTile = (() => {
         dot(x, y, c * 2, 1, PAL.plankLine); dot(x, y, c * 2, 8, PAL.plankLine);
         if (hash(x, y, 160 + c) < .4) dot(x, y, c * 2, 3 + R(x, y, 170 + c, 4), PAL.plankHi, 1, 2);
       }
+    } else if (type === 'asphalt') {
+      dot(x, y, 0, 0, '#55595d', 10, 10);
+      dot(x, y, 0, 0, '#707579', 10, 1); dot(x, y, 0, 9, '#404448', 10, 1);
+      dot(x, y, 1, 4, '#f2c26b', 3, 1); dot(x, y, 6, 4, '#f2c26b', 3, 1);
+      for (let i = 0; i < 5; i++) if (hash(x, y, 180 + i) < .4) dot(x, y, R(x, y, 190 + i, 10), R(x, y, 200 + i, 10), '#666a6e');
     } else {                                                               // dirt
       dot(x, y, 0, 0, PAL.path, 10, 10);
       for (let i = 0; i < 5; i++) dot(x, y, R(x, y, i + 70, 10), R(x, y, i + 80, 10), PAL.pathDot);
@@ -756,6 +786,7 @@ const iconURL = id => urlCache[id] || (urlCache[id] = (pixelSprite(id, true) || 
 const BIG = new Set([
   'tree', 'palm', 'house', 'castle', 'fountain', 'pine', 'hut', 'ferris', 'mountain', 'christmas-tree',
   'gazebo', 'greenhouse', 'treehouse', 'cabin', 'cottage', 'mushroom-house', 'small-shop',
+  'windmill', 'playground', 'bakery', 'school', 'post-office', 'movie-theater', 'library', 'church', 'hospital', 'carousel',
 ]);
 // How strong the sunlight is (0..1): 1 through the day, easing to 0 over the hour or so after sunrise / before sunset
 function sunlight() {
