@@ -376,6 +376,7 @@ body.daily-star-open #intro { transform: translateY(-18vh); transition: transfor
   width: 100%; min-width: 0; padding: 9px; color: var(--ink); font: .95rem var(--font);
   background: #fff; border: var(--px) solid var(--wood);
 }
+#dailyStarGuess { font-size: 16px; }
 .daily-riddle-form input:focus { outline: 2px solid var(--teal-dark); outline-offset: 2px; }
 .daily-riddle-feedback { min-height: 1.2em; margin: 0; color: var(--ink-soft); font-size: .85rem; }
 .daily-riddle-submit { margin: 0; }
