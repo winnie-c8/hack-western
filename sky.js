@@ -28,15 +28,15 @@
 
   // ---- moods: 4 sky bands (top → horizon), island tint, how much lights glow, stars ----
   const M = {
-    night:   { label: 'starry night', sky: ['#18213d', '#222c52', '#2c3963', '#3b4775'], tint: ['#3a4a8a', .58], glow: 1,   warm: 0, stars: 1,  cloud: '#46507a', sea: ['#2f5476', '#264563'] },
-    dawn:    { label: 'dawn',         sky: ['#33406e', '#6e6aa4', '#c98fae', '#f2b0a0'], tint: ['#8a7ab8', .38], glow: .7,  warm: 0.35, stars: .4, cloud: '#c9a6c4', sea: ['#6f8fb0', '#5a7aa0'] },
-    sunrise: { label: 'sunrise',      sky: ['#9cc4dc', '#e9c3c0', '#f8c9a8', '#ffdc9c'], tint: ['#f4b08c', .22], glow: .2,  warm: 0.85, stars: 0,  cloud: '#fde3d0', sea: ['#86c4c8', '#6eb0bd'] },
-    glowAM:  { label: 'sunrise',      sky: ['#b4dbe4', '#f0d9c0', '#fbe0b0', '#ffe6b0'], tint: ['#f8d29a', .13], glow: .05, warm: .6, stars: 0,  cloud: '#fff0dc', sea: ['#78c2c6', '#64afbb'] },
-    morning: { label: 'morning',      sky: ['#bde4e8', '#cfeee9', '#e2f5ea', '#f6f4e0'], tint: ['#fff3dc', .06], glow: 0,   warm: 0.1, stars: 0,  cloud: '#fff7e6', sea: ['#6cc3c8', '#5aaebd'] },
-    day:     { label: 'sunny day',    sky: ['#cdeee9', '#d9f2ea', '#e6f6ea', '#f3f6e4'], tint: ['#ffffff', 0],   glow: 0,   warm: 0, stars: 0,  cloud: '#fff7e6', sea: ['#6cc3c8', '#5aaebd'] },
-    golden:  { label: 'golden hour',  sky: ['#c3dfde', '#ecdcb8', '#f6d49a', '#f8c27c'], tint: ['#f6c27a', .2],  glow: .1,  warm: 0.8, stars: 0,  cloud: '#fde8c4', sea: ['#7cc0bb', '#64a9b0'] },
-    sunset:  { label: 'sunset',       sky: ['#6b74b4', '#c98aa6', '#f29a84', '#f8b268'], tint: ['#ef8f7a', .34], glow: .45, warm: 1, stars: .1, cloud: '#f7b6a8', sea: ['#a58fb0', '#7f7aa6'] },
-    dusk:    { label: 'dusk',         sky: ['#272f5c', '#4b4a82', '#86669a', '#c88498'], tint: ['#6a5a9a', .48], glow: .85, warm: 0.25, stars: .6, cloud: '#6e6696', sea: ['#4a5f8c', '#3c4f7a'] },
+    night:   { label: 'starry night', sky: ['#18213d', '#222c52', '#2c3963', '#3b4775'], tint: ['#3a4a8a', .58], glow: 1,   warm: 0, stars: 1,  clouds: .08, cloud: '#46507a', sea: ['#2f5476', '#264563'] },
+    dawn:    { label: 'dawn',         sky: ['#33406e', '#6e6aa4', '#c98fae', '#f2b0a0'], tint: ['#8a7ab8', .38], glow: .7,  warm: 0.35, stars: .4, clouds: .25, cloud: '#c9a6c4', sea: ['#6f8fb0', '#5a7aa0'] },
+    sunrise: { label: 'sunrise',      sky: ['#9cc4dc', '#e9c3c0', '#f8c9a8', '#ffdc9c'], tint: ['#f4b08c', .22], glow: .2,  warm: 0.85, stars: 0,  clouds: .45, cloud: '#fde3d0', sea: ['#86c4c8', '#6eb0bd'] },
+    glowAM:  { label: 'sunrise',      sky: ['#b4dbe4', '#f0d9c0', '#fbe0b0', '#ffe6b0'], tint: ['#f8d29a', .13], glow: .05, warm: .6, stars: 0,  clouds: .7, cloud: '#fff0dc', sea: ['#78c2c6', '#64afbb'] },
+    morning: { label: 'morning',      sky: ['#bde4e8', '#cfeee9', '#e2f5ea', '#f6f4e0'], tint: ['#fff3dc', .06], glow: 0,   warm: 0.1, stars: 0,  clouds: .9, cloud: '#fff7e6', sea: ['#6cc3c8', '#5aaebd'] },
+    day:     { label: 'sunny day',    sky: ['#cdeee9', '#d9f2ea', '#e6f6ea', '#f3f6e4'], tint: ['#ffffff', 0],   glow: 0,   warm: 0, stars: 0,  clouds: 1, cloud: '#fff7e6', sea: ['#6cc3c8', '#5aaebd'] },
+    golden:  { label: 'golden hour',  sky: ['#c3dfde', '#ecdcb8', '#f6d49a', '#f8c27c'], tint: ['#f6c27a', .2],  glow: .1,  warm: 0.8, stars: 0,  clouds: .6, cloud: '#fde8c4', sea: ['#7cc0bb', '#64a9b0'] },
+    sunset:  { label: 'sunset',       sky: ['#6b74b4', '#c98aa6', '#f29a84', '#f8b268'], tint: ['#ef8f7a', .34], glow: .45, warm: 1, stars: .1, clouds: .4, cloud: '#f7b6a8', sea: ['#a58fb0', '#7f7aa6'] },
+    dusk:    { label: 'dusk',         sky: ['#272f5c', '#4b4a82', '#86669a', '#c88498'], tint: ['#6a5a9a', .48], glow: .85, warm: 0.25, stars: .6, clouds: .2, cloud: '#6e6696', sea: ['#4a5f8c', '#3c4f7a'] },
   };
 
   const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
@@ -46,7 +46,7 @@
     return {
       sky: a.sky.map((c, i) => mix(c, b.sky[i], f)),
       tint: [mix(a.tint[0], b.tint[0], f), lerp(a.tint[1], b.tint[1], f)],
-      glow: lerp(a.glow, b.glow, f), stars: lerp(a.stars, b.stars, f), warm: lerp(a.warm, b.warm, f),
+      glow: lerp(a.glow, b.glow, f), stars: lerp(a.stars, b.stars, f), warm: lerp(a.warm, b.warm, f), clouds: lerp(a.clouds, b.clouds, f),
       cloud: mix(a.cloud, b.cloud, f), sea: a.sea.map((c, i) => mix(c, b.sea[i], f)),
       label: f < .5 ? a.label : b.label,
     };
@@ -125,9 +125,9 @@
     document.getElementById('skyTime').textContent = s.time;
     document.getElementById('skyPhase').textContent = s.label;
     const h = Math.floor(s.inMin / 60), mm = s.inMin % 60;
-    const left = h ? `${h}h ${mm}m` : `${mm}m`;
+    const left = h ? (mm ? `${h}h ${mm}m` : `${h}h`) : `${mm}m`;
     const icon = { sunrise: 'sunrise', morning: 'sun', afternoon: 'sun', sunset: 'sunset', 'night time': 'moon' }[s.next.kind];
-    const nextText = `${s.next.kind} starts at ${s.next.text} · in ${left}`;
+    const nextText = `${s.next.kind} starts in ${left}`;
     const nextEl = document.getElementById('skyNext');
     if (nextEl.dataset.text !== nextText) { nextEl.dataset.text = nextText; nextEl.innerHTML = `${window.pi ? pi(icon) : ''} ${nextText}`; }
     box.title = 'Sunrise 5–8 AM · Morning 8 AM–12 PM · Afternoon 12–5 PM · Sunset 5–8 PM · Night 8 PM–5 AM';
