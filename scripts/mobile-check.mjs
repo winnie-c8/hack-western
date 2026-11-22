@@ -115,6 +115,14 @@ for (const { name, engine } of PHONES) {
   const shotName = (screen) => join(OUT, `mobile-check-${name.replace(/\W+/g, "-")}-${screen}.png`);
   let count = 0;
   const check = async (screen) => {
+    // let one-off animations (e.g. the Daily panel sliding in from the side) finish before measuring,
+    // otherwise a panel caught mid-slide looks like it overflows the screen; endless ones (bobbing) are skipped
+    await page.evaluate(() => Promise.race([
+      Promise.all(document.getAnimations()
+        .filter((a) => a.effect?.getComputedTiming().iterations !== Infinity)
+        .map((a) => a.finished.catch(() => {}))),
+      new Promise((r) => setTimeout(r, 2000)),
+    ]));
     const problems = await page.evaluate(layoutProblems, { MIN_TAP, MIN_INPUT_FONT, MIN_TEXT_FONT });
     await page.screenshot({ path: shotName(screen) });
     for (const p of problems) fail(`${where} · ${screen}`, p);
