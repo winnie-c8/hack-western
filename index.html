@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Future Me Island</title>
 <link rel="preload" href="fonts/VCR_OSD_MONO.ttf" as="font" type="font/ttf" crossorigin>
-<link rel="stylesheet" href="style.css?v=32">
+<link rel="stylesheet" href="style.css?v=33">
 </head>
 <body>
 <div id="intro" class="intro" role="dialog" aria-label="Welcome to Future Me Island">
@@ -73,6 +73,7 @@
       <div id="moreMenu" class="more-menu hidden" role="menu" aria-label="More">
         <button class="more-item" id="editBtn" type="button" role="menuitem" aria-pressed="false"><i data-pi="pencil"></i><span>edit island</span></button>
         <button class="more-item" data-open="history" type="button" role="menuitem"><i data-pi="scroll"></i><span>history</span></button>
+        <button class="more-item" data-open="character" type="button" role="menuitem"><i data-pi="sparkle"></i><span>character</span></button>
       </div>
     </div>
     <button class="help-dot" id="helpBtn" aria-label="Controls" aria-controls="helpPop">?</button>
@@ -87,6 +88,7 @@
       <dt>Click the town island</dt><dd>Visit your town</dd>
       <dt><kbd>Esc</kbd></dt><dd>Close a window / cancel</dd>
     </dl>
+    <p class="music-credit">Background music: “Daydream” by Massobeats via <a href="https://freetouse.com" target="_blank" rel="noopener noreferrer">Free To Use</a>.</p>
   </div>
 
   <button class="town-isle" data-open="town" aria-label="Visit your town">
@@ -99,6 +101,17 @@
       <span class="bag-label"><i data-pi="backpack"></i> Bag</span>
       <div id="inventory" class="bag-items"></div>
     </div>
+  </div>
+
+  <!-- On-screen controls: only shown on touch screens (phones/tablets), never on a computer -->
+  <div id="touchControls" class="touch-controls">
+    <div class="dpad" role="group" aria-label="Walk">
+      <button type="button" class="pad up" data-pad="ArrowUp" aria-label="Walk up">&#9650;</button>
+      <button type="button" class="pad left" data-pad="ArrowLeft" aria-label="Walk left">&#9664;</button>
+      <button type="button" class="pad right" data-pad="ArrowRight" aria-label="Walk right">&#9654;</button>
+      <button type="button" class="pad down" data-pad="ArrowDown" aria-label="Walk down">&#9660;</button>
+    </div>
+    <button type="button" id="padAction" class="pad-action" aria-label="Talk or enter (same as Space)">A</button>
   </div>
 </main>
 
@@ -242,6 +255,38 @@
   </div>
 </div>
 
+<div class="modal hidden" id="panel-character" role="dialog" aria-modal="true" aria-labelledby="characterTitle">
+  <div class="window wide character-window">
+    <div class="window-head"><h2 id="characterTitle"><i data-pi="sparkle"></i> Character</h2><button class="close" data-close aria-label="Close character customization">✕</button></div>
+    <div class="window-body">
+      <div class="character-customizer">
+        <nav id="characterCategories" class="character-categories" aria-label="Character categories">
+          <h3>Categories</h3>
+          <button class="character-category" type="button" data-character-category="hair" aria-pressed="true">Hair</button>
+          <button class="character-category" type="button" data-character-category="skin" aria-pressed="false">Skin colour</button>
+          <button class="character-category" type="button" data-character-category="top" aria-pressed="false">Top</button>
+          <button class="character-category" type="button" data-character-category="bottoms" aria-pressed="false">Bottoms</button>
+        </nav>
+        <section class="character-avatar" aria-label="Your avatar">
+          <h3>Your avatar</h3>
+          <canvas id="characterPreview" width="100" height="76" role="img" aria-label="Preview of your character"></canvas>
+          <p class="character-privacy">Saved on this device only.</p>
+        </section>
+        <section id="characterOptions" class="character-options" aria-live="polite"></section>
+      </div>
+      <section class="character-gender" aria-labelledby="characterGenderTitle">
+        <h3 id="characterGenderTitle">Gender</h3>
+        <div id="characterGenderOptions" class="character-gender-options" role="group" aria-label="Gender">
+          <button class="character-option" type="button" data-character-field="gender" data-character-value="girl">Girl</button>
+          <button class="character-option" type="button" data-character-field="gender" data-character-value="boy">Boy</button>
+          <button class="character-option" type="button" data-character-field="gender" data-character-value="nonbinary">Non-binary</button>
+          <button class="character-option" type="button" data-character-field="gender" data-character-value="unspecified">Prefer not to say</button>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
 <div class="modal hidden" id="panel-build" role="dialog" aria-labelledby="buildTitle">
   <div class="window">
     <div class="window-head"><h2 id="buildTitle"><i data-pi="crane"></i> Town build</h2><button class="close" data-close aria-label="Close">✕</button></div>
@@ -341,10 +386,23 @@
 </div>
 
 <div id="chat" class="modal bottom hidden" role="dialog" aria-label="Chat with Maple">
-  <div class="chat-box">
-    <div class="chat-head"><i data-pi="fox"></i> Maple the Money Fox <button id="closeChat" aria-label="Close">✕</button></div>
-    <div id="chatLog"></div>
-    <form id="chatForm"><input id="chatInput" placeholder="Ask Maple anything about money..." autocomplete="off"><button>Send</button></form>
+  <div class="chat-scene">
+    <div class="chat-stage">
+      <canvas id="chatMe" class="chat-portrait" width="12" height="14" aria-hidden="true"></canvas>
+      <canvas id="chatFox" class="chat-portrait" width="12" height="14" aria-hidden="true"></canvas>
+    </div>
+    <div class="chat-box">
+      <div id="chatName" class="chat-name">Maple</div>
+      <button id="closeChat" class="chat-close" aria-label="Close">✕</button>
+      <div id="chatHistory" class="chat-history hidden">
+        <div id="chatHistoryList"></div>
+        <div id="chatMemory" class="chat-memory"></div>
+        <button id="chatForget" type="button" class="chat-forget">Clear history &amp; memory</button>
+      </div>
+      <div id="chatLog" aria-live="polite"></div>
+      <span class="chat-next" aria-hidden="true">▼</span>
+      <form id="chatForm"><input id="chatInput" placeholder="Ask Maple anything about money..." autocomplete="off"><button>Send</button><button id="chatHistoryBtn" class="chat-hist-btn" type="button">History</button></form>
+    </div>
   </div>
 </div>
 
@@ -363,10 +421,11 @@
   </section>
 </div>
 
-<script src="icons.js?v=30"></script>
-<script src="sky.js?v=27"></script>
-<script src="intro.js?v=27"></script>
-<script src="game.js?v=32"></script>
+<script src="icons.js?v=33"></script>
+<script src="sky.js?v=33"></script>
+<script src="intro.js?v=33"></script>
+<script src="Updated/Music%20for%20game.js?v=1"></script>
+<script src="game.js?v=33"></script>
 <script src="Set%20goals.js?v=27"></script>
 <script src="daily-star.js?v=27"></script>
 <script type="module" src="cloud.js"></script>

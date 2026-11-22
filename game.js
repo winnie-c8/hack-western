@@ -39,12 +39,19 @@ const SHOP = [
   { id: 'fence', name: 'Fence', price: 140, category: 'miscellaneous' },
   { id: 'park-bench', name: 'Bench', price: 130, category: 'miscellaneous' },
   { id: 'lamppost', name: 'Lamppost', price: 120, category: 'miscellaneous' },
+  { id: 'gazebo', name: 'Gazebo', price: 500, category: 'shelter' },
+  { id: 'greenhouse', name: 'Greenhouse', price: 900, category: 'shelter' },
+  { id: 'treehouse', name: 'Treehouse', price: 1200, category: 'shelter' },
+  { id: 'cabin', name: 'Cabin', price: 1500, category: 'shelter' },
+  { id: 'cottage', name: 'Cottage', price: 1800, category: 'shelter' },
+  { id: 'mushroom-house', name: 'Mushroom House', price: 2200, category: 'shelter' },
+  { id: 'small-shop', name: 'Small Shop', price: 2500, category: 'shelter' },
 ].sort((a, b) => a.price - b.price);
 // Shop tabs: one per category (Lina's categories), plus All and Paths; `icon` = pixel icon name
 const SHOP_CATEGORIES = [
   { id: 'nature', label: 'Nature', icon: 'leaf' },
   { id: 'miscellaneous', label: 'Miscellaneous', icon: 'bench' },
-  { id: 'shelter', label: 'Shelter', icon: 'home' },
+  { id: 'shelter', label: 'Structures', icon: 'home' },
   { id: 'vehicle', label: 'Vehicles', icon: 'car' },
 ];
 let shopTab = 'all';
@@ -412,18 +419,172 @@ const swatchCache = {};
 const swatchURL = type => swatchCache[type] ||= pathPainter.swatch(type);
 
 // Sprites as pixel strings (each char = one art pixel; '.' = transparent)
-function playerRows(dir, step) {
-  const hair = ['..HHHHHH..', '.HHhHHHHH.', 'HHhHHHHHHH'];
-  const face = {
+const CHARACTER_KEY = 'fmi-character';
+const CHARACTER_DEFAULTS = {
+  gender: 'unspecified', hairStyle: 'short-straight', hairColor: 'brown',
+  skinColor: 'light', top: 'tee', topColor: 'coral', bottoms: 'jeans', bottomsColor: 'blue',
+};
+const CHARACTER_CHOICES = {
+  gender: ['girl', 'boy', 'nonbinary', 'unspecified'],
+  hairStyle: ['short-straight', 'short-curly', 'spiky', 'bald', 'buzz-cut', 'mullet', 'long', 'curly', 'ponytail', 'braids', 'bun'],
+  hairColor: ['brown', 'black', 'blonde', 'auburn', 'red', 'pink', 'purple', 'blue', 'teal', 'silver', 'white'],
+  skinColor: ['porcelain', 'light', 'light-medium', 'peach', 'golden', 'olive', 'medium', 'tan', 'deep-medium', 'brown', 'deep', 'dark'],
+  top: ['tee', 'hoodie', 'sweater', 'jacket'], topColor: ['coral', 'teal', 'yellow', 'lavender', 'blue', 'red'],
+  bottoms: ['jeans', 'charcoal-pants', 'shorts', 'skirt'], bottomsColor: ['blue', 'charcoal', 'green', 'purple', 'brown', 'pink'],
+};
+const CHARACTER_CATEGORIES = {
+  hair: { title: 'Hair', colorField: 'hairColor', colorLabel: 'Hair colour', optionField: 'hairStyle', optionLabel: 'Hair style' },
+  skin: { title: 'Skin colour', colorField: 'skinColor', colorLabel: 'Skin colour' },
+  top: { title: 'Top', colorField: 'topColor', colorLabel: 'Top colour', optionField: 'top', optionLabel: 'Style' },
+  bottoms: { title: 'Bottoms', colorField: 'bottomsColor', colorLabel: 'Bottoms colour', optionField: 'bottoms', optionLabel: 'Style' },
+};
+const CHARACTER_OPTION_LABELS = {
+  hairStyle: {
+    'short-straight': 'Short straight', 'short-curly': 'Short curly', spiky: 'Spiky', bald: 'Bald',
+    'buzz-cut': 'Buzz cut', mullet: 'Mullet', long: 'Long', curly: 'Curly', ponytail: 'Ponytail',
+    braids: 'Braids', bun: 'Bun',
+  },
+  top: { tee: 'T-shirt', hoodie: 'Hoodie', sweater: 'Sweater', jacket: 'Jacket' },
+  bottoms: { jeans: 'Jeans', 'charcoal-pants': 'Pants', shorts: 'Shorts', skirt: 'Skirt' },
+};
+function loadCharacter() {
+  try {
+    const saved = JSON.parse(localStorage.getItem(CHARACTER_KEY) || 'null');
+    if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return { ...CHARACTER_DEFAULTS };
+    return Object.fromEntries(Object.keys(CHARACTER_DEFAULTS).map(key => [
+      key, key === 'hairStyle' && saved[key] === 'short'
+        ? 'short-straight'
+        : CHARACTER_CHOICES[key].includes(saved[key]) ? saved[key] : CHARACTER_DEFAULTS[key],
+    ]));
+  } catch (error) {
+    console.warn('Could not load character settings from this browser.', error);
+    return { ...CHARACTER_DEFAULTS };
+  }
+}
+let character = loadCharacter();
+function saveCharacter() {
+  try {
+    localStorage.setItem(CHARACTER_KEY, JSON.stringify(character));
+  } catch (error) {
+    console.error('Could not save character settings on this device.', error);
+    toast('Character settings could not be saved in this browser.');
+  }
+}
+const HAIR_ROWS = {
+  'short-straight': ['..HHHHHH..', '.HHhHHHHH.', 'HHhHHHHHHH'],
+  'short-curly': ['.hHHHhHHh.', 'HHhHHHHhHH', 'HhHHHHHHhH'],
+  spiky: ['..H.HHHH..', '.HHHHHHHH.', 'HHHhHHHHHH'],
+  bald: ['..........', '..........', '..........'],
+  'buzz-cut': ['..........', '.HHHHHHHH.', 'HHHHHHHHHH'],
+  mullet: ['..HHHHHH..', '.HHhHHHHH.', 'HHhHHHHHHH'],
+  long: ['..HHHHHH..', '.HHhHHHHH.', 'HHhHHHHHHH'],
+  curly: ['.hHHHhHHh.', 'HHhHHHHhHH', 'HhHHHHHHhH'],
+  ponytail: ['..HHHHHHH.', '.HHhHHHHH.', 'HHhHHHHHHH'],
+  braids: ['..HHHHHH..', '.HHhHHHHH.', 'HHhHHHHHHH'],
+  bun: ['...HHHH...', '..HHHHHH..', '.HHhHHHHH.'],
+};
+const TOP_ROWS = {
+  tee: ['.sSSSSSSs.', '..BWBBBB..', '.SBBBBBBS.', '..BbBBbB..'],
+  hoodie: ['.sSSSSSSs.', '..bBBBBb..', '.BBBBBBBB.', '..BBWWBB..'],
+  sweater: ['.sSSSSSSs.', '..BBBBBB..', '.BBBBBBBB.', '..WWBBWW..'],
+  jacket: ['.sSSSSSSs.', '..BWBWBB..', '.BWBWBBBB.', '..BWBWBB..'],
+};
+const HAIR_COLORS = {
+  brown: ['#6b4a3a', '#8a634f'], black: ['#30251f', '#59483d'],
+  blonde: ['#bd843b', '#e7bf62'], auburn: ['#873f2b', '#c06c43'], red: ['#a83632', '#d46754'],
+  pink: ['#a93c78', '#e776b2'], purple: ['#7447a8', '#aa80d5'], blue: ['#3b5f99', '#75a8df'],
+  teal: ['#287f7b', '#62bcb2'], silver: ['#7c8494', '#cbd0d9'], white: ['#b9b8b2', '#f4f1e8'],
+};
+const SKIN_COLORS = {
+  porcelain: ['#fff0dd', '#f2d9bf'], light: ['#ffe0c2', '#f0c8a4'],
+  'light-medium': ['#f3c6a0', '#d99c78'], peach: ['#f4c19b', '#d99a72'],
+  golden: ['#e8b278', '#c88d5b'], olive: ['#d4a47b', '#ad7955'],
+  medium: ['#d99b6c', '#b97851'], tan: ['#c88759', '#a76b43'],
+  'deep-medium': ['#a8734c', '#815333'], brown: ['#82583d', '#65432f'],
+  deep: ['#754a36', '#553323'], dark: ['#563728', '#3f291f'],
+};
+const TOP_COLORS = {
+  coral: ['#f2a0a8', '#d9838d', '#ffd3d8'],
+  teal: ['#75b8aa', '#4b9185', '#c9e8dc'],
+  yellow: ['#efc45c', '#c99a3c', '#ffe6a1'],
+  lavender: ['#ad95d2', '#8269a9', '#ded2ef'],
+  blue: ['#719bc5', '#4f759e', '#c5dcf0'],
+  red: ['#d96f64', '#ae504b', '#f2b4a3'],
+};
+const BOTTOM_COLORS = {
+  blue: '#7b8fb8', charcoal: '#676b7e', green: '#71a88b',
+  purple: '#af7da9', brown: '#9c714e', pink: '#d58494',
+};
+const CHARACTER_COLOR_SWATCHES = {
+  hairColor: [
+    { value: 'brown', label: 'Brown', color: '#6b4a3a' }, { value: 'black', label: 'Black', color: '#30251f' },
+    { value: 'blonde', label: 'Blonde', color: '#bd843b' }, { value: 'auburn', label: 'Auburn', color: '#873f2b' },
+    { value: 'red', label: 'Red', color: '#a83632' }, { value: 'pink', label: 'Pink', color: '#a93c78' },
+    { value: 'purple', label: 'Purple', color: '#7447a8' }, { value: 'blue', label: 'Blue', color: '#3b5f99' },
+    { value: 'teal', label: 'Teal', color: '#287f7b' }, { value: 'silver', label: 'Silver', color: '#7c8494' },
+    { value: 'white', label: 'White', color: '#b9b8b2' },
+  ],
+  skinColor: [
+    { value: 'porcelain', label: 'Porcelain', color: '#fff0dd' }, { value: 'light', label: 'Light', color: '#ffe0c2' },
+    { value: 'light-medium', label: 'Light-medium', color: '#f3c6a0' }, { value: 'peach', label: 'Peach', color: '#f4c19b' },
+    { value: 'golden', label: 'Golden', color: '#e8b278' }, { value: 'olive', label: 'Olive', color: '#d4a47b' },
+    { value: 'medium', label: 'Medium', color: '#d99b6c' }, { value: 'tan', label: 'Tan', color: '#c88759' },
+    { value: 'deep-medium', label: 'Deep-medium', color: '#a8734c' }, { value: 'brown', label: 'Brown', color: '#82583d' },
+    { value: 'deep', label: 'Deep', color: '#754a36' }, { value: 'dark', label: 'Dark', color: '#563728' },
+  ],
+  topColor: [
+    { value: 'coral', label: 'Coral', color: '#f2a0a8' }, { value: 'teal', label: 'Teal', color: '#75b8aa' },
+    { value: 'yellow', label: 'Yellow', color: '#efc45c' }, { value: 'lavender', label: 'Lavender', color: '#ad95d2' },
+    { value: 'blue', label: 'Blue', color: '#719bc5' }, { value: 'red', label: 'Red', color: '#d96f64' },
+  ],
+  bottomsColor: [
+    { value: 'blue', label: 'Blue', color: '#7b8fb8' }, { value: 'charcoal', label: 'Charcoal', color: '#676b7e' },
+    { value: 'green', label: 'Green', color: '#71a88b' }, { value: 'purple', label: 'Purple', color: '#af7da9' },
+    { value: 'brown', label: 'Brown', color: '#9c714e' }, { value: 'pink', label: 'Pink', color: '#d58494' },
+  ],
+};
+function playerRows(dir, step, appearance = character) {
+  const hair = HAIR_ROWS[appearance.hairStyle] || HAIR_ROWS['short-straight'];
+  const faceRows = {
     down: ['HHSSSSSSHH', 'HSSESSESSH', 'HSCSSSSCSH'],
     up: ['HHHHHHHHHH', 'HHHHHHHHHH', '.HHHHHHHH.'],
     right: ['HHHSSSSSSH', 'HHSSSESSES', 'HHSSSSSSCS'],
-  }[dir === 'left' ? 'right' : dir];
-  const body = ['.sSSSSSSs.', '..BWBBBB..', '.SBBBBBBS.', '..BbBBbB..', '..PPPPPP..'];
-  const legs = step ? '..F....F..' : '..FF..FF..';
+  };
+  const baldFaceRows = {
+    down: ['..SSSSSS..', '.SSESSESS.', '.SCSSSSCS.'],
+    up: ['..SSSSSS..', '.SSSSSSSS.', '..SSSSSS..'],
+    right: ['..SSSSSSS.', '..SSESSE..', '..SSSSSSC.'],
+  };
+  const face = (appearance.hairStyle === 'bald' ? baldFaceRows : faceRows)[dir === 'left' ? 'right' : dir];
+  const body = [...(TOP_ROWS[appearance.top] || TOP_ROWS.tee)];
+  body.push(appearance.bottoms === 'skirt' ? '.PPPPPPPP.' : '..PPPPPP..');
+  if (appearance.hairStyle === 'long' || appearance.hairStyle === 'braids') {
+    body[0] = `H${body[0].slice(1, -1)}H`;
+    body[1] = `H${body[1].slice(1, -1)}H`;
+    if (appearance.hairStyle === 'braids') body[2] = `h${body[2].slice(1, -1)}h`;
+  } else if (appearance.hairStyle === 'curly') {
+    body[0] = `H${body[0].slice(1, -1)}H`;
+  } else if (appearance.hairStyle === 'ponytail') {
+    body[0] = `${body[0].slice(0, -1)}H`;
+  } else if (appearance.hairStyle === 'mullet') {
+    body[1] = `H${body[1].slice(1, -1)}H`;
+    body[2] = `h${body[2].slice(1, -1)}h`;
+  }
+  const legs = appearance.bottoms === 'shorts' || appearance.bottoms === 'skirt'
+    ? '..sF..Fs..'
+    : step ? '..F....F..' : '..FF..FF..';
   return [...hair, ...face, ...body, legs];
 }
 const PLAYER_PAL = { H: '#6b4a3a', h: '#8a634f', S: '#ffe0c2', s: '#f0c8a4', E: '#3d2b22', C: '#f4a6a6', B: '#f2a0a8', b: '#d9838d', W: '#ffd3d8', P: '#7b8fb8', F: '#5a4636' };
+function playerPalette(appearance = character) {
+  const [hair, hairHighlight] = HAIR_COLORS[appearance.hairColor] || HAIR_COLORS.brown;
+  const [skin, skinShade] = SKIN_COLORS[appearance.skinColor] || SKIN_COLORS.light;
+  const [top, topShade, topHighlight] = TOP_COLORS[appearance.topColor] || TOP_COLORS.coral;
+  return {
+    ...PLAYER_PAL, H: hair, h: hairHighlight, S: skin, s: skinShade,
+    B: top, b: topShade, W: topHighlight, P: BOTTOM_COLORS[appearance.bottomsColor] || BOTTOM_COLORS.blue,
+  };
+}
 const FOX = [
   '.O......O.', '.OK....KO.', '.OOOOOOOO.', 'OOEOOOOEOO', 'OWWWNNWWWO', '.WWWWWWWW.',
   '..GGGGGG..', '.OGgGGgGO.', '..GGWWGG..', '..OO..OO..', '..DD..DD..',
@@ -435,14 +596,57 @@ let ctx = cv.getContext('2d'); // `let` so the future preview can borrow the ren
 let selectedItem = null, hover = null, t = 0;
 
 // Pixel sprite with a 1-pixel dark outline (like the reference art)
-function drawSprite(rows, pal, cx, bottom, flip = false) {
+function drawSprite(rows, pal, cx, bottom, flip = false, target = ctx) {
   const w = rows[0].length, left = Math.round(cx - w * PX / 2), top = Math.round(bottom - rows.length * PX);
   const paint = (color, ox, oy) => rows.forEach((r, j) => { for (let i = 0; i < w; i++) {
     const c = r[flip ? w - 1 - i : i];
-    if (c !== '.') { ctx.fillStyle = color || pal[c]; ctx.fillRect(left + i * PX + ox, top + j * PX + oy, PX, PX); }
+    if (c !== '.') { target.fillStyle = color || pal[c]; target.fillRect(left + i * PX + ox, top + j * PX + oy, PX, PX); }
   } });
   for (const [ox, oy] of [[-PX, 0], [PX, 0], [0, -PX], [0, PX]]) paint(PAL.outline, ox, oy);
   paint(null, 0, 0);
+}
+function drawCharacterPreview() {
+  const canvas = $('characterPreview');
+  if (!canvas) return;
+  const previewCtx = canvas.getContext('2d');
+  previewCtx.clearRect(0, 0, canvas.width, canvas.height);
+  const rows = playerRows('down', false);
+  drawSprite(rows, playerPalette(), canvas.width / 2, (canvas.height + rows.length * PX) / 2, false, previewCtx);
+}
+let activeCharacterCategory = 'hair';
+function syncCharacterSelections() {
+  document.querySelectorAll('[data-character-field][data-character-value]').forEach(button => {
+    button.setAttribute('aria-pressed', button.dataset.characterValue === character[button.dataset.characterField]);
+  });
+  document.querySelectorAll('[data-character-category]').forEach(button => {
+    button.setAttribute('aria-pressed', button.dataset.characterCategory === activeCharacterCategory);
+  });
+}
+function renderCharacterCategory() {
+  const category = CHARACTER_CATEGORIES[activeCharacterCategory];
+  const colors = CHARACTER_COLOR_SWATCHES[category.colorField].map(({ value, label, color }) =>
+    `<button class="character-swatch" type="button" data-character-field="${category.colorField}" data-character-value="${value}" aria-label="${label}" title="${label}" style="--swatch:${color}"><span aria-hidden="true"></span></button>`
+  ).join('');
+  const options = category.optionField
+    ? `<section class="character-choice-section"><h4>${category.optionLabel}</h4><div class="character-options-list" role="group" aria-label="${category.optionLabel}">${CHARACTER_CHOICES[category.optionField].map(value =>
+      `<button class="character-option" type="button" data-character-field="${category.optionField}" data-character-value="${value}">${CHARACTER_OPTION_LABELS[category.optionField][value]}</button>`
+    ).join('')}</div></section>`
+    : '<p class="character-help">Choose the skin colour that feels right for your character.</p>';
+  $('characterOptions').innerHTML = `
+    <h3 id="characterOptionsTitle">${category.title}</h3>
+    <section class="character-choice-section"><h4>${category.colorLabel}</h4><div class="character-colours" role="group" aria-label="${category.colorLabel}">${colors}</div></section>
+    ${options}`;
+  syncCharacterSelections();
+}
+function chooseCharacterOption(field, value) {
+  if (!CHARACTER_CHOICES[field]?.includes(value)) {
+    console.error('Ignoring an invalid character customization option.', { field, value });
+    return;
+  }
+  character[field] = value;
+  saveCharacter();
+  syncCharacterSelections();
+  drawCharacterPreview();
 }
 // Hard, flat shadow pushed down-right (light from the top-left)
 function shadow(cx, bottom, w = 6) {
@@ -472,7 +676,10 @@ function silhouette(id, color) {
 const emojiSprite = () => pixelSprite('crate');
 const urlCache = {};
 const iconURL = id => urlCache[id] || (urlCache[id] = (pixelSprite(id, true) || pixelSprite('crate', true)).toDataURL()); // outlined for the shop/bag
-const BIG = new Set(['tree', 'palm', 'house', 'castle', 'fountain', 'pine', 'hut', 'ferris', 'mountain', 'christmas-tree']);
+const BIG = new Set([
+  'tree', 'palm', 'house', 'castle', 'fountain', 'pine', 'hut', 'ferris', 'mountain', 'christmas-tree',
+  'gazebo', 'greenhouse', 'treehouse', 'cabin', 'cottage', 'mushroom-house', 'small-shop',
+]);
 function drawItem(id, x, y, alpha = 1) {
   const size = BIG.has(id) ? 56 : 36, cx = x * TILE + TILE / 2, bottom = y * TILE + TILE - 2;
   const left = cx - size / 2, top = bottom - size, o = Math.max(2, Math.round(size / 16));
@@ -760,7 +967,7 @@ const draw = () => {
     } }]),
     { y: P.ry + .01, draw: () => {
       const cx = P.rx * TILE + TILE / 2, bottom = P.ry * TILE + TILE - 2;
-      shadow(cx, bottom); drawSprite(playerRows(P.dir, step), PLAYER_PAL, cx, bottom - (step ? PX : 0), P.dir === 'left');
+      shadow(cx, bottom); drawSprite(playerRows(P.dir, step), playerPalette(), cx, bottom - (step ? PX : 0), P.dir === 'left');
     } },
   ].sort((a, b) => a.y - b.y);
   ents.forEach(e => e.draw());
@@ -927,10 +1134,33 @@ addEventListener('keydown', e => {
   if (typing()) return;
   const dirKey = moveKey(e.key);
   if (dirKey) { keys[dirKey] = true; e.preventDefault(); }
-  if (e.key === ' ') { e.preventDefault(); if (nearVillager()) openChat(); else if (nearShop()) openPanel('shop'); else if (nearBank()) openPanel('bank'); else if (nearBuild()) window.openBuildInfo?.(nearBuild()); }
+  if (e.key === ' ') { e.preventDefault(); interact(); }
   if (e.key === 'Escape') { if (editMode) setEdit(false); selectedItem = null; renderInventory(); }
 });
 addEventListener('keyup', e => { const k = moveKey(e.key); if (k) keys[k] = false; });
+// Space / the on-screen A button: talk to Maple, enter the shop or the bank, or open a town building you're next to
+function interact() {
+  if (nearVillager()) openChat(); else if (nearShop()) openPanel('shop'); else if (nearBank()) openPanel('bank'); else if (nearBuild()) window.openBuildInfo?.(nearBuild());
+}
+
+// ---------- On-screen controls (touch screens only: shown by the (hover: none) and (pointer: coarse) rule in style.css) ----------
+// Holding a D-pad button works exactly like holding an arrow key.
+document.querySelectorAll('[data-pad]').forEach(btn => {
+  const key = btn.dataset.pad;
+  const release = () => { keys[key] = false; btn.classList.remove('on'); };
+  btn.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if (document.body.classList.contains('intro-open') || anyOpen()) return;
+    keys[key] = true; btn.classList.add('on');
+    btn.setPointerCapture?.(e.pointerId); // keep walking even if the thumb slides a little
+  });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => btn.addEventListener(t, release));
+  btn.addEventListener('contextmenu', e => e.preventDefault()); // no long-press menu
+});
+document.getElementById('padAction')?.addEventListener('click', () => {
+  if (document.body.classList.contains('intro-open') || anyOpen()) return;
+  interact();
+});
 
 function update() {
   const arrived = Math.abs(P.rx - P.x) < .01 && Math.abs(P.ry - P.y) < .01;
@@ -1035,7 +1265,7 @@ function dropHeld(e) {
 }
 $('editBtn').onclick = () => { closeMore(); setEdit(!editMode); };
 
-// "more" menu (three grey dots): edit island, goals, history
+// "more" menu (three grey dots): edit island, history, character and whatever else is listed in index.html
 function closeMore() { $('moreMenu').classList.add('hidden'); $('moreBtn').setAttribute('aria-expanded', 'false'); }
 $('moreBtn').onclick = e => {
   e.stopPropagation();
@@ -1047,6 +1277,23 @@ $('moreMenu').querySelectorAll('[data-open]').forEach(b => b.addEventListener('c
 addEventListener('click', e => { if (!e.target.closest('.more-wrap')) closeMore(); });
 addEventListener('keydown', e => { if (e.key === 'Escape' && !$('moreMenu').classList.contains('hidden')) { closeMore(); $('moreBtn').focus(); } }, true);
 $('editDone').onclick = () => setEdit(false);
+const characterOptions = $('characterOptions');
+const handleCharacterChoice = e => {
+  const button = e.target.closest('button[data-character-field]');
+  if (button && e.currentTarget.contains(button)) {
+    chooseCharacterOption(button.dataset.characterField, button.dataset.characterValue);
+  }
+};
+characterOptions.addEventListener('click', handleCharacterChoice);
+$('characterGenderOptions').addEventListener('click', handleCharacterChoice);
+$('characterCategories').addEventListener('click', e => {
+  const button = e.target.closest('button[data-character-category]');
+  if (!button || !CHARACTER_CATEGORIES[button.dataset.characterCategory]) return;
+  activeCharacterCategory = button.dataset.characterCategory;
+  renderCharacterCategory();
+});
+renderCharacterCategory();
+drawCharacterPreview();
 function paintAt({ x, y }) {
   if (!canPave(x, y)) return;
   const type = editTool === 'unpave' ? null : editTool.slice(5);
@@ -1323,7 +1570,7 @@ function drawFutureChart(st, rate, start) {
       <text x="${x}" y="${T - 10}" class="mslabel" text-anchor="${y === SPAN ? 'end' : 'middle'}">${yrs(y)}</text>
       <circle cx="${x}" cy="${sy(project(start, rate, y, false))}" r="${on ? 6 : 5}" fill="${FUTURE_COLORS.save}" class="end"/>
       <circle cx="${x}" cy="${sy(project(start, rate, y, true))}" r="${on ? 6 : 5}" fill="${FUTURE_COLORS.invest}" class="end"/>
-      <rect x="${x - 14}" y="${T - 24}" width="28" height="${H - B - T + 24}" fill="transparent"/>
+      <rect x="${x - 45}" y="${T - 24}" width="90" height="${H - B - T + 24}" fill="transparent"/>
     </g>`;
   }).join('');
   const endSave = project(start, rate, SPAN, false), endInv = project(start, rate, SPAN, true);
@@ -1627,40 +1874,124 @@ const TIPS = [
   "Small amounts add up — $5 a day is over $1,800 a year!",
   "An emergency fund of 3–6 months of expenses = peace of mind.",
 ];
-const chatHistory = [];
+// Maple's memory lives in the save file (and the cloud copy):
+// S.chat = past messages [{ role: 'user'|'model', text, at }], S.mapleNotes = facts she learned about you
+const CHAT_KEEP = 200, NOTES_KEEP = 40;
 async function askVillager(question) {
-  const goals = (S.personalGoals || []).map(g => `${g.name}: $${g.saved}/$${g.target}`).join(', ') || 'none yet';
-  const context = `(Player info: saved $${S.saved} total, ${S.streak}-day streak, goals: ${goals})`;
+  S.chat ||= []; S.mapleNotes ||= [];
+  const goals = (S.personalGoals || []).map(g => `${g.name}: $${g.saved}/$${g.target}${g.completed ? ' (done!)' : ''}`).join(', ') || 'none yet';
+  const context = `(Player info: today is ${today()}, saved $${S.saved} total, ${S.streak}-day streak, goals: ${goals})`;
   try {
     const API = ['localhost', '127.0.0.1'].includes(location.hostname)
       ? 'http://localhost:3001' : 'https://future-me-cdzs.onrender.com';
     const res = await fetch(`${API}/api/fox`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ history: chatHistory, message: `${question}\n${context}` }),
+      body: JSON.stringify({
+        history: S.chat.slice(-30).map(({ role, text }) => ({ role, text })),
+        notes: S.mapleNotes,
+        message: `${question}\n${context}`,
+      }),
     });
-    const { reply } = await res.json();
-    chatHistory.push({ role: 'user', text: question }, { role: 'model', text: reply });
-    return reply.replace(/[<>]/g, '');
+    if (!res.ok) throw new Error(res.status);
+    const { reply, remember = [] } = await res.json();
+    const clean = String(reply).replace(/[<>]/g, '');
+    const at = Date.now();
+    S.chat.push({ role: 'user', text: question, at }, { role: 'model', text: clean, at });
+    S.chat = S.chat.slice(-CHAT_KEEP);
+    for (const n of remember) if (n && !S.mapleNotes.includes(n)) S.mapleNotes.push(String(n).slice(0, 140));
+    S.mapleNotes = S.mapleNotes.slice(-NOTES_KEEP);
+    save();
+    return clean;
   } catch {
     return TIPS[Math.floor(Math.random() * TIPS.length)];
   }
 }
-function addMsg(text, who) { const d = document.createElement('div'); d.className = 'msg ' + who; d.innerHTML = pit(text); $('chatLog').append(d); $('chatLog').scrollTop = 1e9; }
+// Talk scene: the player on the left, Maple on the right, dialogue revealed letter by letter
+function drawPortrait(canvas, rows, pal) {
+  const c = canvas.getContext('2d'), w = rows[0].length;
+  c.clearRect(0, 0, canvas.width, canvas.height);
+  const top = canvas.height - 1 - rows.length, left = Math.floor((canvas.width - w) / 2);
+  const paint = (color, ox, oy) => rows.forEach((r, j) => { for (let i = 0; i < w; i++) if (r[i] !== '.') {
+    c.fillStyle = color || pal[r[i]]; c.fillRect(left + i + ox, top + j + oy, 1, 1);
+  } });
+  for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) paint(PAL.outline, ox, oy);
+  paint(null, 0, 0);
+}
+drawPortrait($('chatMe'), playerRows('right', false), PLAYER_PAL);
+drawPortrait($('chatFox'), FOX, FOX_PAL);
+
+let typingRun = 0, skipTyping = null;
+function addMsg(text, who) {
+  const run = ++typingRun, me = who === 'me', log = $('chatLog'), box = log.closest('.chat-box');
+  $('chatMe').classList.toggle('talking', me);
+  $('chatFox').classList.toggle('talking', !me);
+  $('chatName').textContent = me ? 'You' : 'Maple';
+  $('chatName').classList.toggle('me', me);
+  box.classList.remove('done'); log.innerHTML = '';
+  // Plain text appears one letter at a time; :icon: codes pop in whole
+  const parts = String(text).split(/(:[a-z]+:)/).filter(Boolean);
+  return new Promise(resolve => {
+    const finish = () => { if (run !== typingRun) return resolve(); log.innerHTML = pit(text); box.classList.add('done'); skipTyping = null; resolve(); };
+    skipTyping = finish;
+    (async () => {
+      for (const p of parts) {
+        if (/^:[a-z]+:$/.test(p)) { log.insertAdjacentHTML('beforeend', pit(p)); continue; }
+        const node = document.createTextNode(''); log.append(node);
+        for (const ch of p) {
+          if (run !== typingRun || skipTyping !== finish) return;
+          node.data += ch; log.scrollTop = 1e9;
+          await new Promise(r => setTimeout(r, /[.!?]/.test(ch) ? 180 : 28));
+        }
+      }
+      finish();
+    })();
+  });
+}
+$('chatLog').onclick = () => skipTyping?.();
 function openChat() {
   closePanels(); Object.keys(keys).forEach(k => keys[k] = false);
-  $('chat').classList.remove('hidden');
-  if (!$('chatLog').children.length) addMsg(`Hey there! I'm Maple :fox:. You've saved $${S.saved} so far — future you is cheering! Ask me about TFSAs, budgeting, FHSAs...`, 'bot');
+  $('chat').classList.remove('hidden'); showChatHistory(false);
+  const back = S.chat?.length;
+  addMsg(back
+    ? `Welcome back, friend! :fox: You've saved $${S.saved} so far. What's on your mind today — a goal, a worry, or a money question?`
+    : `Hey there! I'm Maple :fox:. The future can feel uncertain, but small steps add up — and I'm here to help. You've saved $${S.saved} so far. Ask me about TFSAs, budgeting, your goals... anything!`, 'bot');
   $('chatInput').focus();
 }
-function closeChat() { closePanels(); }
+function closeChat() { typingRun++; closePanels(); }
 $('closeChat').onclick = closeChat;
+
+// Chat history: every past message, newest at the bottom, plus what Maple remembers about you
+function showChatHistory(open = $('chatHistory').classList.contains('hidden')) {
+  $('chatHistory').classList.toggle('hidden', !open);
+  $('chatHistoryBtn').textContent = open ? 'Back' : 'History';
+  if (!open) return;
+  const chat = S.chat || [], notes = S.mapleNotes || [];
+  let lastDay = '';
+  $('chatHistoryList').innerHTML = chat.length ? chat.map(m => {
+    const day = m.at ? fmt(new Date(m.at)) : '';
+    const sep = day && day !== lastDay ? `<div class="hist-day">${day}</div>` : '';
+    lastDay = day || lastDay;
+    return `${sep}<div class="hist-msg ${m.role === 'user' ? 'me' : 'bot'}"><b>${m.role === 'user' ? 'You' : 'Maple'}</b>${pit(m.text)}</div>`;
+  }).join('') : '<p class="muted">No chats yet — say hi to Maple!</p>';
+  $('chatMemory').innerHTML = notes.length
+    ? `<b>Maple remembers:</b><ul>${notes.map(n => `<li>${pit(n)}</li>`).join('')}</ul>` : '';
+  $('chatHistoryList').scrollTop = 1e9;
+}
+$('chatHistoryBtn').onclick = () => showChatHistory();
+$('chatForget').onclick = () => {
+  if (!confirm('Clear your chat history and everything Maple remembers about you?')) return;
+  S.chat = []; S.mapleNotes = []; save(); showChatHistory(true);
+};
 $('chatForm').onsubmit = async e => {
   e.preventDefault();
   const q = $('chatInput').value.trim(); if (!q) return;
-  $('chatInput').value = ''; addMsg(q, 'me');
-  addMsg('...', 'bot'); const typing = $('chatLog').lastChild;
-  typing.innerHTML = pit(await askVillager(q));
+  $('chatInput').value = ''; showChatHistory(false);
+  const answer = askVillager(q);
+  await addMsg(q, 'me');
+  await new Promise(r => setTimeout(r, 400));
+  addMsg('...', 'bot');
+  addMsg(await answer, 'bot');
   completeMission('chat');
 };
 $('chatInput').addEventListener('keydown', e => { if (e.key === 'Escape') closeChat(); });
