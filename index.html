@@ -5,11 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tomo Island</title>
 <link rel="preload" href="fonts/VCR_OSD_MONO.ttf" as="font" type="font/ttf" crossorigin>
-<link rel="stylesheet" href="style.css?v=56">
+<link rel="stylesheet" href="style.css?v=58">
 </head>
 <body>
 <div id="intro" class="intro" role="dialog" aria-label="Welcome to Tomo Island">
   <canvas id="introScene" width="320" height="180" aria-hidden="true"></canvas>
+  <!-- same music button as on the island (top right); both stay in sync -->
+  <button class="help-dot music-dot intro-music" id="introMusic" type="button" aria-label="Background music" aria-pressed="false" title="Play background music"><i data-pi="musicOff"></i></button>
   <div class="intro-stage">
     <div class="intro-sign">
       <h2 class="intro-title" data-text="Tomo Island" aria-label="Tomo Island"></h2>
@@ -539,10 +541,10 @@
 <script src="icons.js?v=36"></script>
 <script src="sky.js?v=36"></script>
 <script src="intro.js?v=34"></script>
-<script src="Updated/Music%20for%20game.js?v=2"></script>
+<script src="Updated/Music%20for%20game.js?v=3"></script>
 <script src="game.js?v=54"></script>
 <script src="Set%20goals.js?v=27"></script>
-<script src="daily-star.js?v=47"></script>
+<script src="daily-star.js?v=50"></script>
 <script src="tutorial.js?v=5"></script>
 <script type="module" src="cloud.js"></script>
 <script type="module" src="town.js?v=31"></script>

@@ -96,6 +96,7 @@ kbd { font: inherit; background: var(--paper); border: 2px solid var(--wood-dark
 .music-dot, .pixel-dot { display: grid; place-items: center; }
 .music-dot .pi, .pixel-dot .pi { width: 17px; height: 17px; vertical-align: middle; color: var(--ink); }  /* "?" and music note: same pixel ink style */
 .music-dot.unavailable { opacity: .3; cursor: not-allowed; }
+.intro-music { position: absolute; z-index: 3; top: 18px; right: 18px; } /* the intro screen's copy of the music button */
 .help-pop {
   position: fixed; top: 50px; right: 10px; z-index: 15; width: 340px; max-width: calc(100vw - 20px);
   background: var(--paper); border: var(--px) solid var(--wood-dark); box-shadow: var(--shadow); padding: 12px 16px;
@@ -275,7 +276,14 @@ button.primary:active, button.secondary:active { transform: translateY(2px); box
   transition: transform .68s cubic-bezier(.2,.8,.2,1), opacity .26s ease;
 }
 #dailyStarModal.skyward-visible { opacity: 1; transform: translateY(0); }
+#dailyStarModal.arrived { transition: none; } /* straight off the ride up: already in the sky, no slide-in */
 body.daily-star-open { overflow: hidden; }
+/* first Daily Star visit: rising up through the stars (pixel canvas over everything; click to skip) */
+.star-ascent {
+  position: fixed; inset: 0; z-index: 120; width: 100%; height: 100%; object-fit: cover;
+  image-rendering: pixelated; cursor: pointer; transition: opacity .45s ease;
+}
+.star-ascent.done { opacity: 0; pointer-events: none; }
 body.daily-star-open #intro { transform: translateY(-18vh); transition: transform .68s cubic-bezier(.2,.8,.2,1); }
 #dailyStarModal .daily-star-backdrop { position: absolute; z-index: 0; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; pointer-events: none; }
 #dailyStarModal .daily-star-shade {
