@@ -431,15 +431,15 @@ body.holding .bag { outline: 3px dashed var(--sun-dark); outline-offset: 3px; }
 .goal-opt:hover { background: rgba(255, 255, 255, .8); transform: translateY(-2px); }
 .goal-opt.on { background: #e2f0d6; border-color: var(--sage-dark); box-shadow: 3px 3px 0 rgba(28,52,44,.25); }
 .log-btn {
-  margin-top: 10px; height: 96px; font-size: 2.4rem; letter-spacing: 2px; cursor: pointer; color: var(--ink);
-  display: flex; align-items: center; justify-content: center; gap: 14px; text-align: center; padding: 0 12px;
-  background: #a6d7b0; border: 4px solid var(--sage-dark); box-shadow: inset 0 -8px 0 rgba(0,0,0,.08), 6px 6px 0 rgba(28,52,44,.3);
+  margin-top: 10px; height: 64px; font-size: 1.6rem; letter-spacing: 2px; cursor: pointer; color: var(--ink);
+  display: flex; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 0 12px;
+  background: #a6d7b0; border: 4px solid var(--sage-dark); box-shadow: inset 0 -6px 0 rgba(0,0,0,.08), 5px 5px 0 rgba(28,52,44,.3);
 }
 .log-btn:hover { background: #b6e0bf; }
 .log-btn:active { transform: translate(3px, 3px); box-shadow: none; }
 .link-btn { align-self: center; background: none; border: none; color: var(--ink-soft); font-size: .9rem; cursor: pointer; text-decoration: underline; }
 .bank-body .earn { margin-top: 0; }
-@media (max-width: 760px) { .amt-tile { height: 70px; font-size: 1.5rem; } .log-btn { height: 72px; font-size: 1.5rem; } }
+@media (max-width: 760px) { .amt-tile { height: 70px; font-size: 1.5rem; } .log-btn { height: 54px; font-size: 1.2rem; } }
 
 /* ===== History & Future ===== */
 .future-body { display: flex; flex-direction: column; gap: 14px; }
@@ -943,6 +943,21 @@ body.intro-open { overflow: hidden; }
 .sky-text small { font-size: .7rem; letter-spacing: 1.2px; text-transform: uppercase; color: rgba(255,247,230,.75); }
 .sky-text .sky-next { text-transform: none; letter-spacing: .5px; margin-top: 2px; white-space: nowrap; }
 .sky-text .sky-next .pi { width: 1.4em; height: 1.4em; vertical-align: -.35em; }
+/* the little sunrise / sun / sunset / moon icon: no bouncing, just a tiny sparkle while you hover the clock */
+.sky-ico { position: relative; display: inline-block; }
+.sky-text .sky-next .pi, .sky-clock:hover .sky-text .sky-next .pi { animation: none !important; transform: none !important; }
+.sky-ico .glint {
+  position: absolute; top: -1px; right: -3px; width: 7px; height: 7px; pointer-events: none; opacity: 0;
+  /* a 4-point pixel twinkle: a plus sign drawn with two thin bars */
+  background:
+    linear-gradient(#fff7e6, #fff7e6) center / 1px 7px no-repeat,
+    linear-gradient(#fff7e6, #fff7e6) center / 7px 1px no-repeat;
+}
+.sky-clock:hover .sky-ico .glint { animation: skyGlint 1.4s steps(4) infinite; }
+.sky-clock:hover .sky-text .sky-next .pi { animation: skyGlow 1.4s ease-in-out infinite !important; }
+@keyframes skyGlint { 0%, 100% { opacity: 0; transform: scale(.3); } 25% { opacity: 1; transform: scale(1); } 50% { opacity: .6; transform: scale(.6); } 75% { opacity: 0; transform: scale(.3); } }
+@keyframes skyGlow { 0%, 100% { filter: none; } 30% { filter: brightness(1.25) drop-shadow(0 0 2px rgba(255, 243, 196, .8)); } }
+@media (prefers-reduced-motion: reduce) { .sky-clock:hover .sky-ico .glint, .sky-clock:hover .sky-text .sky-next .pi { animation: none !important; } }
 @media (max-width: 600px) { .sky-clock canvas { width: 56px; height: 28px; } .sky-text .sky-next { display: none; } }
 
 /* ===== Daily Star (opens over the intro's island scene) ===== */
@@ -1120,7 +1135,7 @@ body.intro-open { overflow: hidden; }
   animation: pi-thunk 1.4s ease-out infinite; transform-origin: 50% 55%; transform-box: view-box;
 }
 @keyframes pi-arrow {
-  0% { transform: translate(60%, -60%); opacity: 0; }
+  0% { transform: translate(28%, -28%); opacity: 0; }   /* starts just off the corner, so it stays near the button */
   8% { opacity: 1; }
   30% { transform: none; animation-timing-function: ease-out; }
   34% { transform: translate(-3%, 3%); }
@@ -1189,14 +1204,14 @@ body.intro-open { overflow: hidden; }
 .hud-left .stat { transition: padding .3s ease; }
 .hud-left .stat small, .sky-text small { display: block; max-height: 2.4em; overflow: hidden; transition: max-height .3s ease, opacity .25s ease, margin .3s ease; }
 .sky-clock canvas { transition: width .3s ease, opacity .25s ease; }
-.hud-left.tucked:not(:hover) .stats, .hud-left.tucked:not(:hover) .sky-clock {
+.hud-left.tucked:not(.peek) .stats, .hud-left.tucked:not(.peek) .sky-clock {
   min-width: 0; transform: translateX(-16px); border-radius: 0 12px 12px 0; opacity: .88;
 }
-.hud-left.tucked:not(:hover) .stat { padding: 4px 12px 4px 20px; }
-.hud-left.tucked:not(:hover) .stat small { max-height: 0; opacity: 0; }
-.hud-left.tucked:not(:hover) .sky-clock { padding: 6px 12px 6px 22px; gap: 0; }
-.hud-left.tucked:not(:hover) .sky-clock canvas { width: 0; opacity: 0; }
-.hud-left.tucked:not(:hover) .sky-text small { max-height: 0; opacity: 0; margin: 0; }
+.hud-left.tucked:not(.peek) .stat { padding: 4px 12px 4px 20px; }
+.hud-left.tucked:not(.peek) .stat small { max-height: 0; opacity: 0; }
+.hud-left.tucked:not(.peek) .sky-clock { padding: 6px 12px 6px 22px; gap: 0; }
+.hud-left.tucked:not(.peek) .sky-clock canvas { width: 0; opacity: 0; }
+.hud-left.tucked:not(.peek) .sky-text small { max-height: 0; opacity: 0; margin: 0; }
 @media (prefers-reduced-motion: reduce) {
   .hud-left .stats, .hud-left .sky-clock, .hud-left .stat, .hud-left .stat small, .sky-text small, .sky-clock canvas { transition: none; }
 }
@@ -1241,7 +1256,7 @@ body.intro-open { overflow: hidden; }
   .note-form { flex-wrap: wrap; }
   .note-form input { flex: 1 1 100%; }                           /* the note gets its own line instead of being squeezed */
   /* touch screens can't hover, so the slim HUD stays fully on screen instead of tucking past the edge */
-  .hud-left.tucked:not(:hover) .stats, .hud-left.tucked:not(:hover) .sky-clock { transform: none; }
+  .hud-left.tucked:not(.peek) .stats, .hud-left.tucked:not(.peek) .sky-clock { transform: none; }
   .saved-banner.compact:not(:hover) .saved-text small { font-size: .7rem; }   /* 11.2px: still readable when slim */
   .saved-text small { white-space: nowrap; }   /* one line, so the sign stays short and clear of the D-pad */
   .hud-top { left: 0; right: 0; transform: none; display: flex; justify-content: center; }   /* centre the sign on the full width (left:50% capped it at half the screen) */
@@ -1257,3 +1272,9 @@ body.intro-open { overflow: hidden; }
   .saved-ico .pi { width: 1.6rem; height: 1.6rem; }
   .hud-top { justify-content: flex-start; padding-left: 10px; }   /* line the sign up with the bag, away from the town island */
 }
+
+/* while the top-left cards are open, the whole area (including the gaps between cards) counts as hovering */
+.hud-left.peek { pointer-events: auto; }
+
+/* bank: the friendly "(optional...)" note next to "which account?" */
+.optional-note { font-size: .78rem; color: var(--ink-soft); font-style: italic; }

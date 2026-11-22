@@ -1355,6 +1355,18 @@ $('moreBtn').onclick = e => {
 };
 $('moreMenu').querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', closeMore));
 addEventListener('click', e => { if (!e.target.closest('.more-wrap')) closeMore(); });
+
+// Top-left cards (title, coins/streak, clock): hovering any of them opens them all ("peek"). While open, the gaps
+// between the cards count as hovering too, and they wait a moment before tucking back, so they never flicker.
+{
+  const hud = document.querySelector('.hud-left');
+  let peekTimer = null;
+  const open = () => { clearTimeout(peekTimer); hud.classList.add('peek'); };
+  const closeSoon = () => { clearTimeout(peekTimer); peekTimer = setTimeout(() => hud.classList.remove('peek'), 350); };
+  hud.querySelectorAll(':scope > *').forEach(el => el.addEventListener('pointerenter', open));
+  hud.addEventListener('pointerenter', open);
+  hud.addEventListener('pointerleave', closeSoon);
+}
 addEventListener('keydown', e => { if (e.key === 'Escape' && !$('moreMenu').classList.contains('hidden')) { closeMore(); $('moreBtn').focus(); } }, true);
 $('editDone').onclick = () => setEdit(false);
 const characterOptions = $('characterOptions');

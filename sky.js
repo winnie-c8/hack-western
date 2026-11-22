@@ -141,7 +141,7 @@
     const icon = { sunrise: 'sunrise', morning: 'sun', afternoon: 'sun', sunset: 'sunset', 'night time': 'moon' }[s.next.kind];
     const nextText = `${s.next.kind} starts in ${left}`;
     const nextEl = document.getElementById('skyNext');
-    if (nextEl.dataset.text !== nextText) { nextEl.dataset.text = nextText; nextEl.innerHTML = `${window.pi ? pi(icon) : ''} ${nextText}`; }
+    if (nextEl.dataset.text !== nextText) { nextEl.dataset.text = nextText; nextEl.innerHTML = `<span class="sky-ico">${window.pi ? pi(icon) : ''}<i class="glint" aria-hidden="true"></i></span> ${nextText}`; }
     box.title = 'Sunrise 5–8 AM · Morning 8 AM–12 PM · Afternoon 12–5 PM · Sunset 5–8 PM · Night 8 PM–5 AM';
   }
   const start = () => { updateClock(); setInterval(updateClock, lapse > 0 ? 250 : 15000); };
