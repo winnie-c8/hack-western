@@ -1237,7 +1237,6 @@ body.intro-open { overflow: hidden; }
 
 /* very narrow phones (e.g. iPhone SE): keep the bag to 2 lines so it stays below the money-saved sign */
 @media (max-width: 400px) {
-  .bag-label { font-size: 0; }                          /* icon only, no "Bag" word */
-  .bag-label .pi { width: 22px; height: 22px; }
+  .bag-word { display: none; }                          /* icon only, no "Bag" word */
   .bag-items .empty { font-size: .85rem; }
 }
