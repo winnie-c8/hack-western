@@ -19,7 +19,7 @@ const weekKey = (d = new Date()) => { const x = new Date(d); x.setDate(x.getDate
 const defaultState = () => ({
   coins: 100, saved: 0, history: [], inventory: {}, placed: [],
   personalGoals: [], streak: 0, lastStreakDay: null, missionsDay: today(), missionsDone: [],
-  player: { x: 9, y: 8 }, weeks: [], lastDepositDay: null,
+  player: { x: 5, y: 8 }, weeks: [], lastDepositDay: null,
   accounts: ['High-interest savings', 'TFSA', 'RRSP', 'FHSA (first home)'],
 });
 let S;
@@ -580,7 +580,7 @@ function update() {
     if (keys.ArrowLeft) { dx = -1; P.dir = 'left'; } else if (keys.ArrowRight) { dx = 1; P.dir = 'right'; }
     else if (keys.ArrowUp) { dy = -1; P.dir = 'up'; } else if (keys.ArrowDown) { dy = 1; P.dir = 'down'; }
     P.moving = !!(dx || dy);
-    if (P.moving && walkable(P.x + dx, P.y + dy)) { P.x += dx; P.y += dy; S.player = { x: P.x, y: P.y }; saveLocal(); } // walking: browser only, no cloud write
+    if (P.moving && walkable(P.x + dx, P.y + dy)) { P.x += dx; P.y += dy; S.player = { x: P.x, y: P.y }; saveLocal(); publishTutorialPosition(); } // walking: browser only, no cloud write
   } else {
     P.rx += Math.sign(P.x - P.rx) * Math.min(.2, Math.abs(P.x - P.rx));
     P.ry += Math.sign(P.y - P.ry) * Math.min(.2, Math.abs(P.y - P.ry));
@@ -588,6 +588,16 @@ function update() {
 }
 const nearVillager = () => Math.abs(P.x - VILLAGER.x) + Math.abs(P.y - VILLAGER.y) <= 1;
 const nearShop = () => P.y === SHOP_BLD.y + SHOP_BLD.h && P.x >= SHOP_BLD.x && P.x < SHOP_BLD.x + SHOP_BLD.w;
+function publishTutorialPosition() {
+  window.dispatchEvent(new CustomEvent('fmi:player-position', { detail: {
+    nearMaple: nearVillager(),
+    nearShop: nearShop(),
+    maple: { x: VILLAGER.x, y: VILLAGER.y, tile: TILE },
+    shop: { x: SHOP_BLD.x + SHOP_BLD.w / 2 - .5, y: SHOP_BLD.y + SHOP_BLD.h - .5, tile: TILE },
+  } }));
+}
+window.addEventListener('fmi:tutorial-start', publishTutorialPosition);
+publishTutorialPosition();
 (function loop() { update(); draw(); drawSea(); requestAnimationFrame(loop); })();
 
 // ---------- Placing items ----------
@@ -625,6 +635,7 @@ function closePanels() {
   document.querySelectorAll('.modal').forEach(m => m.classList.add('hidden'));
   document.querySelectorAll('[data-open]').forEach(b => b.classList.remove('active'));
   document.activeElement?.blur?.();
+  window.dispatchEvent(new Event('fmi:panels-closed'));
 }
 function openPanel(name) {
   const el = $('panel-' + name), side = el.classList.contains('side');
@@ -637,6 +648,7 @@ function openPanel(name) {
     Object.keys(keys).forEach(k => keys[k] = false); // don't keep walking behind a pop-up
     el.querySelector('.close')?.focus();
   }
+  window.dispatchEvent(new CustomEvent('fmi:panel-opened', { detail: { name } }));
 }
 document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openPanel(b.dataset.open));
 paintTownIsle();
@@ -837,6 +849,7 @@ function openChat() {
   $('chat').classList.remove('hidden');
   if (!$('chatLog').children.length) addMsg(`Hey there! I'm Maple 🦊. You've saved $${S.saved} so far — future you is cheering! Ask me about TFSAs, budgeting, FHSAs...`, 'bot');
   $('chatInput').focus();
+  window.dispatchEvent(new Event('fmi:maple-chat-opened'));
 }
 function closeChat() { closePanels(); }
 $('closeChat').onclick = closeChat;
@@ -858,7 +871,10 @@ renderAll();
 
 if (document.body.classList.contains('intro-open')) {
   new MutationObserver((_, obs) => {
-    if (!document.body.classList.contains('intro-open')) { obs.disconnect(); openPanel('bank'); }
+    if (!document.body.classList.contains('intro-open')) {
+      obs.disconnect();
+      if (!document.body.classList.contains('tutorial-open')) openPanel('bank');
+    }
   }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 } else openPanel('bank');
 
@@ -868,6 +884,7 @@ window.loadCloudState = data => {
   migrateLegacyGoals();
   try { localStorage.setItem('fmi', JSON.stringify(S)); } catch {}
   Object.assign(P, { x: S.player.x, y: S.player.y, rx: S.player.x, ry: S.player.y, moving: false });
+  publishTutorialPosition();
   rollDay(); renderAll();
 };
 window.getState = () => S;
