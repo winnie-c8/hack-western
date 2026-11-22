@@ -1688,6 +1688,7 @@ function drawFutureChart(st, rate, start) {
   }).join('');
   const endSave = project(start, rate, SPAN, false), endInv = project(start, rate, SPAN, true);
   cancelAnimationFrame(chartAnim); chartAnim = null;
+  svg.parentElement.querySelectorAll('.chart-pop').forEach(p => p.remove()); // bubbles from the last draw-in
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.innerHTML = `
     ${yt.map(v => `<line x1="${L}" x2="${W - R}" y1="${sy(v)}" y2="${sy(v)}" class="grid"/><text x="${L - 8}" y="${sy(v) + 4}" class="tick" text-anchor="end">${money(v)}</text>`).join('')}
@@ -1741,7 +1742,9 @@ function drawFutureChart(st, rate, start) {
     MILESTONES.map(y => `<tr><td>in ${yrs(y)}</td><td>${moneyFull(project(start, rate, y, false))}</td><td>${moneyFull(project(start, rate, y, true))}</td></tr>`).join('');
 }
 
-// Line draws left→right; at each milestone it pauses and the readout above the graph announces "$X saved in N yrs!".
+// Line draws left→right; at each milestone it pauses and announces "$X saved in N yrs!".
+// Desktop: a bubble pops up on the graph, right under that milestone's dot. Phones: the readout above the graph says it
+// (a bubble would cover most of a small graph).
 function playChartIntro(svg, W, L, R, sx, sy, start, rate) {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return; // just show the finished graph
   const rect = svg.querySelector('#revealRect'), tip = $('chartTip'), rest = tip.innerHTML;
@@ -1749,7 +1752,21 @@ function playChartIntro(svg, W, L, R, sx, sy, start, rate) {
   const SPEED = (endX - L) / 2600;          // ~2.6s of drawing, plus the pauses
   let x = L, last = performance.now(), pauseUntil = 0;
   rect.setAttribute('width', x);
-  const pop = ({ y }) => {
+  const onGraph = matchMedia('(hover: hover) and (pointer: fine) and (min-width: 521px)').matches;
+  const pop = ({ y, x: mx }) => {
+    if (onGraph) {
+      const wrap = svg.parentElement, k = svg.clientWidth / W, b = document.createElement('div');
+      const dotY = sy(project(start, rate, y, false));
+      // under the dot, or above it when the dot is low (so the bubble doesn't hang over the axis labels)
+      b.className = 'chart-pop' + (y === SPAN ? ' at-end' : '') + (dotY > svg.viewBox.baseVal.height * .55 ? ' above' : '');
+      b.innerHTML = `<b>${moneyFull(project(start, rate, y, false))}</b><span>saved in ${yrs(y)}!</span>`;
+      const sr = svg.getBoundingClientRect(), wr = wrap.getBoundingClientRect(); // (an <svg> has no offsetLeft/Top)
+      b.style.left = `${sr.left - wr.left + mx * k}px`;
+      b.style.top = `${sr.top - wr.top + dotY * k}px`;
+      wrap.append(b);
+      if (y === SPAN) setTimeout(() => wrap.querySelectorAll('.chart-pop').forEach(p => p.classList.add('bye')), 2600);
+      return;
+    }
     tip.innerHTML = `<b>${moneyFull(project(start, rate, y, false))}</b><span>saved in ${yrs(y)}!</span>`;
     tip.classList.remove('flash'); void tip.offsetWidth; tip.classList.add('flash'); // restart the little bounce
     if (y === SPAN) setTimeout(() => { if (tip.isConnected && !chartAnim) { tip.innerHTML = rest; tip.classList.remove('flash'); } }, 2200);
@@ -2170,10 +2187,14 @@ const loadQr = () => qrLib ||= new Promise((resolve, reject) => {
   s.onerror = () => { qrLib = null; reject(new Error('QR library failed to load')); };
   document.head.append(s);
 });
+let syncOffer = null; // code from a sync link / QR, waiting for the player to tap SYNC
 function renderSync() {
-  const code = window.sync?.code();
-  $('syncOff').hidden = !!code; $('syncOn').hidden = !code;
-  if (!code) return;
+  const code = window.sync?.code(), offer = syncOffer && syncOffer !== code ? syncOffer : null;
+  $('syncOffer').hidden = !offer;
+  $('syncOff').hidden = !!code || !!offer; $('syncOn').hidden = !code || !!offer;
+  if (!code && !offer && !$('syncIslandName').value) $('syncIslandName').value = suggestIslandName();
+  if (!code || offer) return;
+  $('syncIslandShow').textContent = S.islandName || 'Your island';
   $('syncCodeShow').textContent = fmtSync(code);
   $('syncQr').hidden = true;
   loadQr().then(qrcode => {
@@ -2186,8 +2207,14 @@ const cloudReady = () => {
   syncStatus("Syncing isn't available right now. Check your connection and try again.");
   return false;
 };
-$('syncCreate').onclick = async () => {
+// The island needs a name before it's shared, so the other device sees "You're syncing to <name>"
+const suggestIslandName = () => S.islandName || ((S.name || '').trim() ? `${S.name.trim()}'s Island` : '');
+$('syncCreateForm').onsubmit = async e => {
+  e.preventDefault();
   if (!cloudReady()) return;
+  const name = $('syncIslandName').value.trim().slice(0, 30);
+  if (!name) { syncStatus('Give your island a name first!'); return $('syncIslandName').focus(); }
+  S.islandName = name; save(); // saved before the code is made, so the synced copy has it
   syncStatus('Creating your code…');
   try { await window.sync.create(); syncStatus(''); renderSync(); }
   catch (e) { console.warn('[sync] create failed', e); syncStatus('Could not create a code. Check your connection and try again.'); }
@@ -2214,17 +2241,55 @@ $('syncUnlink').onclick = async () => {
   await window.sync.unlink(); syncStatus(''); renderSync();
   toast('This device is no longer synced');
 };
-// Opened from a scanned QR code / copied link (…#sync=CODE): show the Sync window with the code filled in
+// "You're syncing to Sam's island · $120 saved · 5-day streak": look up the island behind a sync link
+async function peekOffer(code) {
+  for (let i = 0; i < 40 && !window.sync; i++) await new Promise(r => setTimeout(r, 250)); // cloud.js may still be loading
+  try {
+    const info = await window.sync?.peek(code);
+    if (syncOffer !== code) return;
+    if (!info) {
+      $('syncOfferStats').textContent = "We couldn't find an island with this code. Ask for a new link from your other device.";
+      $('syncOfferGo').disabled = true;
+      return;
+    }
+    $('syncOfferName').textContent = info.islandName || (info.name ? `${info.name}'s island` : 'your island');
+    $('syncOfferStats').innerHTML = pit(`:piggy: $${info.saved.toLocaleString()} saved · :flame: ${info.streak}-day streak · :coin: ${info.coins.toLocaleString()} coins`);
+  } catch (e) {
+    console.warn('[sync] peek failed', e);
+    if (syncOffer === code) $('syncOfferStats').textContent = "Couldn't look up the island right now, but you can still tap SYNC.";
+  }
+}
+$('syncOfferGo').onclick = async () => {
+  if (!cloudReady()) return;
+  const hasProgress = S.saved > 0 || (S.history || []).length > 0 || (S.placed || []).length > 0;
+  if (hasProgress && !confirm('This device already has an island with progress on it. Replace it with the synced island?')) return;
+  $('syncOfferGo').disabled = true; syncStatus('Syncing…');
+  try {
+    if (!(await window.sync.join(syncOffer))) { $('syncOfferGo').disabled = false; return syncStatus('No island found with that code. Ask for a new link.'); }
+    syncOffer = null; syncStatus(''); renderSync();
+    toast("Synced! You're playing your island on this device now.");
+  } catch (e) {
+    console.warn('[sync] join failed', e);
+    $('syncOfferGo').disabled = false; syncStatus('Could not sync. Check your connection and try again.');
+  }
+};
+$('syncOfferCancel').onclick = () => { syncOffer = null; syncStatus(''); closePanels(); };
+// Opened from a scanned QR code / copied link (…#sync=CODE): show "You're syncing to …" with a big SYNC button
 (function syncFromLink() {
   const m = location.hash.match(/sync=([A-Za-z0-9-]{12,16})/);
   if (!m) return;
   history.replaceState(null, '', location.pathname + location.search); // don't leave the code in the address bar
   const code = m[1].toUpperCase().replace(/[^A-Z0-9]/g, '');
   const show = () => {
-    openPanel('sync');
-    if (window.sync?.code() === code) return syncStatus('This device is already synced with that island.');
-    $('syncInput').value = fmtSync(code);
-    syncStatus('Tap Link to play your synced island on this device.');
+    syncOffer = code;
+    $('syncOfferCode').textContent = fmtSync(code);
+    $('syncOfferName').textContent = 'your island';
+    $('syncOfferStats').textContent = 'Looking up the island…';
+    $('syncOfferGo').disabled = false;
+    syncStatus('');
+    openPanel('sync'); // renderSync() shows the "You're syncing to …" screen
+    if (window.sync?.code() === code) { syncOffer = null; renderSync(); return syncStatus('This device is already synced with that island.'); }
+    peekOffer(code);
   };
   if (!document.body.classList.contains('intro-open')) return show();
   new MutationObserver((_, obs) => {

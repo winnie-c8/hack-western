@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tomo Island</title>
 <link rel="preload" href="fonts/VCR_OSD_MONO.ttf" as="font" type="font/ttf" crossorigin>
-<link rel="stylesheet" href="style.css?v=45">
+<link rel="stylesheet" href="style.css?v=47">
 </head>
 <body>
 <div id="intro" class="intro" role="dialog" aria-label="Welcome to Tomo Island">
@@ -312,9 +312,24 @@
   <div class="window sync-window">
     <div class="window-head"><h2 id="syncTitle"><i data-pi="island"></i> Sync devices</h2><button class="close" data-close aria-label="Close">✕</button></div>
     <div class="window-body">
+      <!-- shown when the game was opened from a sync link / scanned QR code -->
+      <div id="syncOffer" class="sync-offer" hidden>
+        <p class="sync-offer-kicker"><i data-pi="sparkle"></i> You opened a sync link</p>
+        <h3 class="sync-offer-title">You're syncing to <span id="syncOfferName">your island</span></h3>
+        <p id="syncOfferStats" class="sync-offer-stats">Looking up the island…</p>
+        <div class="sync-code" id="syncOfferCode"></div>
+        <button class="primary sync-big" id="syncOfferGo" type="button">SYNC</button>
+        <p class="muted sync-note">This device will play that island from now on. The island on this device now will be replaced.</p>
+        <button class="link-btn sync-offer-cancel" id="syncOfferCancel" type="button">Not now</button>
+      </div>
       <div id="syncOff">
         <p>Play the same island on your phone and laptop. No account or password, and you only link each device once.</p>
-        <button class="primary sync-create" id="syncCreate" type="button">Create a sync code</button>
+        <form id="syncCreateForm" class="sync-create-form">
+          <label for="syncIslandName">First, name your island</label>
+          <input id="syncIslandName" maxlength="30" placeholder="e.g. Maple Grove" autocomplete="off">
+          <p class="muted sync-note">Your other devices will see this name when they sync.</p>
+          <button class="primary sync-create" id="syncCreate">Create a sync code</button>
+        </form>
         <form id="syncJoinForm" class="sync-join">
           <label for="syncInput">Got a code from your other device?</label>
           <div class="sync-row">
@@ -325,6 +340,7 @@
         </form>
       </div>
       <div id="syncOn" hidden>
+        <p class="sync-island-name"><i data-pi="island"></i> <b id="syncIslandShow"></b></p>
         <p>This device is synced. To add another device, scan this with its camera, or open the game there and enter the code under <b>More → Sync devices</b>.</p>
         <img id="syncQr" class="sync-qr" alt="QR code that links another device to this island" hidden>
         <div class="sync-code" id="syncCodeShow"></div>
@@ -461,7 +477,7 @@
 <script src="sky.js?v=36"></script>
 <script src="intro.js?v=34"></script>
 <script src="Updated/Music%20for%20game.js?v=2"></script>
-<script src="game.js?v=47"></script>
+<script src="game.js?v=48"></script>
 <script src="Set%20goals.js?v=27"></script>
 <script src="daily-star.js?v=27"></script>
 <script type="module" src="cloud.js"></script>

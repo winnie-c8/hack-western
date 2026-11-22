@@ -458,7 +458,7 @@ body.holding .bag { outline: 3px dashed var(--sun-dark); outline-offset: 3px; }
 .goal-opt:hover { background: rgba(255, 255, 255, .8); transform: translateY(-2px); }
 .goal-opt.on { background: #e2f0d6; border-color: var(--sage-dark); box-shadow: 3px 3px 0 rgba(28,52,44,.25); }
 .log-btn {
-  margin-top: 10px; height: 64px; font-size: 1.6rem; letter-spacing: 2px; cursor: pointer; color: var(--ink);
+  margin-top: 10px; height: 64px; flex-shrink: 0; /* never squeezed below its height on short phone screens */ font-size: 1.6rem; letter-spacing: 2px; cursor: pointer; color: var(--ink);
   display: flex; align-items: center; justify-content: center; gap: 10px; text-align: center; padding: 0 12px;
   background: #a6d7b0; border: 4px solid var(--sage-dark); box-shadow: inset 0 -6px 0 rgba(0,0,0,.08), 5px 5px 0 rgba(28,52,44,.3);
 }
@@ -507,6 +507,25 @@ body.holding .bag { outline: 3px dashed var(--sun-dark); outline-offset: 3px; }
 .chart-read i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: middle; }
 .chart-read.flash { background: var(--sun); border: 2px solid var(--ink); animation: msPop .35s cubic-bezier(.3,1.6,.5,1); }
 @keyframes msPop { from { opacity: 0; scale: .9; } to { opacity: 1; scale: 1; } }
+/* desktop draw-in: "$X saved in N yrs!" bubbles pop up on the graph, just under each milestone's dot (set in game.js) */
+.chart-pop {
+  position: absolute; z-index: 2; pointer-events: none; transform: translate(-50%, 14px);
+  display: flex; flex-direction: column; align-items: center; padding: 4px 10px; white-space: nowrap;
+  font-size: .8rem; background: var(--sun); border: 2px solid var(--ink); box-shadow: 3px 3px 0 rgba(28,52,44,.3);
+  animation: popIn .35s cubic-bezier(.3,1.6,.5,1) both;
+}
+.chart-pop b { font-size: .95rem; }
+.chart-pop::before {   /* little pixel pointer up to the dot */
+  content: ""; position: absolute; top: -8px; left: 50%; margin-left: -6px; width: 12px; height: 6px;
+  background: var(--ink); clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.chart-pop.at-end { transform: translate(calc(-100% + 18px), 14px); }   /* 20 yrs is at the right edge: hang left */
+.chart-pop.at-end::before { left: auto; right: 12px; margin-left: 0; }
+.chart-pop.above { transform: translate(-50%, calc(-100% - 14px)); }
+.chart-pop.above.at-end { transform: translate(calc(-100% + 18px), calc(-100% - 14px)); }
+.chart-pop.above::before { top: auto; bottom: -8px; clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.chart-pop.bye { opacity: 0; transition: opacity .5s ease; }
+@keyframes popIn { from { opacity: 0; scale: .6; } to { opacity: 1; scale: 1; } }
 @media (max-width: 520px) { .chart-read { min-height: 5.4em; align-content: center; } } /* fixed height so the graph doesn't jump under your finger */
 #futureChart { touch-action: pan-y; } /* sideways drags read the graph; up/down still scrolls the window */
 .chart-table summary { cursor: pointer; font-size: .85rem; color: var(--ink-soft); margin-top: 4px; }
@@ -1414,3 +1433,19 @@ body.intro-open { overflow: hidden; }
 .sync-actions button { min-height: 40px; }
 .sync-status { min-height: 1.2em; margin: 10px 0 0; }
 .sync-qr[hidden], #syncOn[hidden], #syncOff[hidden] { display: none; }
+/* "You're syncing to …" screen, shown when the game opens from a sync link / QR code */
+.sync-offer { text-align: center; }
+.sync-offer[hidden] { display: none; }
+.sync-offer-kicker { margin: 0; font-size: .9rem; color: var(--teal-dark); letter-spacing: 1px; text-transform: uppercase; }
+.sync-offer-title { margin: 6px 0 4px; font-size: 1.5rem; font-weight: 400; line-height: 1.25; }
+.sync-offer-title span { color: var(--wood-dark); }
+.sync-offer-stats { margin: 0 0 6px; }
+.sync-offer .sync-code { font-size: 1.1rem; color: var(--ink-soft); }
+button.primary.sync-big { min-height: 64px; font-size: 1.8rem; letter-spacing: 6px; margin-top: 10px; }
+button.primary.sync-big:disabled { opacity: .5; cursor: not-allowed; }
+.sync-offer-cancel { display: block; margin: 10px auto 0; min-height: 36px; }
+/* "Name your island" step before creating a sync code, and the name shown once synced */
+.sync-create-form label { display: block; margin-bottom: 6px; }
+.sync-create-form input { margin-top: 0; }
+.sync-create-form .sync-note { margin-bottom: 4px; }
+.sync-island-name { text-align: center; font-size: 1.3rem; margin: 0 0 8px; }
