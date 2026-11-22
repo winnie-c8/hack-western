@@ -854,10 +854,33 @@ addEventListener('keydown', e => {
   if (typing()) return;
   const dirKey = moveKey(e.key);
   if (dirKey) { keys[dirKey] = true; e.preventDefault(); }
-  if (e.key === ' ') { e.preventDefault(); if (nearVillager()) openChat(); else if (nearShop()) openPanel('shop'); else if (nearBuild()) window.openBuildInfo?.(nearBuild()); }
+  if (e.key === ' ') { e.preventDefault(); interact(); }
   if (e.key === 'Escape') { if (editMode) setEdit(false); selectedItem = null; renderInventory(); }
 });
 addEventListener('keyup', e => { const k = moveKey(e.key); if (k) keys[k] = false; });
+// Space / the on-screen A button: talk to Maple, enter the shop, or open a town building you're next to
+function interact() {
+  if (nearVillager()) openChat(); else if (nearShop()) openPanel('shop'); else if (nearBuild()) window.openBuildInfo?.(nearBuild());
+}
+
+// ---------- On-screen controls (touch screens only: shown by the (hover: none) and (pointer: coarse) rule in style.css) ----------
+// Holding a D-pad button works exactly like holding an arrow key.
+document.querySelectorAll('[data-pad]').forEach(btn => {
+  const key = btn.dataset.pad;
+  const release = () => { keys[key] = false; btn.classList.remove('on'); };
+  btn.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    if (document.body.classList.contains('intro-open') || anyOpen()) return;
+    keys[key] = true; btn.classList.add('on');
+    btn.setPointerCapture?.(e.pointerId); // keep walking even if the thumb slides a little
+  });
+  ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => btn.addEventListener(t, release));
+  btn.addEventListener('contextmenu', e => e.preventDefault()); // no long-press menu
+});
+document.getElementById('padAction')?.addEventListener('click', () => {
+  if (document.body.classList.contains('intro-open') || anyOpen()) return;
+  interact();
+});
 
 function update() {
   const arrived = Math.abs(P.rx - P.x) < .01 && Math.abs(P.ry - P.y) < .01;

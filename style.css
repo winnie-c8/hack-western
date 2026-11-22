@@ -1031,3 +1031,26 @@ body.intro-open { overflow: hidden; }
 @media (prefers-reduced-motion: reduce) {
   .welcome-word span, .welcome-sub { animation: none; opacity: 1; }
 }
+
+/* ===== On-screen controls: touch screens only ===== */
+.touch-controls { display: none; }
+@media (hover: none) and (pointer: coarse) {
+  .touch-controls { display: block; }
+  .dpad {
+    position: fixed; z-index: 6; left: 12px; bottom: 96px;
+    display: grid; grid-template-columns: repeat(3, 50px); grid-template-rows: repeat(3, 50px); gap: 2px;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  .pad, .pad-action {
+    font: 1.1rem var(--font); color: var(--ink); cursor: pointer; touch-action: none; user-select: none; -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent; background: rgba(255, 247, 230, .82);
+    border: 3px solid var(--wood-dark); box-shadow: 3px 3px 0 rgba(28,52,44,.3);
+  }
+  .pad.up { grid-area: 1 / 2; } .pad.left { grid-area: 2 / 1; } .pad.right { grid-area: 2 / 3; } .pad.down { grid-area: 3 / 2; }
+  .pad.on, .pad:active { background: var(--sun); transform: translate(2px, 2px); box-shadow: none; }
+  .pad-action {
+    position: fixed; z-index: 6; right: 16px; bottom: 150px; width: 68px; height: 68px; border-radius: 50%;
+    font-size: 1.6rem; background: rgba(166, 215, 176, .9); border-color: var(--sage-dark);
+  }
+  .pad-action:active { background: var(--sage); transform: translate(2px, 2px); box-shadow: none; }
+}

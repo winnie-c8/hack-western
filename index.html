@@ -95,6 +95,17 @@
       <div id="inventory" class="bag-items"></div>
     </div>
   </div>
+
+  <!-- On-screen controls: only shown on touch screens (phones/tablets), never on a computer -->
+  <div id="touchControls" class="touch-controls">
+    <div class="dpad" role="group" aria-label="Walk">
+      <button type="button" class="pad up" data-pad="ArrowUp" aria-label="Walk up">&#9650;</button>
+      <button type="button" class="pad left" data-pad="ArrowLeft" aria-label="Walk left">&#9664;</button>
+      <button type="button" class="pad right" data-pad="ArrowRight" aria-label="Walk right">&#9654;</button>
+      <button type="button" class="pad down" data-pad="ArrowDown" aria-label="Walk down">&#9660;</button>
+    </div>
+    <button type="button" id="padAction" class="pad-action" aria-label="Talk or enter (same as Space)">A</button>
+  </div>
 </main>
 
 <div id="editBar" class="edit-bar hidden" role="status">
