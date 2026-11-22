@@ -155,6 +155,8 @@ for (let y = 11; y < ROWS; y++) for (const x of [19, 20]) {
   if (map[y][x] === 2) map[y][x] = 4; else if (map[y][x] === 0 && y > 20) map[y][x] = 3;
 }
 for (let x = 8; x < 33; x++) if (map[15][x] === 2) map[15][x] = 4;
+// shop path: off the road at x=8, down to row 19, then west to the shop door
+for (const [x, y] of [[8, 16], [8, 17], [8, 18], [8, 19], [7, 19], [6, 19]]) if (map[y][x] === 1 || map[y][x] === 2) map[y][x] = 4;
 const roadMap = map.map(r => r.slice());                                // the island's starting roads
 const pathType = map.map(r => r.map(v => (v === 4 ? 'dirt' : null)));  // style of each path tile
 const canPave = (x, y) => terrain[y]?.[x] === 1 || terrain[y]?.[x] === 2; // paths go on grass and sand
@@ -172,14 +174,28 @@ applySavedPaths();
 migrateWorld(); save(false); // the map exists now, so old saves can be moved onto it
 const VILLAGER = { x: 23, y: 12 };
 // The shop is a real building on the island (Figma Desktop-2): 2×2 tiles, door faces south.
-const SHOP_BLD = { x: 19, y: 9, w: 2, h: 2 };
+// It lives in the bottom-left; the bank (3×2, bigger) stands in the middle where the shop used to be.
+const SHOP_HOME = { x: 6, y: 17 }, BANK_HOME = { x: 18, y: 9 };
+const SHOP_BLD = { ...SHOP_HOME, w: 2, h: 2 };
+const BANK_BLD = { ...BANK_HOME, w: 4, h: 2 };
 const inShop = (x, y) => x >= SHOP_BLD.x && x < SHOP_BLD.x + SHOP_BLD.w && y >= SHOP_BLD.y && y < SHOP_BLD.y + SHOP_BLD.h;
-// you can move the shop and Maple in edit mode; their spots are saved on your island
+const inBank = (x, y) => x >= BANK_BLD.x && x < BANK_BLD.x + BANK_BLD.w && y >= BANK_BLD.y && y < BANK_BLD.y + BANK_BLD.h;
+const inBuilding = (x, y) => inShop(x, y) || inBank(x, y);
+// you can move the shop, the bank and Maple in edit mode; their spots are saved on your island
 function applyLayout() {
-  Object.assign(SHOP_BLD, S.layout?.shop || { x: 19, y: 9 });
+  Object.assign(BANK_BLD, S.layout?.bank || BANK_HOME);
+  Object.assign(SHOP_BLD, S.layout?.shop || SHOP_HOME);
+  // an old save may have the shop where the bank now stands → send the shop to its new home
+  if (fpTiles(SHOP_BLD.x, SHOP_BLD.y, 2, 2).some(([x, y]) => inBank(x, y))) { Object.assign(SHOP_BLD, SHOP_HOME); if (S.layout) delete S.layout.shop; }
   Object.assign(VILLAGER, S.layout?.fox || { x: 23, y: 12 });
+  // anything that was sitting where a building now stands goes back into your bag
+  const keep = [];
+  for (const p of S.placed || []) {
+    if (inBuilding(p.x, p.y)) S.inventory[p.id] = (S.inventory[p.id] || 0) + 1; else keep.push(p);
+  }
+  S.placed = keep;
+  if (inBuilding(S.player.x, S.player.y)) S.player = { x: 19, y: 15 };
 }
-applyLayout();
 // Town projects are built on your island: each one gets a 2×2 plot (finished ones + the one under construction).
 const PLOTS = [[14, 11], [24, 16], [15, 17], [22, 9], [25, 11], [16, 9], [10, 12], [28, 12], [10, 17], [27, 18], [13, 6], [26, 6]];
 let townBuilds = []; // [{ town, name, f (0..1 progress), x, y }]
@@ -194,18 +210,20 @@ const fpTiles = (x, y, w, h) => { const a = []; for (let j = 0; j < h; j++) for 
 const solidLand = (x, y) => [1, 2, 4].includes(map[y]?.[x]);
 function blockedBy(x, y, ignore) { // is something already on this tile? (ignore = the thing being moved)
   if (ignore !== 'shop' && inShop(x, y)) return true;
+  if (ignore !== 'bank' && inBank(x, y)) return true;
   if (townBuilds.some(b => b.key !== ignore && x >= b.x && x < b.x + 2 && y >= b.y && y < b.y + 2)) return true;
   if (ignore !== 'fox' && x === VILLAGER.x && y === VILLAGER.y) return true;
   return S.placed.some(p => p.x === x && p.y === y) || (x === P.x && y === P.y);
 }
 const areaFree = (x, y, w, h, ignore) => fpTiles(x, y, w, h).every(([a, b]) => solidLand(a, b) && !blockedBy(a, b, ignore));
+applyLayout();
 // Town buildings: a spot you moved them to, otherwise the next free plot
 window.setTownBuilds = list => {
   lastBuildList = list;
   const taken = [], out = [];
   const overlaps = (x, y) => taken.some(([a, b]) => Math.abs(a - x) < 2 && Math.abs(b - y) < 2);
   const spotOk = (x, y) => !overlaps(x, y) && fpTiles(x, y, 2, 2).every(([a, b]) =>
-    solidLand(a, b) && !inShop(a, b) && !(a === VILLAGER.x && b === VILLAGER.y));
+    solidLand(a, b) && !inBuilding(a, b) && !(a === VILLAGER.x && b === VILLAGER.y));
   for (const b of list) {
     const p = S.buildPos?.[b.key];
     if (p && spotOk(p.x, p.y)) { taken.push([p.x, p.y]); out.push({ ...b, x: p.x, y: p.y }); }
@@ -220,7 +238,7 @@ window.setTownBuilds = list => {
 };
 const nearBuild = () => townBuilds.find(b => P.x >= b.x - 1 && P.x <= b.x + 2 && P.y >= b.y - 1 && P.y <= b.y + 2);
 const inPlot = (x, y) => townBuilds.some(b => x >= b.x && x < b.x + 2 && y >= b.y && y < b.y + 2);
-const walkable = (x, y) => map[y]?.[x] > 0 && !inShop(x, y) && !inPlot(x, y) && !(x === VILLAGER.x && y === VILLAGER.y)
+const walkable = (x, y) => map[y]?.[x] > 0 && !inBuilding(x, y) && !inPlot(x, y) && !(x === VILLAGER.x && y === VILLAGER.y)
   && !S.placed.some(p => p.x === x && p.y === y && !WALK_OVER.has(p.id));
 
 // ---------- Pixel-art rendering (cozy palette from the Figma mood board) ----------
@@ -542,6 +560,54 @@ function drawShop(sx = SHOP_BLD.x, sy = SHOP_BLD.y) {
   ctx.fillText('SHOP', X0 + 10 * PX, Y0 + 0 * PX + 1);
 }
 
+function drawBank(sx = BANK_BLD.x, sy = BANK_BLD.y) {
+  // 4 tiles wide (40 art px), door in the middle so it lines up with the path below
+  const X0 = sx * TILE, Y0 = sy * TILE, O = PAL.outline;
+  const r = (ax, ay, w, h, c) => { ctx.fillStyle = c; ctx.fillRect(X0 + ax * PX, Y0 + ay * PX, w * PX, h * PX); };
+  const stone = '#efe6d2', stoneHi = '#fff7e6', stoneSh = '#d6c9ad';
+  const teal = '#6cc3c8', tealDk = '#4a98a6', tealHi = '#a6e2dc', tealMid = '#7ccbd0';
+  // hard cast shadow (down-right)
+  r(41, -6, 3, 27, PAL.shadow); r(1, 20, 41, 2, PAL.shadow);
+  // steps
+  r(-2, 15, 44, 5, O);
+  r(-1, 16, 42, 1, stoneHi); r(-1, 17, 42, 1, stone); r(0, 18, 40, 1, stoneSh); r(-1, 19, 42, 1, '#c9bb9c');
+  // walls
+  r(-1, 0, 42, 15, O); r(0, 1, 40, 14, stone); r(0, 1, 40, 1, stoneHi);
+  // windows between the columns
+  for (const wx of [6, 31]) { r(wx, 6, 4, 6, O); r(wx + 1, 7, 2, 4, tealHi); r(wx + 1, 7, 1, 1, '#d4f3ea'); r(wx - 1, 12, 6, 1, stoneSh); }
+  // columns
+  for (const cx of [2, 11, 26, 35]) {
+    r(cx - 1, 2, 5, 1, stoneSh); r(cx - 1, 14, 5, 1, stoneSh);
+    r(cx, 3, 3, 11, stoneHi); r(cx + 2, 3, 1, 11, stoneSh); r(cx + 1, 3, 1, 11, '#f7f0e0');
+  }
+  // big double door (teal) with gold handles
+  r(16, 5, 8, 10, O); r(17, 6, 6, 9, tealDk); r(17, 6, 6, 1, teal); r(19, 7, 2, 8, '#3d7f8c'); r(20, 7, 1, 8, tealDk);
+  r(18, 10, 1, 1, '#f2c26b'); r(21, 10, 1, 1, '#f2c26b');
+  // frieze with the sign
+  r(-2, -5, 44, 6, O); r(-1, -4, 42, 4, stoneHi); r(-1, 0, 42, 1, stoneSh);
+  ctx.fillStyle = O; ctx.font = '16px "VCR OSD Mono", monospace'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('BANK', X0 + 20 * PX, Y0 - 2 * PX + 1);
+  // teal pediment (stepped triangle)
+  for (let i = 0; i < 11; i++) {
+    const inset = Math.round(i * 2);
+    r(-3 + inset, -6 - i, 46 - 2 * inset, 1, O);
+    if (i < 10) r(-1 + inset, -6 - i, 42 - 2 * inset, 1, i === 0 ? tealDk : i % 2 ? teal : tealMid);
+  }
+  r(2, -7, 36, 1, tealHi);
+  // spinning gold coin in the pediment
+  const cw = Math.round(2.5 * Math.abs(Math.cos(t / 22)));
+  r(20 - cw - 1, -14, 2 * cw + 3, 7, O);
+  r(20 - cw, -13, 2 * cw + 1, 5, '#f2c26b');
+  r(cw > 0 ? 20 - cw : 20, -13, 1, 5, '#c79a45');
+  if (cw >= 2) { r(19, -12, 1, 2, '#fff3c4'); r(21, -12, 1, 3, '#c79a45'); }
+  // flag on top, waving
+  r(20, -24, 1, 8, '#8d6440');
+  const wave = Math.floor(t / 14) % 2;
+  r(21, -24, 6, 3, '#a5ca8c'); r(21, -24, 6, 1, '#c8e2b0'); r(27, -24 + wave, 1, 2, '#a5ca8c'); r(23, -23, 1, 1, '#f2c26b');
+  // a little sparkle now and then
+  if (t % 120 < 12) { const s = '#fff7e6'; r(31, -12, 1, 3, s); r(30, -11, 3, 1, s); }
+}
+
 // A town project, drawn in stages as its progress f (0..1) grows:
 // stakes → material piles → foundation → scaffolding → walls → windows/door → roof → scaffolding comes down → decorations
 const ROOFS = [['#e07a6a', '#c4605a'], ['#7fa7d9', '#5f86b8'], ['#9cc98a', '#6f9a63'], ['#f2c26b', '#c9973f'], ['#c7a6e0', '#9a7cbf']];
@@ -628,6 +694,7 @@ function brackets(x, y, w, h, color) {
 // what can be grabbed in edit mode at this tile → its footprint
 function movableAt(x, y) {
   if (inShop(x, y)) return { kind: 'shop', x: SHOP_BLD.x, y: SHOP_BLD.y, w: 2, h: 2 };
+  if (inBank(x, y)) return { kind: 'bank', x: BANK_BLD.x, y: BANK_BLD.y, w: 4, h: 2 };
   const b = townBuilds.find(b => x >= b.x && x < b.x + 2 && y >= b.y && y < b.y + 2);
   if (b) return { kind: 'build', b, x: b.x, y: b.y, w: 2, h: 2 };
   if (x === VILLAGER.x && y === VILLAGER.y) return { kind: 'fox', x, y, w: 1, h: 1 };
@@ -685,6 +752,7 @@ const draw = () => {
   const ents = [
     ...S.placed.map(p => ({ y: p.y, draw: () => drawItem(p.id, p.x, p.y) })),
     ...(held?.kind === 'shop' ? [] : [{ y: SHOP_BLD.y + SHOP_BLD.h - 1 + .5, draw: () => drawShop() }]),
+    ...(held?.kind === 'bank' ? [] : [{ y: BANK_BLD.y + BANK_BLD.h - 1 + .5, draw: () => drawBank() }]),
     ...townBuilds.filter(b => !(held?.kind === 'build' && held.key === b.key)).map(b => ({ y: b.y + 1.5, draw: () => drawBuild(b) })),
     ...(held?.kind === 'fox' ? [] : [{ y: VILLAGER.y, draw: () => {
       const cx = VILLAGER.x * TILE + TILE / 2, bottom = VILLAGER.y * TILE + TILE - 2;
@@ -700,6 +768,7 @@ const draw = () => {
 
   if (nearVillager()) drawBubble('Space to chat', VILLAGER.x * TILE + TILE / 2, VILLAGER.y * TILE - 14 * PX);
   else if (nearShop()) drawBubble('Space to enter shop', (SHOP_BLD.x + 1) * TILE, (SHOP_BLD.y + 2) * TILE + 2 * PX);
+  else if (nearBank()) drawBubble('Space to enter bank', (BANK_BLD.x + 2) * TILE, (BANK_BLD.y + 2) * TILE + 2 * PX);
   else {
     const b = nearBuild();
     if (b) drawBubble(`${b.f >= 1 ? `${b.name} ✓` : `${b.name} · ${Math.floor(b.f * 100)}%`} · Space for info`, (b.x + 1) * TILE, b.y * TILE - 7 * PX);
@@ -713,9 +782,9 @@ const draw = () => {
   if (editMode && editTool !== 'move' && hover) brackets(hover.x, hover.y, 1, 1, canPave(hover.x, hover.y) ? '#fff7e6' : '#e0705c');
   // a building or Maple being dragged: see-through preview + green/red footprint
   if (held && held.kind !== 'item' && hover) {
-    const ox = hover.x - held.off.dx, oy = hover.y - held.off.dy, w = held.kind === 'fox' ? 1 : 2;
-    const ok = areaFree(ox, oy, w, w, held.kind === 'build' ? held.key : held.kind);
-    brackets(ox, oy, w, w, ok ? '#fff7e6' : '#e0705c'); // the faint copy itself is drawn below
+    const ox = hover.x - held.off.dx, oy = hover.y - held.off.dy, w = held.kind === 'fox' ? 1 : held.kind === 'bank' ? 4 : 2, hh = held.kind === 'fox' ? 1 : 2;
+    const ok = areaFree(ox, oy, w, hh, held.kind === 'build' ? held.key : held.kind);
+    brackets(ox, oy, w, hh, ok ? '#fff7e6' : '#e0705c'); // the faint copy itself is drawn below
   }
   // placement preview (from the bag, or an item being dragged): ghost item + pixel corner brackets
   const ghost = (held?.kind === 'item' && held.id) || selectedItem;
@@ -736,7 +805,7 @@ const draw = () => {
     else if (held.kind === 'fox') drawSprite(FOX, FOX_PAL, tx * TILE + TILE / 2, ty * TILE + TILE - 2);
     else {
       const fx = tx - held.off.dx, fy = ty - held.off.dy; // keep the tile you grabbed under the mouse
-      if (held.kind === 'shop') drawShop(fx, fy); else drawBuild({ ...held.b, x: fx, y: fy });
+      if (held.kind === 'shop') drawShop(fx, fy); else if (held.kind === 'bank') drawBank(fx, fy); else drawBuild({ ...held.b, x: fx, y: fy });
     }
     ctx.globalAlpha = 1;
   }
@@ -766,9 +835,12 @@ function atmosphere(sky, ox, oy, tx0, tx1, ty0, ty1) {
   // daytime: soft cloud shadows drifting across the island
   const shade = Math.max(0, 1 - sky.tint[1] * 4) * (sky.up ? 1 : 0);
   if (shade > .02) {
-    ctx.fillStyle = `rgba(28, 52, 44, ${.1 * shade})`;
-    const span = COLS * TILE + 480;
-    for (let i = 0; i < 4; i++) {
+    const span = COLS * TILE + 480, count = 6;
+    for (let i = 0; i < count; i++) {
+      // more cloud shadows in the middle of the day, fewer towards sunrise / sunset
+      const a = Math.max(0, Math.min(1, (sky.clouds ?? 1) * count - i));
+      if (a <= .02) continue;
+      ctx.fillStyle = `rgba(28, 52, 44, ${.1 * shade * a})`;
       const x = ((t * (.16 + i * .05) + i * 640) % span) - 240, y = hash(i, 9, 77) * ROWS * TILE;
       for (const [dx, dy, w, h] of [[2, 4, 22, 5], [6, 0, 10, 4], [0, 9, 28, 4], [5, 13, 16, 2]])
         ctx.fillRect(snap(x + dx * PX), snap(y + dy * PX), w * PX, h * PX);
@@ -808,10 +880,11 @@ function atmosphere(sky, ox, oy, tx0, tx1, ty0, ty1) {
       pixelGlow(p.x * TILE + TILE / 2 + L[0], p.y * TILE + TILE + L[1], L[2], warm, sky.glow * (.85 + .15 * Math.sin(t / 9 + p.x)));
     }
     pixelGlow((SHOP_BLD.x + SHOP_BLD.w / 2) * TILE, (SHOP_BLD.y + SHOP_BLD.h) * TILE - 12, 40, warm, sky.glow * .8);
+    pixelGlow((BANK_BLD.x + 2) * TILE, (BANK_BLD.y + 2) * TILE - 16, 56, warm, sky.glow * .8);
     for (const b of townBuilds) if (b.f >= 1) pixelGlow((b.x + 1) * TILE, (b.y + 1.6) * TILE, 36, warm, sky.glow * .7);
     pixelGlow(P.rx * TILE + TILE / 2, P.ry * TILE + TILE / 2, 34, '#ffe2a8', sky.glow * .55); // a little lantern-light around you
     for (let y = Math.max(0, ty0); y < Math.min(ROWS, ty1); y++) for (let x = Math.max(0, tx0); x < Math.min(COLS, tx1); x++) {
-      if (map[y][x] === 0 || hash(x, y, 55) > .07) continue;
+      if (map[y][x] === 0 || hash(x, y, 55) > .015) continue;   // just a few, here and there
       const k = hash(x, y, 56) * 100;
       const fx = x * TILE + TILE / 2 + Math.sin(t / 50 + k) * TILE * .6, fy = y * TILE + TILE / 2 + Math.cos(t / 63 + k) * TILE * .5;
       const blink = (Math.sin(t / 14 + k) + 1) / 2;
@@ -854,7 +927,7 @@ addEventListener('keydown', e => {
   if (typing()) return;
   const dirKey = moveKey(e.key);
   if (dirKey) { keys[dirKey] = true; e.preventDefault(); }
-  if (e.key === ' ') { e.preventDefault(); if (nearVillager()) openChat(); else if (nearShop()) openPanel('shop'); else if (nearBuild()) window.openBuildInfo?.(nearBuild()); }
+  if (e.key === ' ') { e.preventDefault(); if (nearVillager()) openChat(); else if (nearShop()) openPanel('shop'); else if (nearBank()) openPanel('bank'); else if (nearBuild()) window.openBuildInfo?.(nearBuild()); }
   if (e.key === 'Escape') { if (editMode) setEdit(false); selectedItem = null; renderInventory(); }
 });
 addEventListener('keyup', e => { const k = moveKey(e.key); if (k) keys[k] = false; });
@@ -867,6 +940,11 @@ function update() {
     if (keys.ArrowLeft) { dx = -1; P.dir = 'left'; } else if (keys.ArrowRight) { dx = 1; P.dir = 'right'; }
     else if (keys.ArrowUp) { dy = -1; P.dir = 'up'; } else if (keys.ArrowDown) { dy = 1; P.dir = 'down'; }
     P.moving = !!(dx || dy);
+    // once you start walking, the "real money saved" sign tucks itself into a slim one-liner (hover to open it)
+    if (P.moving) {
+      document.getElementById('savedBanner')?.classList.add('compact');
+      document.querySelector('.hud-left')?.classList.add('tucked'); // coins / streak / clock tuck to the left too
+    }
     if (P.moving && walkable(P.x + dx, P.y + dy)) { P.x += dx; P.y += dy; S.player = { x: P.x, y: P.y }; saveLocal(); } // walking: browser only, no cloud write
   } else {
     P.rx += Math.sign(P.x - P.rx) * Math.min(.28, Math.abs(P.x - P.rx));
@@ -874,6 +952,11 @@ function update() {
   }
 }
 const nearVillager = () => Math.abs(P.x - VILLAGER.x) + Math.abs(P.y - VILLAGER.y) <= 1;
+const nearBank = () => {
+  const B = BANK_BLD;
+  return (P.y >= B.y && P.y < B.y + B.h && (P.x === B.x - 1 || P.x === B.x + B.w)) ||
+         (P.x >= B.x && P.x < B.x + B.w && (P.y === B.y - 1 || P.y === B.y + B.h));
+};
 const nearShop = () => {
   const besideHorizontalEdge = P.y >= SHOP_BLD.y && P.y < SHOP_BLD.y + SHOP_BLD.h &&
     (P.x === SHOP_BLD.x - 1 || P.x === SHOP_BLD.x + SHOP_BLD.w);
@@ -892,7 +975,7 @@ const tileAt = e => {
     y: Math.floor(((e.clientY - r.top) * (cv.height / r.height) + Math.round(cam.y)) / TILE),
   };
 };
-const canPlace = (x, y) => map[y]?.[x] > 0 && !inShop(x, y) && !inPlot(x, y) && !S.placed.some(p => p.x === x && p.y === y) && !(x === P.x && y === P.y) && !(x === VILLAGER.x && y === VILLAGER.y);
+const canPlace = (x, y) => map[y]?.[x] > 0 && !inBuilding(x, y) && !inPlot(x, y) && !S.placed.some(p => p.x === x && p.y === y) && !(x === P.x && y === P.y) && !(x === VILLAGER.x && y === VILLAGER.y);
 cv.addEventListener('mousemove', e => { lastMouse = { clientX: e.clientX, clientY: e.clientY }; hover = tileAt(e); });
 cv.addEventListener('mouseleave', () => { lastMouse = null; hover = null; });
 cv.addEventListener('click', e => {
@@ -928,11 +1011,12 @@ function dropHeld(e) {
   document.body.classList.remove('holding');
   const over = e && e.target === cv ? tileAt(e) : null;
   if (h.kind !== 'item') {                     // shop, a town building, or Maple
-    const w = h.kind === 'fox' ? 1 : 2;
+    const w = h.kind === 'fox' ? 1 : h.kind === 'bank' ? 4 : 2, hh = h.kind === 'fox' ? 1 : 2;
     const ox = over && over.x - h.off.dx, oy = over && over.y - h.off.dy;
-    if (over && areaFree(ox, oy, w, w, h.kind === 'build' ? h.key : h.kind)) {
+    if (over && areaFree(ox, oy, w, hh, h.kind === 'build' ? h.key : h.kind)) {
       S.layout ||= {}; S.buildPos ||= {};
       if (h.kind === 'shop') { S.layout.shop = { x: ox, y: oy }; Object.assign(SHOP_BLD, S.layout.shop); }
+      else if (h.kind === 'bank') { S.layout.bank = { x: ox, y: oy }; Object.assign(BANK_BLD, S.layout.bank); }
       else if (h.kind === 'fox') { S.layout.fox = { x: ox, y: oy }; Object.assign(VILLAGER, S.layout.fox); }
       else S.buildPos[h.key] = { x: ox, y: oy };
     } else if (over) toast("Can't put that there. It needs clear land.");
@@ -1007,10 +1091,24 @@ function renderEditTools() {
     : 'Click or drag to pave. Paths go on grass and sand. Buy more styles in the shop.');
   document.body.classList.toggle('paving', editTool !== 'move');
 }
-function toast(msg) { const el = $('toast'); el.textContent = msg; el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 2000); }
+function toast(msg) { const el = $('toast'); el.innerHTML = pit(msg); el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 2000); }
 function renderStats() {
   $('coins').textContent = S.coins.toLocaleString();
-  $('saved').textContent = `$${S.saved.toLocaleString()}`;
+  const savedTxt = `$${S.saved.toLocaleString()}`, savedEl = $('saved');
+  if (savedEl.textContent !== savedTxt) {
+    // a little celebration on the sign whenever the real-money total goes up (not on the first paint)
+    if (savedEl.dataset.ready) {
+      const b = $('savedBanner');
+      // show the full sign for a moment to celebrate the new total, then tuck it back if it was slim
+      if (b.classList.contains('compact') || b._slim) {
+        b._slim = true; b.classList.remove('compact'); clearTimeout(b._t);
+        b._t = setTimeout(() => { b.classList.add('compact'); b._slim = false; }, 3500);
+      }
+      b.classList.remove('bump'); void b.offsetWidth; b.classList.add('bump');
+    }
+    savedEl.textContent = savedTxt;
+  }
+  savedEl.dataset.ready = '1';
   $('streak').textContent = S.streak;
   $('shopCoins').innerHTML = `${pi('coin')} ${S.coins.toLocaleString()}`;
 }
@@ -1328,8 +1426,9 @@ function drawPreviewIsland(st, rate, start) {
   const nearPath = (x, y) => [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([a, b]) => map[y + b]?.[x + a] === 4);
   const free = [];
   for (let y = Y0 + 2; y < Y0 + TH - 2; y++) for (let x = X0 + 1; x < X0 + TW - 1; x++) {
-    if (map[y][x] !== 2 || inShop(x, y) || inPlot(x, y) || taken.has(x + ',' + y) || (x === VILLAGER.x && y === VILLAGER.y)) continue;
+    if (map[y][x] !== 2 || inBuilding(x, y) || inPlot(x, y) || taken.has(x + ',' + y) || (x === VILLAGER.x && y === VILLAGER.y)) continue;
     if (y === SHOP_BLD.y + 2 && x >= SHOP_BLD.x && x < SHOP_BLD.x + 2) continue;   // keep the shop door clear
+    if (y === BANK_BLD.y + 2 && x >= BANK_BLD.x && x < BANK_BLD.x + 4) continue;   // and the bank's steps
     const score = (nearPath(x, y) ? 0 : 6) + Math.hypot(x - 20, (y - 14) * 1.2) * .5 + hash(x, y, 999);
     free.push([x, y, score]);
   }
@@ -1357,6 +1456,7 @@ function drawPreviewIsland(st, rate, start) {
     const ents = [
       ...S.placed.map(p => ({ y: p.y, draw: () => drawItem(p.id, p.x, p.y) })),
       { y: SHOP_BLD.y + 1.5, draw: () => drawShop() },
+      { y: BANK_BLD.y + 1.5, draw: () => drawBank() },
       ...builds.map(b => ({ y: b.y + 1.5, draw: () => drawBuild(b) })),
       { y: VILLAGER.y, draw: () => { const cx = VILLAGER.x * TILE + TILE / 2, bt = VILLAGER.y * TILE + TILE - 2; shadow(cx, bt); drawSprite(FOX, FOX_PAL, cx, bt); } },
       ...future.map(f => ({ y: f.y, draw: () => {

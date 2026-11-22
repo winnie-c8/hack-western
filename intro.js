@@ -38,7 +38,9 @@
     rect(C.cloud, x + 6, y, 16, 4); rect(C.cloud, x, y + 4, 30, 5); rect(C.cloud, x + 14, y - 3, 10, 3);
     rect(C.cloudShade, x + 2, y + 8, 26, 2);
   };
-  const clouds = [{ x: 30, y: 26, s: 4 }, { x: 150, y: 14, s: 2.5 }, { x: 230, y: 50, s: 3.2 }, { x: 290, y: 30, s: 2 }];
+  // up to 8 clouds; how many show depends on the time of day (lots by day, a wisp at night)
+  const clouds = [{ x: 30, y: 26, s: 4 }, { x: 150, y: 14, s: 2.5 }, { x: 230, y: 50, s: 3.2 }, { x: 290, y: 30, s: 2 },
+    { x: 95, y: 58, s: 2.8 }, { x: 200, y: 6, s: 3.6 }, { x: 10, y: 66, s: 2.2 }, { x: 260, y: 72, s: 3 }];
   const ripples = Array.from({ length: 22 }, (_, k) => ({ x: (k * 53) % W, y: HORIZON + 6 + ((k * 29) % (H - HORIZON - 10)), w: 4 + (k % 3) * 2, s: 2 + (k % 4) }));
 
   // land + sea are drawn on their own layer so the time-of-day tint doesn't touch the sky
@@ -82,7 +84,13 @@
       disc(sky.sky[1], x + 5, y - 3, 9);                                          // crescent
       body = { x: x - 3, y, color: '#fff3d6', strength: .5 };
     }
-    clouds.forEach(c => cloud(((c.x + t * c.s) % (W + 40)) - 40, c.y));
+    // each cloud fades in/out on its own as the sky gets cloudier or clearer
+    const cover = sky ? sky.clouds * clouds.length : 4;
+    clouds.forEach((c, k) => {
+      const a = Math.max(0, Math.min(1, cover - k));
+      if (a <= .02) return;
+      g.globalAlpha = a; cloud(((c.x + t * c.s) % (W + 40)) - 40, c.y); g.globalAlpha = 1;
+    });
 
     // ---- foreground layer: sea + island ----
     const sg = g;

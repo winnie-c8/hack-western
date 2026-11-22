@@ -171,9 +171,13 @@
       P(c.G, [[2, 4], [3, 3], [4, 3], [5, 3], [8, 3], [9, 3], [10, 3], [11, 4], [12, 5], [1, 5], [6, 2], [7, 2]]);
       P(c.g, [[4, 4], [5, 4], [8, 4], [9, 4], [6, 1], [7, 1]]); P(c.B, [[6, 4], [7, 4]]);
     }],
-    target: ['tap', ({ E, R, P }, c) => {
+    // goals: the board and the arrow are separate layers so the arrow can fly in on hover
+    target: ['target', ({ E }, c) => {
       E(c.R, 7.5, 8.5, 7); E(c.w, 7.5, 8.5, 5.2); E(c.R, 7.5, 8.5, 3.4); E(c.w, 7.5, 8.5, 1.6);
+    }],
+    targetArrow: ['none', ({ P }, c) => {
       P(c.B, [[8, 8], [9, 7], [10, 6], [11, 5], [12, 4]]); P(c.y, [[13, 1], [13, 2], [14, 3], [15, 3], [12, 2], [14, 2]]);
+      P(c.k, [[7, 9]]);
     }],
     shooting: ['twinkle', ({ Y, P }, c) => {
       P(c.r, [[0, 15], [1, 14], [2, 13], [3, 12], [1, 15], [2, 14], [3, 13]]);
@@ -255,6 +259,19 @@
         R(c.S, x, 6, 4, 4); P(null, [[x, 6], [x + 3, 6], [x, 9], [x + 3, 9]]);
         R(c.s, x + 1, 6, 2, 2); P(c.s, [[x, 7]]); P(c.w, [[x + 1, 6]]);
       }
+    }],
+    // tasks: a little clipboard checklist (two ticked, one to go)
+    // tasks: a clipboard checklist. First task ticked; on hover a green tick pops onto the second one.
+    list: ['list', ({ R, P }, c) => {
+      R(c.b, 2, 2, 12, 14); R(c.B, 2, 15, 12, 1);
+      R(c.w, 3, 3, 10, 12);
+      R(c.S, 5, 0, 6, 3); R(c.s, 6, 1, 4, 1); P(c.k, [[7, 0], [8, 0]]);
+      for (const y of [4, 8, 12]) { R(c.s, 4, y, 3, 3); R(c.w, 5, y + 1, 1, 1); R(c.s, 8, y + 1, 4, 1); } // boxes + lines
+      P(c.G, [[4, 5], [5, 6], [6, 5], [7, 4], [8, 3]]); P(c.g, [[5, 5], [6, 4], [7, 3]]);               // first task done
+    }],
+    listTick: ['none', ({ P }, c) => {
+      P(c.G, [[3, 9], [4, 10], [5, 11], [6, 10], [7, 9], [8, 8], [9, 7]]);
+      P(c.g, [[4, 9], [5, 10], [6, 9], [7, 8], [8, 7]]);
     }],
     check: ['pop', ({ R, P }, c) => {
       R(c.g, 1, 1, 14, 14); R(c.G, 1, 13, 14, 2);
@@ -471,6 +488,18 @@
     return svgCache[name] = out;
   }
 
+  // rects for an icon layer without the dark outline (e.g. the tick that pops onto the task list)
+  function plainBody(name) {
+    const px = grid(name, false); let out = '';
+    for (let y = 0; y < N; y++) for (let x = 0; x < N;) {
+      const c = px[y][x]; let w = 1;
+      while (c && px[y][x + w] === c) w++;
+      if (c) out += `<rect x="${x}" y="${y}" width="${w}" height="1" fill="${c}"/>`;
+      x += w;
+    }
+    return out;
+  }
+
   function dotsBody() {
     const px = grid('dots', false); let out = '';
     [[0, 5], [5, 11], [11, 16]].forEach(([x0, x1], k) => {
@@ -489,7 +518,7 @@
   // Inline pixel icon. It stays still and plays its little animation while hovered (see .pi in style.css).
   window.pi = (name, cls = '') => {
     const anim = ICONS[name]?.[0] || 'bob';
-    return `<svg class="pi pa-${anim} ${cls}" viewBox="-1 -1 18 18" shape-rendering="crispEdges" aria-hidden="true">${name === 'dots' ? dotsBody() : svgBody(name)}</svg>`;
+    return `<svg class="pi pa-${anim} ${cls}" viewBox="-1 -1 18 18" shape-rendering="crispEdges" aria-hidden="true">${name === 'dots' ? dotsBody() : name === 'target' ? `<g class="tb">${svgBody('target')}</g><g class="ta">${svgBody('targetArrow')}</g>` : name === 'list' ? `${svgBody('list')}<g class="lt">${plainBody('listTick')}</g>` : svgBody(name)}</svg>`;
   };
   const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   window.pit = text => esc(text).replace(/:([a-z]+):/g, (m, n) => (ICONS[n] || ITEMS[n]) ? window.pi(n) : m);
