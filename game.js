@@ -1,4 +1,4 @@
-// ===== Future Me Island — MVP =====
+// ===== Tomo Island — MVP =====
 // The island is a 40×28-tile world; the view (camera) follows the player around it.
 const TILE = 40, COLS = 40, ROWS = 28;
 // Coins reward the HABIT, not the amount. Dollars only move your Goals forward.
@@ -451,7 +451,18 @@ const CHARACTER_OPTION_LABELS = {
   top: { tee: 'T-shirt', hoodie: 'Hoodie', sweater: 'Sweater', jacket: 'Jacket' },
   bottoms: { jeans: 'Jeans', 'charcoal-pants': 'Pants', shorts: 'Shorts', skirt: 'Skirt' },
 };
+// The look lives on the island (S.character) so it syncs across devices; older saves kept it only in
+// this browser (CHARACTER_KEY), which is still read once as a fallback and kept as a copy.
+function cleanCharacter(saved) {
+  if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return { ...CHARACTER_DEFAULTS };
+  return Object.fromEntries(Object.keys(CHARACTER_DEFAULTS).map(key => [
+    key, key === 'hairStyle' && saved[key] === 'short'
+      ? 'short-straight'
+      : CHARACTER_CHOICES[key].includes(saved[key]) ? saved[key] : CHARACTER_DEFAULTS[key],
+  ]));
+}
 function loadCharacter() {
+  if (S.character) return cleanCharacter(S.character);
   try {
     const saved = JSON.parse(localStorage.getItem(CHARACTER_KEY) || 'null');
     if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return { ...CHARACTER_DEFAULTS };
@@ -466,7 +477,9 @@ function loadCharacter() {
   }
 }
 let character = loadCharacter();
+if (!S.character) { S.character = { ...character }; saveLocal(); } // move an older browser-only look onto the island
 function saveCharacter() {
+  S.character = { ...character }; save(); // syncs to your other devices
   try {
     localStorage.setItem(CHARACTER_KEY, JSON.stringify(character));
   } catch (error) {
@@ -990,12 +1003,12 @@ const draw = () => {
   ents.forEach(e => e.draw());
   if (window.SKY) atmosphere(SKY.current(), ox, oy, tx0, tx1, ty0, ty1);
 
-  if (nearVillager()) drawBubble('Space to chat', VILLAGER.x * TILE + TILE / 2, VILLAGER.y * TILE - 14 * PX);
-  else if (nearShop()) drawBubble('Space to enter shop', (SHOP_BLD.x + 1) * TILE, (SHOP_BLD.y + 2) * TILE + 2 * PX);
-  else if (nearBank()) drawBubble('Space to enter bank', (BANK_BLD.x + 2) * TILE, (BANK_BLD.y + 2) * TILE + 2 * PX);
+  if (nearVillager()) drawBubble('Click to chat', VILLAGER.x * TILE + TILE / 2, VILLAGER.y * TILE - 14 * PX);
+  else if (nearShop()) drawBubble('Click to enter shop', (SHOP_BLD.x + 1) * TILE, (SHOP_BLD.y + 2) * TILE + 2 * PX);
+  else if (nearBank()) drawBubble('Click to enter bank', (BANK_BLD.x + 2) * TILE, (BANK_BLD.y + 2) * TILE + 2 * PX);
   else {
     const b = nearBuild();
-    if (b) drawBubble(`${b.f >= 1 ? `${b.name} ✓` : `${b.name} · ${Math.floor(b.f * 100)}%`} · Space for info`, (b.x + 1) * TILE, b.y * TILE - 7 * PX);
+    if (b) drawBubble(`${b.f >= 1 ? `${b.name} ✓` : `${b.name} · ${Math.floor(b.f * 100)}%`} · Click for info`, (b.x + 1) * TILE, b.y * TILE - 7 * PX);
   }
   drawTutorialArrow();
 
@@ -1194,14 +1207,27 @@ addEventListener('keydown', e => {
   if (anyOpen()) { if (e.key === 'Escape' && !window.closeTownDetail?.()) closePanels(); return; }
   if (typing()) return;
   const dirKey = moveKey(e.key);
-  if (dirKey) { keys[dirKey] = true; e.preventDefault(); }
+  if (dirKey) { keys[dirKey] = true; autoPath = []; autoFace = null; e.preventDefault(); } // taking control stops any auto-walk
   if (e.key === ' ') { e.preventDefault(); interact(); }
   if (e.key === 'Escape') { if (editMode) setEdit(false); selectedItem = null; renderInventory(); }
 });
 addEventListener('keyup', e => { const k = moveKey(e.key); if (k) keys[k] = false; });
-// Space / the on-screen A button: talk to Maple, enter the shop or the bank, or open a town building you're next to
+// Space (keyboard shortcut): talk to Maple, enter the shop or the bank, or open a town building you're next to
 function interact() {
   if (nearVillager()) openChat(); else if (nearShop()) openPanel('shop'); else if (nearBank()) openPanel('bank'); else if (nearBuild()) window.openBuildInfo?.(nearBuild());
+}
+// Click / tap on Maple, the shop, the bank or a town building to use it (from anywhere on screen)
+function clickTarget(x, y) {
+  const m = movableAt(x, y);
+  if (m && m.kind !== 'item') return m;
+  if (x === VILLAGER.x && y + 1 === VILLAGER.y) return { kind: 'fox' }; // Maple's ears poke into the tile above
+  return null;
+}
+function useTarget(m) {
+  if (m.kind === 'fox') openChat();
+  else if (m.kind === 'shop') openPanel('shop');
+  else if (m.kind === 'bank') openPanel('bank');
+  else if (m.kind === 'build') window.openBuildInfo?.(m.b);
 }
 
 // ---------- On-screen controls (touch screens only: shown by the (hover: none) and (pointer: coarse) rule in style.css) ----------
@@ -1218,13 +1244,73 @@ document.querySelectorAll('[data-pad]').forEach(btn => {
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => btn.addEventListener(t, release));
   btn.addEventListener('contextmenu', e => e.preventDefault()); // no long-press menu
 });
-document.getElementById('padAction')?.addEventListener('click', () => {
-  if (document.body.classList.contains('intro-open') || anyOpen()) return;
-  interact();
-});
+
+// ---------- Auto-walk: "Empty. Visit the shop!" walks you along the paths to the shop door ----------
+let autoPath = [], autoFace = null;
+function findPath(from, isGoal, canStep) {            // breadth-first search over tiles → list of steps (not incl. start)
+  const id = (x, y) => y * COLS + x, start = id(from.x, from.y);
+  const prev = new Map([[start, -1]]), q = [[from.x, from.y]];
+  for (let i = 0; i < q.length; i++) {
+    const [x, y] = q[i];
+    if (isGoal(x, y)) {
+      const path = []; let k = id(x, y);
+      while (k !== start) { path.unshift({ x: k % COLS, y: Math.floor(k / COLS) }); k = prev.get(k); }
+      return path;
+    }
+    for (const [dx, dy] of [[0, 1], [1, 0], [0, -1], [-1, 0]]) {
+      const nx = x + dx, ny = y + dy, k = id(nx, ny);
+      if (nx < 0 || ny < 0 || nx >= COLS || ny >= ROWS || prev.has(k) || !canStep(nx, ny)) continue;
+      prev.set(k, id(x, y)); q.push([nx, ny]);
+    }
+  }
+  return null;
+}
+function walkToShop() {
+  const onPath = (x, y) => map[y]?.[x] === 4;
+  // the spot right in front of the door (the shop's door faces south); otherwise any tile touching the shop
+  let doors = [0, 1].map(i => ({ x: SHOP_BLD.x + i, y: SHOP_BLD.y + SHOP_BLD.h })).filter(d => walkable(d.x, d.y));
+  if (!doors.length) {
+    for (let i = -1; i <= SHOP_BLD.w; i++) for (let j = -1; j <= SHOP_BLD.h; j++) {
+      const x = SHOP_BLD.x + i, y = SHOP_BLD.y + j;
+      const touching = (i >= 0 && i < SHOP_BLD.w) !== (j >= 0 && j < SHOP_BLD.h);
+      if (touching && walkable(x, y)) doors.push({ x, y });
+    }
+  }
+  const isDoor = (x, y) => doors.some(d => d.x === x && d.y === y);
+  const here = { x: P.x, y: P.y };
+  let route = isDoor(here.x, here.y) ? [] : null;
+  if (!route) {
+    // 1) off the grass onto the nearest path, 2) follow the paths to the shop door
+    const leg1 = onPath(here.x, here.y) ? [] : findPath(here, onPath, walkable);
+    const from = leg1?.length ? leg1[leg1.length - 1] : here;
+    const leg2 = leg1 && findPath(from, isDoor, (x, y) => walkable(x, y) && (onPath(x, y) || isDoor(x, y)));
+    route = leg2 ? [...leg1, ...leg2] : findPath(here, isDoor, walkable); // paths don't reach the shop → walk there directly
+  }
+  if (!route) return toast("Can't find a way to the shop from here");
+  closePanels();
+  autoPath = route;
+  const d = route.length ? route[route.length - 1] : here;  // face the shop when you get there
+  autoFace = d.y >= SHOP_BLD.y + SHOP_BLD.h ? 'up' : d.y < SHOP_BLD.y ? 'down' : d.x < SHOP_BLD.x ? 'right' : 'left';
+  if (!route.length) { P.dir = autoFace; autoFace = null; }
+}
 
 function update() {
   const arrived = Math.abs(P.rx - P.x) < .01 && Math.abs(P.ry - P.y) < .01;
+  if (arrived && Object.values(keys).some(Boolean)) { autoPath = []; autoFace = null; } // arrow keys / D-pad take over
+  if (arrived && autoPath.length) {
+    P.rx = P.x; P.ry = P.y;
+    const n = autoPath[0];
+    if (walkable(n.x, n.y) && Math.abs(n.x - P.x) + Math.abs(n.y - P.y) === 1) {
+      P.dir = n.x < P.x ? 'left' : n.x > P.x ? 'right' : n.y < P.y ? 'up' : 'down';
+      P.x = n.x; P.y = n.y; P.moving = true; autoPath.shift();
+      S.player = { x: P.x, y: P.y }; saveLocal();
+      document.getElementById('savedBanner')?.classList.add('compact');
+      document.querySelector('.hud-left')?.classList.add('tucked');
+      return;
+    }
+    autoPath = [];                       // something is in the way now → stop here
+  }
+  if (arrived && autoFace && !autoPath.length) { P.dir = autoFace; autoFace = null; P.moving = false; }
   if (arrived) {
     P.rx = P.x; P.ry = P.y;
     let dx = 0, dy = 0;
@@ -1238,8 +1324,10 @@ function update() {
     }
     if (P.moving && walkable(P.x + dx, P.y + dy)) { P.x += dx; P.y += dy; S.player = { x: P.x, y: P.y }; saveLocal(); } // walking: browser only, no cloud write
   } else {
-    P.rx += Math.sign(P.x - P.rx) * Math.min(.28, Math.abs(P.x - P.rx));
-    P.ry += Math.sign(P.y - P.ry) * Math.min(.28, Math.abs(P.y - P.ry));
+    // walking speed (tiles per frame): a bit quicker while auto-walking to the shop
+    const speed = autoPath.length || autoFace ? .12 : .08;
+    P.rx += Math.sign(P.x - P.rx) * Math.min(speed, Math.abs(P.x - P.rx));
+    P.ry += Math.sign(P.y - P.ry) * Math.min(speed, Math.abs(P.y - P.ry));
   }
 }
 const nearVillager = () => Math.abs(P.x - VILLAGER.x) + Math.abs(P.y - VILLAGER.y) <= 1;
@@ -1267,10 +1355,17 @@ const tileAt = e => {
   };
 };
 const canPlace = (x, y) => map[y]?.[x] > 0 && !inBuilding(x, y) && !inPlot(x, y) && !S.placed.some(p => p.x === x && p.y === y) && !(x === P.x && y === P.y) && !(x === VILLAGER.x && y === VILLAGER.y);
-cv.addEventListener('mousemove', e => { lastMouse = { clientX: e.clientX, clientY: e.clientY }; hover = tileAt(e); });
-cv.addEventListener('mouseleave', () => { lastMouse = null; hover = null; });
+cv.addEventListener('mousemove', e => {
+  lastMouse = { clientX: e.clientX, clientY: e.clientY }; hover = tileAt(e);
+  cv.style.cursor = !editMode && clickTarget(hover.x, hover.y) ? 'pointer' : '';
+});
+cv.addEventListener('mouseleave', () => { lastMouse = null; hover = null; cv.style.cursor = ''; });
 cv.addEventListener('click', e => {
   const { x, y } = tileAt(e);
+  if (!editMode && !e.shiftKey && !document.body.classList.contains('intro-open')) {
+    const target = clickTarget(x, y);
+    if (target) { selectedItem = null; renderInventory(); return useTarget(target); }
+  }
   if (e.shiftKey) { // pick up
     const i = S.placed.findIndex(p => p.x === x && p.y === y);
     if (i >= 0) { const [p] = S.placed.splice(i, 1); S.inventory[p.id] = (S.inventory[p.id] || 0) + 1; save(); renderInventory(); toast('Picked up!'); }
@@ -1340,6 +1435,18 @@ $('moreBtn').onclick = e => {
 };
 $('moreMenu').querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', closeMore));
 addEventListener('click', e => { if (!e.target.closest('.more-wrap')) closeMore(); });
+
+// Top-left cards (title, coins/streak, clock): hovering any of them opens them all ("peek"). While open, the gaps
+// between the cards count as hovering too, and they wait a moment before tucking back, so they never flicker.
+{
+  const hud = document.querySelector('.hud-left');
+  let peekTimer = null;
+  const open = () => { clearTimeout(peekTimer); hud.classList.add('peek'); };
+  const closeSoon = () => { clearTimeout(peekTimer); peekTimer = setTimeout(() => hud.classList.remove('peek'), 350); };
+  hud.querySelectorAll(':scope > *').forEach(el => el.addEventListener('pointerenter', open));
+  hud.addEventListener('pointerenter', open);
+  hud.addEventListener('pointerleave', closeSoon);
+}
 addEventListener('keydown', e => { if (e.key === 'Escape' && !$('moreMenu').classList.contains('hidden')) { closeMore(); $('moreBtn').focus(); } }, true);
 $('editDone').onclick = () => setEdit(false);
 const characterOptions = $('characterOptions');
@@ -1398,12 +1505,13 @@ function renderEditTools() {
   if (!tools.some(t => t.id === editTool)) editTool = 'move';
   $('editTools').innerHTML = tools.map(t => `<button type="button" class="tool ${editTool === t.id ? 'active' : ''}" data-tool="${t.id}">${t.img ? `<img src="${t.img}" alt="">` : ''}${t.label}</button>`).join('');
   $('editTools').querySelectorAll('[data-tool]').forEach(b => b.onclick = () => { editTool = b.dataset.tool; renderEditTools(); });
+  const tap = matchMedia('(pointer: coarse)').matches ? 'Tap' : 'Click';
   $('editHint').innerHTML = pit(editTool === 'move' ? 'Drag anything to move it: items, the shop, town buildings, Maple. Drop items on the :backpack: bag to put them away.'
-    : editTool === 'unpave' ? 'Click or drag over a path to turn it back into grass.'
-    : 'Click or drag to pave. Paths go on grass and sand. Buy more styles in the shop.');
+    : editTool === 'unpave' ? tap + ' or drag over a path to turn it back into grass.'
+    : tap + ' or drag to pave. Paths go on grass and sand. Buy more styles in the shop.');
   document.body.classList.toggle('paving', editTool !== 'move');
 }
-function toast(msg) { const el = $('toast'); el.innerHTML = pit(msg); el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 2000); }
+function toast(msg, ms = 2000) { const el = $('toast'); el.innerHTML = pit(msg); el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), ms); }
 function renderStats() {
   $('coins').textContent = S.coins.toLocaleString();
   const savedTxt = `$${S.saved.toLocaleString()}`, savedEl = $('saved');
@@ -1445,6 +1553,7 @@ function openPanel(name) {
     el.querySelector('.close')?.focus();
   }
   if (name === 'history') { animateChart = true; renderFuture(); } // draw the graph in, line by line
+  if (name === 'sync') renderSync();
   emit('panel', name);
 }
 document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openPanel(b.dataset.open));
@@ -1614,7 +1723,10 @@ function renderFuture() {
 
 // ---- ONE graph, 20 years ahead: past (solid) + keep saving + invested (dashed), with 1 / 10 / 20 yr marked ----
 function drawFutureChart(st, rate, start) {
-  const W = 640, H = 270, L = 58, R = 120, T = 26, B = 30;
+  const svg = $('futureChart');
+  // Draw at the graph's real on-screen width, so text stays readable on phones instead of shrinking with the picture.
+  const W = Math.round(Math.min(640, Math.max(300, svg.clientWidth || 640))), narrow = W < 480;
+  const H = narrow ? 230 : 270, L = narrow ? 44 : 58, R = narrow ? 56 : 130, T = 26, B = 30;
   const now = new Date(today()), firstD = st.first ? new Date(st.first) : now;
   const pastDays = Math.max(0, (now - firstD) / 864e5), futDays = SPAN * 365;
   const x0 = -Math.max(pastDays, futDays * .04), x1 = futDays;        // x = days from today (a sliver of past is always visible)
@@ -1641,9 +1753,8 @@ function drawFutureChart(st, rate, start) {
     </g>`;
   }).join('');
   const endSave = project(start, rate, SPAN, false), endInv = project(start, rate, SPAN, true);
-  const svg = $('futureChart');
   cancelAnimationFrame(chartAnim); chartAnim = null;
-  svg.parentElement.querySelectorAll('.ms-pop').forEach(p => p.remove());
+  svg.parentElement.querySelectorAll('.chart-pop').forEach(p => p.remove()); // bubbles from the last draw-in
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.innerHTML = `
     ${yt.map(v => `<line x1="${L}" x2="${W - R}" y1="${sy(v)}" y2="${sy(v)}" class="grid"/><text x="${L - 8}" y="${sy(v) + 4}" class="tick" text-anchor="end">${money(v)}</text>`).join('')}
@@ -1654,10 +1765,12 @@ function drawFutureChart(st, rate, start) {
       <path d="${path(inv)}" class="ln" stroke="${FUTURE_COLORS.invest}" stroke-dasharray="6 4"/>
       <path d="${path(save)}" class="ln" stroke="${FUTURE_COLORS.save}" stroke-dasharray="6 4"/>
       <path d="${path(past)}" class="ln" stroke="${FUTURE_COLORS.past}"/>
-      <text x="${W - R + 10}" y="${sy(endInv) + 4}" class="dl">${money(endInv)} invested</text>
-      <text x="${W - R + 10}" y="${Math.max(sy(endSave) + 4, sy(endInv) + 20)}" class="dl">${money(endSave)} saved</text>
+      <text x="${W - R + 8}" y="${sy(endInv) + 4}" class="dl" fill="${FUTURE_COLORS.invest}">${money(endInv)}${narrow ? '' : ' invested'}</text>
+      <text x="${W - R + 8}" y="${Math.max(sy(endSave) + 4, sy(endInv) + 20)}" class="dl" fill="${FUTURE_COLORS.save}">${money(endSave)}${narrow ? '' : ' saved'}</text>
     </g>
     <line id="xhair" x1="0" x2="0" y1="${T}" y2="${H - B}" class="xhair" visibility="hidden"/>
+    <circle id="xdotSave" r="4" fill="${FUTURE_COLORS.save}" class="end" visibility="hidden"/>
+    <circle id="xdotInv" r="4" fill="${FUTURE_COLORS.invest}" class="end" visibility="hidden"/>
     <rect x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}" fill="transparent" id="chartHit"/>
     <g clip-path="url(#reveal)">${marks}</g>`;
   if (animateChart) { animateChart = false; playChartIntro(svg, W, L, R, sx, sy, start, rate); }
@@ -1665,50 +1778,64 @@ function drawFutureChart(st, rate, start) {
     const pick = () => { horizon = +m.dataset.y; renderFuture(); };
     m.onclick = pick; m.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } };
   });
-  // hover: crosshair + tooltip with both projections at that point in time
-  const hit = svg.querySelector('#chartHit'), xh = svg.querySelector('#xhair'), tip = $('chartTip');
-  hit.onpointermove = e => {
-    const r = svg.getBoundingClientRect(), px = (e.clientX - r.left) * W / r.width;
+  // Hover / touch: a crosshair and dots on the lines, with the amounts in the readout ABOVE the graph
+  // (a floating box would cover the lines). Listens on the whole svg so the milestone click areas don't block it.
+  const xh = svg.querySelector('#xhair'), dS = svg.querySelector('#xdotSave'), dI = svg.querySelector('#xdotInv'), tip = $('chartTip');
+  const sw = c => `<i style="background:${c}"></i>`;
+  const readAt = (label, s, inv) => `<b>${label}</b><span>${sw(FUTURE_COLORS.save)}keep saving ${moneyFull(s)}</span><span>${sw(FUTURE_COLORS.invest)}+ invested ${moneyFull(inv)}</span>`;
+  const resting = () => readAt(`in ${yrs(horizon)}`, project(start, rate, horizon, false), project(start, rate, horizon, true));
+  tip.innerHTML = resting(); tip.classList.remove('flash');
+  const hideTip = () => { [xh, dS, dI].forEach(el => el.setAttribute('visibility', 'hidden')); if (!chartAnim) tip.innerHTML = resting(); };
+  svg.onpointerleave = e => { if (e.pointerType !== 'touch') hideTip(); }; // on a phone, keep the last reading after the finger lifts
+  svg.onpointerdown = svg.onpointermove = e => {
+    if (chartAnim) return; // let the draw-in finish first
+    const r = svg.getBoundingClientRect(), px = (e.clientX - r.left) * W / r.width, py = (e.clientY - r.top) * H / r.height;
+    if (px < L || px > W - R || py < T - 24 || py > H - B) return hideTip();
     const d = x0 + (px - L) / (W - L - R) * (x1 - x0);
     xh.setAttribute('x1', px); xh.setAttribute('x2', px); xh.setAttribute('visibility', 'visible');
     if (d <= 0) {
       const v = past.filter(([pd]) => pd <= d).at(-1)?.[1] ?? 0;
-      tip.innerHTML = `<b>${d > -1 ? 'today' : Math.round(-d) + ' days ago'}</b><span><i style="background:${FUTURE_COLORS.past}"></i>saved ${moneyFull(v)}</span>`;
+      [dS, dI].forEach(el => el.setAttribute('visibility', 'hidden'));
+      tip.innerHTML = `<b>${d > -1 ? 'today' : Math.round(-d) + ' days ago'}</b><span>${sw(FUTURE_COLORS.past)}saved ${moneyFull(v)}</span>`;
     } else {
-      const y = d / 365;
-      tip.innerHTML = `<b>in ${y < 1 ? Math.round(d / 30.4) + ' months' : y.toFixed(1) + ' years'}</b>
-        <span><i style="background:${FUTURE_COLORS.save}"></i>keep saving: ${moneyFull(project(start, rate, y, false))}</span>
-        <span><i style="background:${FUTURE_COLORS.invest}"></i>+ invested: ${moneyFull(project(start, rate, y, true))}</span>`;
+      const y = d / 365, s = project(start, rate, y, false), inv = project(start, rate, y, true);
+      dS.setAttribute('cx', px); dS.setAttribute('cy', sy(s)); dI.setAttribute('cx', px); dI.setAttribute('cy', sy(inv));
+      [dS, dI].forEach(el => el.setAttribute('visibility', 'visible'));
+      tip.innerHTML = readAt(`in ${y < 1 ? Math.round(d / 30.4) + ' months' : y.toFixed(1) + ' years'}`, s, inv);
     }
-    tip.classList.remove('hidden');
-    const wrap = svg.parentElement.getBoundingClientRect();
-    tip.style.left = Math.min(e.clientX - wrap.left + 14, wrap.width - tip.offsetWidth - 4) + 'px';
-    tip.style.top = (e.clientY - wrap.top - 10) + 'px';
   };
-  hit.onpointerleave = () => { xh.setAttribute('visibility', 'hidden'); tip.classList.add('hidden'); };
   $('futureTable').innerHTML = `<tr><th>When</th><th>Keep saving</th><th>+ invested (5%/yr)</th></tr>` +
     MILESTONES.map(y => `<tr><td>in ${yrs(y)}</td><td>${moneyFull(project(start, rate, y, false))}</td><td>${moneyFull(project(start, rate, y, true))}</td></tr>`).join('');
 }
 
-// Line draws left→right; at each milestone it pauses and pops up "$X saved in N yrs!", then carries on.
+// Line draws left→right; at each milestone it pauses and announces "$X saved in N yrs!".
+// Desktop: a bubble pops up on the graph, right under that milestone's dot. Phones: the readout above the graph says it
+// (a bubble would cover most of a small graph).
 function playChartIntro(svg, W, L, R, sx, sy, start, rate) {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return; // just show the finished graph
-  const rect = svg.querySelector('#revealRect'), wrap = svg.parentElement;
+  const rect = svg.querySelector('#revealRect'), tip = $('chartTip'), rest = tip.innerHTML;
   const endX = W - R + 110, stops = MILESTONES.map(y => ({ y, x: sx(y * 365) }));
   const SPEED = (endX - L) / 2600;          // ~2.6s of drawing, plus the pauses
   let x = L, last = performance.now(), pauseUntil = 0;
   rect.setAttribute('width', x);
+  const onGraph = matchMedia('(hover: hover) and (pointer: fine) and (min-width: 521px)').matches;
   const pop = ({ y, x: mx }) => {
-    const r = svg.getBoundingClientRect(), wr = wrap.getBoundingClientRect(), k = r.width / W;
-    const p = document.createElement('div');
-    p.className = 'ms-pop';
-    p.innerHTML = `<b>${moneyFull(project(start, rate, y, false))}</b> saved in ${yrs(y)}!`;
-    p.style.left = (r.left - wr.left + mx * k) + 'px';
-    p.style.top = (r.top - wr.top + sy(project(start, rate, y, false)) * k) + 'px';
-    if (y === SPAN) p.classList.add('end');
-    wrap.append(p);
-    setTimeout(() => p.classList.add('out'), 2200);
-    setTimeout(() => p.remove(), 2700);
+    if (onGraph) {
+      const wrap = svg.parentElement, k = svg.clientWidth / W, b = document.createElement('div');
+      const dotY = sy(project(start, rate, y, false));
+      // under the dot, or above it when the dot is low (so the bubble doesn't hang over the axis labels)
+      b.className = 'chart-pop' + (y === SPAN ? ' at-end' : '') + (dotY > svg.viewBox.baseVal.height * .55 ? ' above' : '');
+      b.innerHTML = `<b>${moneyFull(project(start, rate, y, false))}</b><span>saved in ${yrs(y)}!</span>`;
+      const sr = svg.getBoundingClientRect(), wr = wrap.getBoundingClientRect(); // (an <svg> has no offsetLeft/Top)
+      b.style.left = `${sr.left - wr.left + mx * k}px`;
+      b.style.top = `${sr.top - wr.top + dotY * k}px`;
+      wrap.append(b);
+      if (y === SPAN) setTimeout(() => wrap.querySelectorAll('.chart-pop').forEach(p => p.classList.add('bye')), 2600);
+      return;
+    }
+    tip.innerHTML = `<b>${moneyFull(project(start, rate, y, false))}</b><span>saved in ${yrs(y)}!</span>`;
+    tip.classList.remove('flash'); void tip.offsetWidth; tip.classList.add('flash'); // restart the little bounce
+    if (y === SPAN) setTimeout(() => { if (tip.isConnected && !chartAnim) { tip.innerHTML = rest; tip.classList.remove('flash'); } }, 2200);
   };
   const tick = now => {
     const dt = now - last; last = now;
@@ -1815,6 +1942,12 @@ $('rateInput').addEventListener('input', () => {
   renderFuture();
 });
 $('rateReset').onclick = () => { rateOverride = null; renderFuture(); };
+// the graph is drawn at its on-screen width, so redraw it when that changes (e.g. turning a phone sideways)
+let chartW = 0;
+addEventListener('resize', () => {
+  const w = $('futureChart').clientWidth;
+  if (w && w !== chartW && !$('panel-history').classList.contains('hidden')) { chartW = w; renderFuture(); }
+});
 
 // ---------- Shop / Inventory ----------
 function renderShop() {
@@ -1856,7 +1989,9 @@ function renderShop() {
 }
 function renderInventory() {
   const ids = Object.keys(S.inventory);
-  $('inventory').innerHTML = ids.map(id => { const s = SHOP.find(i => i.id === id); return `<button class="item ${selectedItem === id ? 'selected' : ''}" data-id="${id}" title="${s.name}" aria-label="${s.name}, ${S.inventory[id]} in bag"><img src="${iconURL(s.id)}" alt=""><span class="count">×${S.inventory[id]}</span></button>`; }).join('') || '<span class="empty">Empty. Visit the shop!</span>';
+  $('inventory').innerHTML = ids.map(id => { const s = SHOP.find(i => i.id === id); return `<button class="item ${selectedItem === id ? 'selected' : ''}" data-id="${id}" title="${s.name}" aria-label="${s.name}, ${S.inventory[id]} in bag"><img src="${iconURL(s.id)}" alt=""><span class="count">×${S.inventory[id]}</span></button>`; }).join('')
+    || '<button type="button" class="empty walk-shop" title="Walk to the shop">empty. Visit the shop!</button>';
+  $('inventory').querySelector('.walk-shop')?.addEventListener('click', walkToShop);
   $('inventory').querySelectorAll('.item').forEach(el => el.onclick = () => {
     selectedItem = selectedItem === el.dataset.id ? null : el.dataset.id;
     renderInventory(); if (selectedItem) toast(`Click a spot on your island to place the ${SHOP.find(i => i.id === selectedItem).name}`);
@@ -1929,7 +2064,7 @@ function tickMission(li) {
   if (m.auto) {
     if (id === 'deposit') { toast('Log any amount in the bank to tick this off'); return openPanel('bank'); }
     if (id === 'goal') { toast('Add savings to a goal to tick this off'); return openPanel('goals'); }
-    if (id === 'chat') return toast('Walk up to Maple :fox: and press Space to ask a question');
+    if (id === 'chat') return toast('Click on Maple :fox: to ask her a question');
   }
   li.classList.add('striking');
   setTimeout(() => completeMission(id), 600); // let the strike animation play, then it drops to the bottom
@@ -1988,7 +2123,9 @@ function drawPortrait(canvas, rows, pal) {
   for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) paint(PAL.outline, ox, oy);
   paint(null, 0, 0);
 }
-drawPortrait($('chatMe'), playerRows('right', false), PLAYER_PAL);
+// the player's portrait uses their custom look; redrawn each time the chat opens in case they changed it
+const drawChatMe = () => drawPortrait($('chatMe'), playerRows('right', false), playerPalette());
+drawChatMe();
 drawPortrait($('chatFox'), FOX, FOX_PAL);
 
 let typingRun = 0, skipTyping = null;
@@ -2021,7 +2158,7 @@ function addMsg(text, who) {
 $('chatLog').onclick = () => skipTyping?.();
 function openChat() {
   closePanels(); Object.keys(keys).forEach(k => keys[k] = false);
-  $('chat').classList.remove('hidden'); showChatHistory(false);
+  $('chat').classList.remove('hidden'); showChatHistory(false); drawChatMe();
   emit('panel', 'chat');
   const back = S.chat?.length;
   addMsg(back
@@ -2114,11 +2251,17 @@ function showIsland(swap = false) {
 let pendingCloud = null; // arrived during the tutorial: applied once the practice island is put away
 window.loadCloudState = data => {
   if (realS) { pendingCloud = data; return; }
+  const here = S?.player; // your spot isn't synced: stay where you are on this device
   S = Object.assign(defaultState(), data);
   if (!data.worldV) S.worldV = 0;
   migrateWorld(); migrateJars();
+  if (here && onLand(here.x, here.y)) S.player = { x: here.x, y: here.y };
   try { localStorage.setItem('fmi', JSON.stringify(S)); } catch {}
+  character = cleanCharacter(S.character || character); S.character ||= { ...character }; // the synced look
+  try { localStorage.setItem(CHARACTER_KEY, JSON.stringify(character)); } catch {}
+  syncCharacterSelections?.(); drawCharacterPreview();
   showIsland();
+  window.onIslandLoaded?.(); // e.g. town.js re-checks which towns this island is in
 };
 
 // ---------- Tutorial sandbox: a practice island shown in place of the real one, never saved ----------
@@ -2138,6 +2281,148 @@ window.leavePracticeIsland = () => {
 
 // getState / saveGame always mean the player's real island (cloud.js and town.js use them), even mid-tutorial
 window.getState = () => realS || S;
+
+// ---------- Sync devices: same island on phone + laptop, no login (cloud.js provides window.sync) ----------
+const syncURL = code => `${location.origin}${location.pathname}#sync=${code}`;
+const fmtSync = code => code.match(/.{1,4}/g).join('-');
+const syncStatus = text => { $('syncStatus').textContent = text; };
+let qrLib = null; // QR code maker, loaded the first time it's needed
+const loadQr = () => qrLib ||= new Promise((resolve, reject) => {
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
+  s.onload = () => resolve(window.qrcode);
+  s.onerror = () => { qrLib = null; reject(new Error('QR library failed to load')); };
+  document.head.append(s);
+});
+let syncOffer = null; // code from a sync link / QR, waiting for the player to tap SYNC
+function renderSync() {
+  const code = window.sync?.code(), offer = syncOffer && syncOffer !== code ? syncOffer : null;
+  $('syncOffer').hidden = !offer;
+  $('syncOff').hidden = !!code || !!offer; $('syncOn').hidden = !code || !!offer;
+  if (!code && !offer && !$('syncIslandName').value) $('syncIslandName').value = suggestIslandName();
+  if (!code || offer) return;
+  $('syncIslandShow').textContent = S.islandName || 'Your island';
+  renderSyncDevices();
+  $('syncCodeShow').textContent = fmtSync(code);
+  $('syncQr').hidden = true;
+  loadQr().then(qrcode => {
+    const qr = qrcode(0, 'M'); qr.addData(syncURL(code)); qr.make();
+    $('syncQr').src = qr.createDataURL(6, 2); $('syncQr').hidden = false;
+  }).catch(e => console.warn('[sync]', e)); // the typed code still works without the picture
+}
+const cloudReady = () => {
+  if (window.sync) return true;
+  syncStatus("Syncing isn't available right now. Check your connection and try again.");
+  return false;
+};
+// The island needs a name before it's shared, so the other device sees "You're syncing to <name>"
+const suggestIslandName = () => S.islandName || ((S.name || '').trim() ? `${S.name.trim()}'s Island` : '');
+$('syncCreateForm').onsubmit = async e => {
+  e.preventDefault();
+  if (!cloudReady()) return;
+  const name = $('syncIslandName').value.trim().slice(0, 30);
+  if (!name) { syncStatus('Give your island a name first!'); return $('syncIslandName').focus(); }
+  S.islandName = name; save(); // saved before the code is made, so the synced copy has it
+  syncStatus('Creating your code…');
+  try { await window.sync.create(); syncStatus(''); renderSync(); }
+  catch (e) { console.warn('[sync] create failed', e); syncStatus('Could not create a code. Check your connection and try again.'); }
+};
+$('syncJoinForm').onsubmit = async e => {
+  e.preventDefault();
+  if (!cloudReady()) return;
+  const typed = $('syncInput').value.replace(/[^a-z0-9]/gi, '');
+  if (typed.length !== 12) return syncStatus('Sync codes have 12 letters and numbers, like ABCD-EFGH-JK23.');
+  if (!confirm("Use your synced island on this device? The island that's on this device now will be replaced.")) return;
+  syncStatus('Linking…');
+  try {
+    if (!(await window.sync.join(typed))) return syncStatus('No island found with that code. Check it and try again.');
+    $('syncInput').value = ''; syncStatus(''); renderSync();
+    toast('Synced! This device now shares your island.');
+  } catch (e) { console.warn('[sync] join failed', e); syncStatus('Could not link. Check your connection and try again.'); }
+};
+$('syncCopy').onclick = async () => {
+  try { await navigator.clipboard.writeText(syncURL(window.sync.code())); toast('Link copied! Open it on your other device.'); }
+  catch { toast('Could not copy. Type the code on your other device instead.'); }
+};
+$('syncUnlink').onclick = async () => {
+  if (!confirm("Stop syncing on this device? It keeps a copy of your island, but changes won't sync any more. Your other devices aren't affected.")) return;
+  await window.sync.unlink(); syncStatus(''); renderSync();
+  toast('This device is no longer synced');
+};
+// The devices synced with this island (from cloud.js), shown in the Sync window
+function renderSyncDevices() {
+  const { me, list } = window.sync?.devices?.() || { list: {} };
+  const ids = Object.keys(list).sort((a, b) => (a === me ? -1 : b === me ? 1 : 0));
+  const box = $('syncDevices');
+  box.innerHTML = ids.length ? `<b>Synced devices</b><ul>${ids.map(id =>
+    `<li>${/iPhone|Android phone/.test(list[id]) ? '📱' : '💻'} ${esc(list[id])}${id === me ? ' <span class="muted">(this device)</span>' : ''}</li>`).join('')}</ul>`
+    + (ids.length < 2 ? '<p class="muted sync-note">No other devices yet. Scan the QR code on your other device.</p>' : '') : '';
+}
+window.onSyncDevicesList = () => { if (!$('panel-sync').classList.contains('hidden')) renderSyncDevices(); };
+// Another device joined or stopped syncing (also noticed when this device opens later)
+window.onSyncDevicesChanged = ({ added, removed, others }) => {
+  const lines = [ // toast() escapes the text itself (device labels come from other browsers)
+    ...removed.map(l => `:island: Your ${l} stopped syncing with this island.${others ? '' : ' No other devices are synced now.'}`),
+    ...added.map(l => `:sparkle: ${l} is now synced with your island.`),
+  ];
+  toast(lines.join(' '), 7000);
+};
+// "You're syncing to Sam's island · $120 saved · 5-day streak": look up the island behind a sync link
+async function peekOffer(code) {
+  for (let i = 0; i < 40 && !window.sync; i++) await new Promise(r => setTimeout(r, 250)); // cloud.js may still be loading
+  try {
+    const info = await window.sync?.peek(code);
+    if (syncOffer !== code) return;
+    if (!info) {
+      $('syncOfferStats').textContent = "We couldn't find an island with this code. Ask for a new link from your other device.";
+      $('syncOfferGo').disabled = true;
+      return;
+    }
+    $('syncOfferName').textContent = info.islandName || (info.name ? `${info.name}'s island` : 'your island');
+    $('syncOfferStats').innerHTML = pit(`:piggy: $${info.saved.toLocaleString()} saved · :flame: ${info.streak}-day streak · :coin: ${info.coins.toLocaleString()} coins`);
+  } catch (e) {
+    console.warn('[sync] peek failed', e);
+    if (syncOffer === code) $('syncOfferStats').textContent = "Couldn't look up the island right now, but you can still tap SYNC.";
+  }
+}
+$('syncOfferGo').onclick = async () => {
+  if (!cloudReady()) return;
+  const hasProgress = S.saved > 0 || (S.history || []).length > 0 || (S.placed || []).length > 0;
+  if (hasProgress && !confirm('This device already has an island with progress on it. Replace it with the synced island?')) return;
+  $('syncOfferGo').disabled = true; syncStatus('Syncing…');
+  try {
+    if (!(await window.sync.join(syncOffer))) { $('syncOfferGo').disabled = false; return syncStatus('No island found with that code. Ask for a new link.'); }
+    syncOffer = null; syncStatus(''); renderSync();
+    toast("Synced! You're playing your island on this device now.");
+  } catch (e) {
+    console.warn('[sync] join failed', e);
+    $('syncOfferGo').disabled = false; syncStatus('Could not sync. Check your connection and try again.');
+  }
+};
+$('syncOfferCancel').onclick = () => { syncOffer = null; syncStatus(''); closePanels(); };
+// Opened from a scanned QR code / copied link (…#sync=CODE): show "You're syncing to …" with a big SYNC button
+(function syncFromLink() {
+  const m = location.hash.match(/sync=([A-Za-z0-9-]{12,16})/);
+  if (!m) return;
+  history.replaceState(null, '', location.pathname + location.search); // don't leave the code in the address bar
+  const code = m[1].toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const show = () => {
+    syncOffer = code;
+    $('syncOfferCode').textContent = fmtSync(code);
+    $('syncOfferName').textContent = 'your island';
+    $('syncOfferStats').textContent = 'Looking up the island…';
+    $('syncOfferGo').disabled = false;
+    syncStatus('');
+    openPanel('sync'); // renderSync() shows the "You're syncing to …" screen
+    if (window.sync?.code() === code) { syncOffer = null; renderSync(); return syncStatus('This device is already synced with that island.'); }
+    peekOffer(code);
+  };
+  if (!document.body.classList.contains('intro-open')) return show();
+  new MutationObserver((_, obs) => {
+    if (document.body.classList.contains('intro-open')) return;
+    obs.disconnect(); setTimeout(show, 300); // after the welcome pop-up
+  }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+})();
 window.hasLocalSave = () => hadLocalSave;
 window.saveGame = () => {
   const s = realS || S;

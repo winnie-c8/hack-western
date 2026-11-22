@@ -7,6 +7,8 @@ const app = express();
 app.use(cors({
   origin: [
     "https://winnie-c8.github.io",
+    "https://tomoisland.garden",
+    "https://www.tomoisland.garden",
     "https://hack-western-ef338.web.app",
     "https://hack-western-ef338.firebaseapp.com",
     /^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/,

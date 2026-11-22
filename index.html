@@ -3,16 +3,16 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Future Me Island</title>
+<title>Tomo Island</title>
 <link rel="preload" href="fonts/VCR_OSD_MONO.ttf" as="font" type="font/ttf" crossorigin>
-<link rel="stylesheet" href="style.css?v=39">
+<link rel="stylesheet" href="style.css?v=48">
 </head>
 <body>
-<div id="intro" class="intro" role="dialog" aria-label="Welcome to Future Me Island">
+<div id="intro" class="intro" role="dialog" aria-label="Welcome to Tomo Island">
   <canvas id="introScene" width="320" height="180" aria-hidden="true"></canvas>
   <div class="intro-stage">
     <div class="intro-sign">
-      <h2 class="intro-title" data-text="Future Me Island" aria-label="Future Me Island"></h2>
+      <h2 class="intro-title" data-text="Tomo Island" aria-label="Tomo Island"></h2>
     </div>
     <div class="intro-buttons">
       <button id="enterWorld" class="intro-btn go"><i data-pi="island"></i> Enter my world!</button>
@@ -28,7 +28,7 @@
   <canvas id="game" width="800" height="560" aria-label="Your island. Use arrow keys to walk."></canvas>
 
   <div class="hud hud-left">
-    <h1 class="home-title"><button id="homeBtn" class="home-btn" type="button" title="Back to the Future Me Island home screen">
+    <h1 class="home-title"><button id="homeBtn" class="home-btn" type="button" title="Back to the Tomo Island home screen">
       <svg class="pixel-palm" viewBox="0 0 16 16" shape-rendering="crispEdges" aria-hidden="true">
         <rect x="0" y="13" width="16" height="3" fill="#6cc3c8"/>
         <rect x="1" y="15" width="3" height="1" fill="#a6e2dc"/><rect x="11" y="14" width="4" height="1" fill="#a6e2dc"/>
@@ -46,7 +46,7 @@
           <rect x="6" y="4" width="1" height="1" fill="#8d6440"/><rect x="8" y="4" width="1" height="1" fill="#8d6440"/>
         </g>
       </svg>
-      <span>Future Me Island</span>
+      <span>Tomo Island</span>
     </button></h1>
     <div class="stats" aria-live="polite">
     <div class="stat"><span class="stat-ico"><i data-pi="coin"></i></span><div><b id="coins">0</b><small>coins</small></div></div>
@@ -73,7 +73,9 @@
       <div id="moreMenu" class="more-menu hidden" role="menu" aria-label="More">
         <button class="more-item" id="editBtn" type="button" role="menuitem" aria-pressed="false"><i data-pi="pencil"></i><span>edit island</span></button>
         <button class="more-item" data-open="history" type="button" role="menuitem"><i data-pi="scroll"></i><span>history</span></button>
-        <button class="more-item" data-open="character" type="button" role="menuitem"><i data-pi="sparkle"></i><span>character</span></button>      </div>
+        <button class="more-item" data-open="character" type="button" role="menuitem"><i data-pi="sparkle"></i><span>character</span></button>
+        <button class="more-item" data-open="sync" type="button" role="menuitem"><i data-pi="island"></i><span>sync devices</span></button>
+      </div>
     </div>
     <div class="dot-stack">
       <button class="help-dot pixel-dot" id="helpBtn" aria-label="Controls" aria-controls="helpPop"><i data-pi="question"></i></button>
@@ -84,7 +86,8 @@
     <h3>Controls</h3>
     <dl>
       <dt><kbd>←↑↓→</kbd> or <kbd>WASD</kbd></dt><dd>Walk</dd>
-      <dt><kbd>Space</kbd></dt><dd>Talk to Maple / enter the shop or bank / town build info</dd>
+      <dt>Click / tap</dt><dd>Talk to Maple, enter the shop or bank, see town build info</dd>
+      <dt><kbd>Space</kbd></dt><dd>Same, when you're standing next to it</dd>
       <dt>Click bag item, then island</dt><dd>Place it</dd>
       <dt><kbd>Shift</kbd> + click</dt><dd>Pick an item back up</dd>
       <dt>Click the town island</dt><dd>Visit your town</dd>
@@ -114,7 +117,6 @@
       <button type="button" class="pad right" data-pad="ArrowRight" aria-label="Walk right">&#9654;</button>
       <button type="button" class="pad down" data-pad="ArrowDown" aria-label="Walk down">&#9660;</button>
     </div>
-    <button type="button" id="padAction" class="pad-action" aria-label="Talk or enter (same as Space)">A</button>
   </div>
 </main>
 
@@ -144,7 +146,7 @@
 
       <!-- the small, optional part: which account + which goal -->
       <div class="bank-small">
-        <label class="small-label">which account?<select id="depType"></select></label>
+        <label class="small-label">which account? <span class="optional-note">(optional, only if you know and just to get you thinking :D)</span><select id="depType"></select></label>
         <div id="acctEditor" class="acct-editor hidden">
           <div class="acct-head"><span>Your savings accounts</span><button type="button" id="acctDone">Done</button></div>
           <ul id="acctList" class="acct-list"></ul>
@@ -159,9 +161,9 @@
       <button class="link-btn" data-close>not today</button>
 
       <details class="earn">
-        <summary><span class="q">?</span> How you earn <i data-pi="coin"></i> <span class="arrow">▸</span></summary>
+        <summary>How you earn <i data-pi="coin"></i> <span class="arrow">▸</span></summary>
         <div class="card">
-          <p class="muted">Coins reward the <b>habit</b>, not the amount. $5 every week beats $5,000 once.</p>
+          <p class="muted">every day you put money into your savings, get rewarded with coins. coins are rewarded through daily tasks, <b>not</b> the amount; $1 every day beats $5,000 once.</p>
           <ul id="rules" class="checklist"></ul>
         </div>
       </details>
@@ -223,8 +225,9 @@
           <span><i class="dash" style="--c:#d9701a"></i>keep saving</span>
           <span><i class="dash" style="--c:#8a4fd0"></i>saved + invested (5%/yr)</span>
         </div>
+        <!-- readout above the graph (not a pop-up on it), so the lines are never covered -->
+        <div id="chartTip" class="chart-read" role="status" aria-live="polite"></div>
         <svg id="futureChart" role="img" aria-label="Your savings so far and projected into the future"></svg>
-        <div id="chartTip" class="chart-tip hidden" role="status"></div>
         <details class="chart-table"><summary>Show as a table</summary><table id="futureTable"></table></details>
         <figcaption class="muted">Click 1 yr, 10 yrs or 20 yrs on the graph to see your island then. Projections assume you keep saving at this pace. The invested line assumes 5% a year growth, which is an example only: real investments go up and down.</figcaption>
       </figure>
@@ -302,6 +305,54 @@
         <h3 class="board-title"><i data-pi="pin"></i> Recent News</h3>
         <div id="buildNews" class="board"></div>
       </section>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="panel-sync" role="dialog" aria-labelledby="syncTitle">
+  <div class="window sync-window">
+    <div class="window-head"><h2 id="syncTitle"><i data-pi="island"></i> Sync devices</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-body">
+      <!-- shown when the game was opened from a sync link / scanned QR code -->
+      <div id="syncOffer" class="sync-offer" hidden>
+        <p class="sync-offer-kicker"><i data-pi="sparkle"></i> You opened a sync link</p>
+        <h3 class="sync-offer-title">You're syncing to <span id="syncOfferName">your island</span></h3>
+        <p id="syncOfferStats" class="sync-offer-stats">Looking up the island…</p>
+        <div class="sync-code" id="syncOfferCode"></div>
+        <button class="primary sync-big" id="syncOfferGo" type="button">SYNC</button>
+        <p class="muted sync-note">This device will play that island from now on. The island on this device now will be replaced.</p>
+        <button class="link-btn sync-offer-cancel" id="syncOfferCancel" type="button">Not now</button>
+      </div>
+      <div id="syncOff">
+        <p>Play the same island on your phone and laptop. No account or password, and you only link each device once.</p>
+        <form id="syncCreateForm" class="sync-create-form">
+          <label for="syncIslandName">First, name your island</label>
+          <input id="syncIslandName" maxlength="30" placeholder="e.g. Maple Grove" autocomplete="off">
+          <p class="muted sync-note">Your other devices will see this name when they sync.</p>
+          <button class="primary sync-create" id="syncCreate">Create a sync code</button>
+        </form>
+        <form id="syncJoinForm" class="sync-join">
+          <label for="syncInput">Got a code from your other device?</label>
+          <div class="sync-row">
+            <input id="syncInput" placeholder="XXXX-XXXX-XXXX" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="16">
+            <button class="primary">Link</button>
+          </div>
+          <p class="muted sync-note">Linking replaces the island on this device with your synced one.</p>
+        </form>
+      </div>
+      <div id="syncOn" hidden>
+        <p class="sync-island-name"><i data-pi="island"></i> <b id="syncIslandShow"></b></p>
+        <p>This device is synced. To add another device, scan this with its camera, or open the game there and enter the code under <b>More → Sync devices</b>.</p>
+        <img id="syncQr" class="sync-qr" alt="QR code that links another device to this island" hidden>
+        <div class="sync-code" id="syncCodeShow"></div>
+        <div id="syncDevices" class="sync-devices"></div>
+        <div class="sync-actions">
+          <button id="syncCopy" type="button">Copy link</button>
+          <button id="syncUnlink" type="button" class="link-btn">Unlink this device</button>
+        </div>
+        <p class="muted sync-note"><i data-pi="lock"></i> Keep this code private: anyone who has it can open your island.</p>
+      </div>
+      <p id="syncStatus" class="muted sync-status" role="status"></p>
     </div>
   </div>
 </div>
@@ -443,14 +494,14 @@
 </div>
 
 <script src="icons.js?v=36"></script>
-<script src="sky.js?v=33"></script>
-<script src="intro.js?v=33"></script>
+<script src="sky.js?v=36"></script>
+<script src="intro.js?v=34"></script>
 <script src="Updated/Music%20for%20game.js?v=2"></script>
-<script src="game.js?v=37"></script>
+<script src="game.js?v=49"></script>
 <script src="Set%20goals.js?v=27"></script>
 <script src="daily-star.js?v=27"></script>
-<script src="tutorial.js?v=2"></script>
+<script src="tutorial.js?v=3"></script>
 <script type="module" src="cloud.js"></script>
-<script type="module" src="town.js?v=29"></script>
+<script type="module" src="town.js?v=30"></script>
 </body>
 </html>

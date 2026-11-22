@@ -13,8 +13,9 @@
   const TOWN = 'MAPLE8';
   const touch = matchMedia('(hover: none) and (pointer: coarse)').matches;
   const walkKeys = touch ? 'the arrow pad' : 'the arrow keys or WASD';
-  const spaceKey = touch ? 'the A button' : 'Space';
   const click = touch ? 'Tap' : 'Click';
+  // the shop, bank, Maple and town builds open with a click / tap from anywhere; on a keyboard, Space works when you're next to them
+  const useIt = touch ? 'tap it' : 'press Space (or click it)';
 
   // ---------- the practice island: a few weeks into saving, with goals, a streak and some decorations ----------
   const daysAgo = n => { const d = new Date(); d.setDate(d.getDate() - n); return d; };
@@ -118,7 +119,7 @@
     {
       title: 'The Shop',
       pos: 'top', arrow: 'shop',
-      say: `Coins buy things for your island. Walk to the Shop with ${walkKeys}, then press ${spaceKey} at the door.`,
+      say: `Coins buy things for your island. Walk to the Shop with ${walkKeys}, then ${useIt} to go in.`,
       wait: (type, name) => type === 'panel' && name === 'shop', auto: 300,
     },
     {
@@ -157,7 +158,7 @@
       // card up top while you walk (keeps the arrow pad clear), then down below once the build info pops up
       pos: () => waiting ? 'top' : 'bottom',
       arrow: 'build', spot: () => waiting ? 'buildPlayer' : null, target: () => waiting ? null : '#buildContrib',
-      say: `Every habit adds :hammer: points to your town's project, and it gets built right here on your island! Walk up to the Community Centre and press ${spaceKey}.`,
+      say: `Every habit adds :hammer: points to your town's project, and it gets built right here on your island! Walk up to the Community Centre with ${walkKeys}, then ${useIt}.`,
       wait: (type, name) => type === 'panel' && name === 'build',
       done: "Here's who's helping build it. Maple Bay builds one thing at a time, and only habits are shared, never dollar amounts.",
     },
@@ -167,13 +168,13 @@
       open: () => setTimeout(() => { if (running) { $('moreMenu').classList.remove('hidden'); $('moreBtn').setAttribute('aria-expanded', 'true'); } }),
       target: () => $('moreMenu').classList.contains('hidden') ? '#moreBtn' : '#moreMenu',
       // little labels pinned beside each menu option
-      tips: [['#editBtn', 'move & decorate'], ['.more-item[data-open="history"]', 'savings, past & future'], ['.more-item[data-open="character"]', 'change your look']],
+      tips: [['#editBtn', 'move & decorate'], ['.more-item[data-open="history"]', 'savings, past & future'], ['.more-item[data-open="character"]', 'change your look'], ['.more-item[data-open="sync"]', 'same island on every device']],
       say: 'A few more things live in the more menu.',
     },
     {
       title: 'Any more questions?',
       arrow: 'fox', spot: 'fox',
-      say: `That's the tour! Any more questions? Come find me any time and press ${spaceKey} to chat about money, goals or the future. Ready to start your own island?`,
+      say: `That's the tour! Any more questions? Come find me any time and ${click.toLowerCase()} me to chat about money, goals or the future. Ready to start your own island?`,
     },
   ];
 
