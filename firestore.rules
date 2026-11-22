@@ -11,6 +11,12 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
+    // A synced island (Sync devices): shared by every device that knows its secret 12-character code.
+    // The code is the key, so: only 'get' (no listing codes), never delete, and the id must look like a code.
+    match /islands/{code} {
+      allow get, create, update: if request.auth != null && code.matches('^[A-Z2-9]{12}$');
+    }
+
     // towns/{code}.project = { name, goal, progress, number, startedBy }   (one active project at a time)
     // towns/{code}.built   = [ { name, goal, number }, ... ]                (finished projects)
     match /towns/{code} {

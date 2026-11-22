@@ -74,6 +74,7 @@
         <button class="more-item" id="editBtn" type="button" role="menuitem" aria-pressed="false"><i data-pi="pencil"></i><span>edit island</span></button>
         <button class="more-item" data-open="history" type="button" role="menuitem"><i data-pi="scroll"></i><span>history</span></button>
         <button class="more-item" data-open="character" type="button" role="menuitem"><i data-pi="sparkle"></i><span>character</span></button>
+        <button class="more-item" data-open="sync" type="button" role="menuitem"><i data-pi="island"></i><span>sync devices</span></button>
       </div>
     </div>
     <div class="dot-stack">
@@ -303,6 +304,37 @@
         <h3 class="board-title"><i data-pi="pin"></i> Recent News</h3>
         <div id="buildNews" class="board"></div>
       </section>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="panel-sync" role="dialog" aria-labelledby="syncTitle">
+  <div class="window sync-window">
+    <div class="window-head"><h2 id="syncTitle"><i data-pi="island"></i> Sync devices</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-body">
+      <div id="syncOff">
+        <p>Play the same island on your phone and laptop. No account or password, and you only link each device once.</p>
+        <button class="primary sync-create" id="syncCreate" type="button">Create a sync code</button>
+        <form id="syncJoinForm" class="sync-join">
+          <label for="syncInput">Got a code from your other device?</label>
+          <div class="sync-row">
+            <input id="syncInput" placeholder="XXXX-XXXX-XXXX" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="16">
+            <button class="primary">Link</button>
+          </div>
+          <p class="muted sync-note">Linking replaces the island on this device with your synced one.</p>
+        </form>
+      </div>
+      <div id="syncOn" hidden>
+        <p>This device is synced. To add another device, scan this with its camera, or open the game there and enter the code under <b>More → Sync devices</b>.</p>
+        <img id="syncQr" class="sync-qr" alt="QR code that links another device to this island" hidden>
+        <div class="sync-code" id="syncCodeShow"></div>
+        <div class="sync-actions">
+          <button id="syncCopy" type="button">Copy link</button>
+          <button id="syncUnlink" type="button" class="link-btn">Unlink this device</button>
+        </div>
+        <p class="muted sync-note"><i data-pi="lock"></i> Keep this code private: anyone who has it can open your island.</p>
+      </div>
+      <p id="syncStatus" class="muted sync-status" role="status"></p>
     </div>
   </div>
 </div>
