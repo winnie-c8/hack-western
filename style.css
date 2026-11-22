@@ -1239,4 +1239,8 @@ body.intro-open { overflow: hidden; }
 @media (max-width: 400px) {
   .bag-word { display: none; }                          /* icon only, no "Bag" word */
   .bag-items .empty { font-size: .85rem; }
+  .saved-banner { padding: 6px 12px; gap: 8px; }        /* a more compact sign, so it ends before the town island */
+  .saved-text b { font-size: 1.4rem; }
+  .saved-text small { letter-spacing: 1px; font-size: .7rem; }
+  .saved-ico .pi { width: 1.6rem; height: 1.6rem; }
 }
