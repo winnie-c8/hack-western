@@ -1,8 +1,8 @@
 // ---------- Daily Star: Niche Saver ----------
 (() => {
   const $ = id => document.getElementById(id);
-  const DAILY_STAR_VERSION = 6;
-  const MAX_GUESSES = 3;
+  const DAILY_STAR_VERSION = 7;
+  const MAX_GUESSES = 5;
   const MAX_GUESS_LENGTH = 120;
   const API = ['localhost', '127.0.0.1'].includes(location.hostname)
     ? 'http://localhost:3001' : 'https://hack-western.onrender.com';
@@ -259,7 +259,9 @@
     },
   ];
   let countdownInterval = null;
-  let scoringProgress = null;
+  let activeTab = 'play';
+  let logbookPage = 0;
+  const scoringAttempts = new Set();
 
   function localDay() {
     const date = new Date();
@@ -278,9 +280,15 @@
   }
 
   function puzzleForDay(day) {
-    const [year, month, date] = day.split('-').map(Number);
-    const ordinal = Math.floor(Date.UTC(year, month - 1, date) / 86400000);
-    return PUZZLES[ordinal % PUZZLES.length];
+    // Hash the date so the same daily mystery is selected across reloads and devices.
+    let seed = 2166136261;
+    for (let index = 0; index < day.length; index++) {
+      seed = Math.imul(seed ^ day.charCodeAt(index), 16777619);
+    }
+    seed ^= seed << 13;
+    seed ^= seed >>> 17;
+    seed ^= seed << 5;
+    return PUZZLES[(seed >>> 0) % PUZZLES.length];
   }
 
   function puzzleForCurrentDay(day) {
@@ -299,7 +307,7 @@
       puzzleId,
       guesses: [],
       personalizedHints: [],
-      similarityScore: null,
+      accuracyScores: [],
       completed: false,
       won: false,
     };
@@ -322,6 +330,15 @@
     return puzzle.accepted.some(answer => normalized.includes(` ${normalize(answer)} `));
   }
 
+  function isWinningGuess(guess, puzzle, accuracyScore) {
+    return isCorrectGuess(guess, puzzle) || (accuracyScore !== null && accuracyScore > 90);
+  }
+
+  function winningGuessIndex(progress, puzzle) {
+    return progress.guesses.findIndex((guess, index) =>
+      isWinningGuess(guess, puzzle, progress.accuracyScores[index]));
+  }
+
   function validProgress(progress, day, puzzle) {
     if (!progress || progress.version !== DAILY_STAR_VERSION || progress.date !== day ||
       progress.puzzleId !== puzzle.id || !Array.isArray(progress.guesses) ||
@@ -330,17 +347,18 @@
       !Array.isArray(progress.personalizedHints) || progress.personalizedHints.length > MAX_GUESSES - 1 ||
       progress.personalizedHints.some(hint => hint !== null &&
         (typeof hint !== 'string' || !hint.trim() || hint.length > 200)) ||
-      !(progress.similarityScore === null ||
-        (Number.isInteger(progress.similarityScore) && progress.similarityScore >= 0 && progress.similarityScore <= 100)) ||
+      !Array.isArray(progress.accuracyScores) || progress.accuracyScores.length !== progress.guesses.length ||
+      progress.accuracyScores.some(score => score !== null &&
+        (!Number.isInteger(score) || score < 0 || score > 100)) ||
       typeof progress.completed !== 'boolean' || typeof progress.won !== 'boolean') return false;
 
     const normalizedGuesses = progress.guesses.map(normalize);
     if (new Set(normalizedGuesses).size !== normalizedGuesses.length) return false;
-    const correctIndex = progress.guesses.findIndex(guess => isCorrectGuess(guess, puzzle));
-    const won = correctIndex >= 0;
+    const winningIndex = winningGuessIndex(progress, puzzle);
+    const won = winningIndex >= 0;
     const completed = won || progress.guesses.length === MAX_GUESSES;
-    return progress.won === won && progress.completed === completed &&
-      (!won || correctIndex === progress.guesses.length - 1);
+    return (!progress.won || won) && (!progress.completed || completed) &&
+      (!won || winningIndex === progress.guesses.length - 1);
   }
 
   function progressFor(day, puzzle) {
@@ -351,6 +369,15 @@
       }
       gameState.dailyStar = emptyProgress(day, puzzle.id);
       window.saveGame();
+    } else {
+      const progress = gameState.dailyStar;
+      const won = winningGuessIndex(progress, puzzle) >= 0;
+      const completed = won || progress.guesses.length === MAX_GUESSES;
+      if (progress.won !== won || progress.completed !== completed) {
+        progress.won = won;
+        progress.completed = completed;
+        window.saveGame();
+      }
     }
     return gameState.dailyStar;
   }
@@ -375,11 +402,117 @@
     updateCountdown();
   }
 
-  function makeCountdown() {
-    const countdown = document.createElement('p');
-    countdown.id = 'starCountdown';
-    countdown.className = 'daily-riddle-countdown';
-    return countdown;
+  function setActiveTab(tab) {
+    activeTab = tab;
+    $('starPlayTab').setAttribute('aria-selected', String(tab === 'play'));
+    $('starLogbookTab').setAttribute('aria-selected', String(tab === 'logbook'));
+    $('starRoundProgress').hidden = tab === 'logbook';
+    const mount = $('starRoundMount');
+    mount.classList.toggle('is-logbook', tab === 'logbook');
+    mount.setAttribute('role', 'tabpanel');
+    mount.setAttribute('aria-labelledby', tab === 'logbook' ? 'starLogbookTab' : 'starPlayTab');
+    mount.tabIndex = 0;
+  }
+
+  function renderLogbook() {
+    setActiveTab('logbook');
+    const state = window.getState();
+    const entries = [...(state.dailyStarLogbook || [])].sort((a, b) => b.date.localeCompare(a.date));
+    const pageCount = Math.max(1, Math.ceil(entries.length / 2));
+    logbookPage = Math.max(0, Math.min(logbookPage, pageCount - 1));
+    const mount = $('starRoundMount');
+    mount.replaceChildren();
+
+    const book = document.createElement('section');
+    book.className = 'daily-star-book';
+    book.setAttribute('aria-label', 'Daily Star saving tips logbook');
+    const title = document.createElement('h3');
+    title.className = 'daily-star-book-title';
+    title.textContent = 'Saving Tips';
+    const spread = document.createElement('div');
+    spread.className = 'daily-star-book-spread';
+    spread.setAttribute('aria-live', 'polite');
+
+    const visibleEntries = entries.slice(logbookPage * 2, logbookPage * 2 + 2);
+    if (!visibleEntries.length) {
+      const empty = document.createElement('p');
+      empty.className = 'daily-star-logbook-empty';
+      empty.textContent = 'Complete a Daily Star to add your first saving tip.';
+      spread.append(empty);
+    } else {
+      visibleEntries.forEach(entry => {
+        const page = document.createElement('article');
+        page.className = 'daily-star-logbook-entry';
+        const date = document.createElement('time');
+        date.className = 'daily-star-logbook-date';
+        date.dateTime = entry.date;
+        const [year, month, day] = entry.date.split('-');
+        date.textContent = `${month}/${day}/${year}`;
+        const tip = document.createElement('p');
+        tip.className = 'daily-star-logbook-tip';
+        tip.textContent = entry.tip;
+        const accuracy = document.createElement('p');
+        accuracy.className = 'daily-star-logbook-accuracy';
+        accuracy.textContent = entry.accuracyScore === null
+          ? 'Accuracy Score: unavailable'
+          : `Accuracy Score: ${entry.accuracyScore}%`;
+        page.append(date, tip, accuracy);
+        spread.append(page);
+      });
+      if (visibleEntries.length === 1) {
+        const blankPage = document.createElement('div');
+        blankPage.className = 'daily-star-logbook-entry daily-star-logbook-blank';
+        blankPage.setAttribute('aria-hidden', 'true');
+        spread.append(blankPage);
+      }
+    }
+
+    const controls = document.createElement('div');
+    controls.className = 'daily-star-book-controls';
+    const previous = document.createElement('button');
+    previous.type = 'button';
+    previous.className = 'secondary';
+    previous.textContent = '← Previous';
+    previous.disabled = logbookPage === 0;
+    previous.addEventListener('click', () => {
+      logbookPage--;
+      renderLogbook();
+    });
+    const pageNumber = document.createElement('span');
+    pageNumber.textContent = `Page ${logbookPage + 1} of ${pageCount}`;
+    const next = document.createElement('button');
+    next.type = 'button';
+    next.className = 'secondary';
+    next.textContent = 'Next →';
+    next.disabled = logbookPage >= pageCount - 1;
+    next.addEventListener('click', () => {
+      logbookPage++;
+      renderLogbook();
+    });
+    controls.append(previous, pageNumber, next);
+    book.append(title, spread, controls);
+    mount.append(book);
+  }
+
+  function recordCompletedRound(progress, puzzle) {
+    if (!progress.completed || !progress.guesses.length) return;
+    const state = window.getState();
+    state.dailyStarLogbook ||= [];
+    const accuracyScore = progress.accuracyScores[progress.accuracyScores.length - 1] ?? null;
+    const existing = state.dailyStarLogbook.find(entry =>
+      entry.date === progress.date && entry.puzzleId === puzzle.id);
+    if (!existing) {
+      state.dailyStarLogbook.push({
+        date: progress.date,
+        puzzleId: puzzle.id,
+        tip: puzzle.answer,
+        accuracyScore,
+      });
+      window.saveGame();
+    } else if (accuracyScore !== null && existing.accuracyScore !== accuracyScore) {
+      existing.accuracyScore = accuracyScore;
+      window.saveGame();
+    }
   }
 
   function makeHints(puzzle, revealedCount, personalizedHints) {
@@ -399,8 +532,9 @@
 
     const list = document.createElement('ol');
     list.className = 'daily-riddle-hints';
-    puzzle.hints.slice(0, revealedCount).forEach((fallbackHint, index) => {
+    Array.from({ length: Math.min(revealedCount, MAX_GUESSES) }, (_, index) => {
       const item = document.createElement('li');
+      const fallbackHint = puzzle.hints[Math.min(index, puzzle.hints.length - 1)];
       const personalizedHint = index > 0 ? personalizedHints[index - 1] : null;
       item.textContent = personalizedHint
         ? `Based on your guess: ${personalizedHint}`
@@ -419,12 +553,13 @@
     heading.textContent = 'Your guesses';
     const list = document.createElement('ol');
     list.className = 'daily-riddle-guesses';
-    progress.guesses.forEach(guess => {
+    progress.guesses.forEach((guess, index) => {
       const item = document.createElement('li');
       const answer = document.createElement('span');
       answer.textContent = guess;
       const status = document.createElement('small');
-      status.textContent = isCorrectGuess(guess, puzzle) ? 'Found it!' : 'Not quite';
+      status.id = `dailyStarGuessStatus${index}`;
+      status.textContent = guessStatus(progress, puzzle, index);
       item.append(answer, status);
       list.append(item);
     });
@@ -432,10 +567,60 @@
     return section;
   }
 
-  function renderRiddle(progress, puzzle, feedbackText = '') {
+  function guessStatus(progress, puzzle, index) {
+    const accuracy = progress.accuracyScores[index];
+    const result = isWinningGuess(progress.guesses[index], puzzle, accuracy) ? 'Found it!' : 'Not quite';
+    if (accuracy !== null) return `${result} · Accuracy ${accuracy}%`;
+    return `${result} · ${scoringAttempts.has(index) ? 'Scoring...' : 'Accuracy unavailable'}`;
+  }
+
+  function makeAccuracyBar(progress, puzzle, finalResult = false) {
+    const section = document.createElement('section');
+    section.id = 'dailyStarAccuracy';
+    section.className = 'daily-riddle-accuracy';
+    const index = progress.guesses.length - 1;
+    const score = index >= 0 ? progress.accuracyScores[index] : null;
+    const label = document.createElement('p');
+    label.id = 'dailyStarAccuracyLabel';
+    label.className = 'daily-riddle-accuracy-label';
+    label.setAttribute('aria-live', 'polite');
+    if (index < 0) label.textContent = 'Accuracy will appear after your first guess.';
+    else if (score !== null) label.textContent = `${finalResult ? 'Accuracy Score' : 'Accuracy'}: ${score}%`;
+    else if (scoringAttempts.has(index)) label.textContent = 'Calculating accuracy...';
+    else label.textContent = 'Accuracy score unavailable.';
+
+    const track = document.createElement('div');
+    track.className = 'daily-riddle-accuracy-track';
+    track.setAttribute('role', 'progressbar');
+    track.setAttribute('aria-label', finalResult ? 'Final accuracy score' : 'Latest guess accuracy');
+    track.setAttribute('aria-valuemin', '0');
+    track.setAttribute('aria-valuemax', '100');
+    track.setAttribute('aria-valuetext', score === null ? label.textContent : `${score}%`);
+    if (score !== null) track.setAttribute('aria-valuenow', String(score));
+    const fill = document.createElement('div');
+    fill.className = 'daily-riddle-accuracy-fill';
+    if (score !== null) {
+      fill.classList.add(score < 30 ? 'accuracy-low' : score <= 65 ? 'accuracy-medium' : 'accuracy-high');
+    }
+    fill.style.width = `${score ?? 0}%`;
+    track.append(fill);
+    section.append(label, track);
+
+    if (index >= 0 && score === null && !scoringAttempts.has(index)) {
+      const retry = document.createElement('button');
+      retry.type = 'button';
+      retry.className = 'primary daily-riddle-submit daily-riddle-accuracy-retry';
+      retry.textContent = 'Retry accuracy score';
+      retry.addEventListener('click', () => retryAccuracy(progress, puzzle, index, section));
+      section.append(retry);
+    }
+    return section;
+  }
+
+  function renderRiddle(progress, puzzle, feedbackText = '', busy = false) {
     $('starRoundProgress').textContent = progress.guesses.length
       ? `${MAX_GUESSES - progress.guesses.length} ${MAX_GUESSES - progress.guesses.length === 1 ? 'guess' : 'guesses'} left`
-      : 'You have 3 guesses. Start with a hint, then unlock another after each miss.';
+      : `You have ${MAX_GUESSES} guesses. Start with a hint, then unlock another after each miss.`;
     const mount = $('starRoundMount');
     mount.replaceChildren();
 
@@ -445,7 +630,7 @@
 
     const setup = document.createElement('p');
     setup.className = 'daily-riddle-setup';
-    setup.textContent = "Enter a short answer. Get it in 3 guesses or fewer to solve today's Daily Star.";
+    setup.textContent = `Enter a short answer. Get it in ${MAX_GUESSES} guesses or fewer to solve today's Daily Star.`;
 
     const revealedCount = progress.guesses.length + 1;
     mount.append(prompt, setup, makeHints(puzzle, revealedCount, progress.personalizedHints));
@@ -474,7 +659,9 @@
     const submit = document.createElement('button');
     submit.type = 'submit';
     submit.className = 'primary daily-riddle-submit';
-    submit.textContent = 'Lock in guess';
+    submit.disabled = busy;
+    submit.textContent = busy ? 'Checking your answer...' : 'Lock in guess';
+    input.disabled = busy;
     form.append(label, input, feedback, submit);
     form.addEventListener('submit', async event => {
       event.preventDefault();
@@ -490,36 +677,54 @@
         return;
       }
 
+      const guessIndex = progress.guesses.length;
       progress.guesses.push(guess);
+      progress.accuracyScores.push(null);
       progress.won = isCorrectGuess(guess, puzzle);
       progress.completed = progress.won || progress.guesses.length === MAX_GUESSES;
       window.saveGame();
-      if (progress.completed) {
-        renderResult(progress, puzzle);
-        return;
+      scoringAttempts.add(guessIndex);
+      if (progress.completed) renderResult(progress, puzzle);
+      else renderRiddle(progress, puzzle, 'Checking this guess and preparing a hint...', true);
+
+      const requests = [requestAccuracyScore(guess, puzzle)];
+      if (!progress.completed) {
+        requests.push(requestPersonalizedHint(guess, puzzle, progress.guesses.length + 1));
       }
-      submit.disabled = true;
-      input.disabled = true;
-      submit.textContent = 'Thinking of a hint...';
-      try {
-        const hint = await requestPersonalizedHint(guess, puzzle, progress.guesses.length + 1);
-        progress.personalizedHints.push(hint);
-        window.saveGame();
-        renderRiddle(progress, puzzle, `Not quite. Here's a hint based on your guess.`);
-      } catch (error) {
-        console.error('[daily-star] Could not generate a personalized hint.', error);
-        progress.personalizedHints.push(null);
-        window.saveGame();
-        renderRiddle(progress, puzzle,
-          `Not quite. Gemini couldn't make a personalized hint, so here's a standard hint instead.`);
+      const results = await Promise.allSettled(requests);
+      scoringAttempts.delete(guessIndex);
+
+      if (results[0].status === 'fulfilled') {
+        const accuracyScore = results[0].value;
+        progress.accuracyScores[guessIndex] = accuracyScore;
+        if (accuracyScore > 90) progress.won = true;
+      } else {
+        console.error('[daily-star] Could not calculate guess accuracy.', results[0].reason);
       }
+      progress.completed = progress.won || progress.guesses.length === MAX_GUESSES;
+      if (!progress.completed) {
+        if (results[1].status === 'fulfilled') {
+          progress.personalizedHints.push(results[1].value);
+        } else {
+          console.error('[daily-star] Could not generate a personalized hint.', results[1].reason);
+          progress.personalizedHints.push(null);
+        }
+      }
+      window.saveGame();
+      if (progress.completed) recordCompletedRound(progress, puzzle);
+      if (activeTab === 'logbook') renderLogbook();
+      else if (progress.completed) renderResult(progress, puzzle);
+      else renderRiddle(progress, puzzle, results[1].status === 'fulfilled'
+        ? 'Not quite. Here is a hint based on your guess.'
+        : "Not quite. Gemini couldn't make a personalized hint, so here's a standard hint instead.");
     });
-    mount.append(form, makeCountdown());
+    mount.append(form, makeAccuracyBar(progress, puzzle));
   }
 
   function renderResult(progress, puzzle) {
+    recordCompletedRound(progress, puzzle);
     $('starRoundProgress').textContent = progress.won
-      ? `Solved in ${progress.guesses.length} of 3 guesses!`
+      ? `Solved in ${progress.guesses.length} of ${MAX_GUESSES} guesses!`
       : "That was the last guess. Here is today's saving tip.";
     const mount = $('starRoundMount');
     mount.replaceChildren();
@@ -536,20 +741,13 @@
       ? `Nice work - you solved the mystery in ${progress.guesses.length} ${progress.guesses.length === 1 ? 'guess' : 'guesses'}.`
       : 'Come back tomorrow for a new money-saving mystery.';
     result.append(title, answer, message);
-    const similarity = document.createElement('p');
-    similarity.id = 'dailyStarSimilarity';
-    similarity.className = 'daily-riddle-feedback';
-    similarity.setAttribute('aria-live', 'polite');
-    result.append(similarity);
     mount.append(result);
 
-    updateSimilarity(progress, puzzle, similarity);
-
-    const revealedCount = progress.won ? progress.guesses.length : puzzle.hints.length;
+    const revealedCount = progress.won ? progress.guesses.length : MAX_GUESSES;
     if (revealedCount) mount.append(makeHints(puzzle, revealedCount, progress.personalizedHints));
     const history = makeGuessHistory(progress, puzzle);
     if (history) mount.append(history);
-    mount.append(makeCountdown());
+    mount.append(makeAccuracyBar(progress, puzzle, true));
     updateCountdown();
   }
 
@@ -568,50 +766,53 @@
     const { hint } = await postDailyStar('hint', {
       guess,
       expectedAnswer: puzzle.answer,
-      baselineHint: puzzle.hints[guessNumber - 1],
+      baselineHint: puzzle.hints[Math.min(guessNumber - 1, puzzle.hints.length - 1)],
       guessNumber,
     });
     if (typeof hint !== 'string' || !hint.trim()) throw new Error('Gemini returned an empty hint.');
     return hint.trim().slice(0, 200);
   }
 
-  function updateSimilarity(progress, puzzle, element) {
-    $('dailyStarSimilarityRetry')?.remove();
-    if (progress.similarityScore !== null) {
-      element.textContent = `Gemini similarity score: ${progress.similarityScore}%`;
-      return;
+  async function requestAccuracyScore(guess, puzzle) {
+    const { score } = await postDailyStar('score', { guesses: [guess], expectedAnswer: puzzle.answer });
+    if (!Number.isInteger(score) || score < 0 || score > 100) {
+      throw new Error('Gemini returned an invalid accuracy score.');
     }
+    return score;
+  }
 
-    element.textContent = 'Comparing your guesses with the answer using Gemini...';
-    if (scoringProgress === progress) return;
-    scoringProgress = progress;
-    postDailyStar('score', { guesses: progress.guesses, expectedAnswer: puzzle.answer })
-      .then(({ score }) => {
-        if (!Number.isInteger(score) || score < 0 || score > 100) {
-          throw new Error('Gemini returned an invalid similarity score.');
-        }
-        progress.similarityScore = score;
-        window.saveGame();
-        const current = $('dailyStarSimilarity');
-        if (current) current.textContent = `Gemini similarity score: ${score}%`;
-      })
-      .catch(error => {
-        console.error('[daily-star] Could not calculate the similarity score.', error);
-        const current = $('dailyStarSimilarity');
-        if (!current) return;
-        current.textContent = 'Gemini could not calculate your score right now.';
-        const retry = document.createElement('button');
-        retry.id = 'dailyStarSimilarityRetry';
-        retry.type = 'button';
-        retry.className = 'primary daily-riddle-submit';
-        retry.textContent = 'Try score again';
-        retry.addEventListener('click', () => updateSimilarity(progress, puzzle, current));
-        current.after(retry);
-      })
-      .finally(() => { scoringProgress = null; });
+  async function retryAccuracy(progress, puzzle, index, section) {
+    if (scoringAttempts.has(index)) return;
+    scoringAttempts.add(index);
+    section.replaceWith(makeAccuracyBar(progress, puzzle, progress.completed));
+    try {
+      progress.accuracyScores[index] = await requestAccuracyScore(progress.guesses[index], puzzle);
+    } catch (error) {
+      console.error('[daily-star] Could not calculate guess accuracy.', error);
+    } finally {
+      scoringAttempts.delete(index);
+      if (progress.completed) recordCompletedRound(progress, puzzle);
+      window.saveGame();
+      const status = $(`dailyStarGuessStatus${index}`);
+      if (status) status.textContent = guessStatus(progress, puzzle, index);
+      const current = $('dailyStarAccuracy');
+      if (activeTab === 'logbook') renderLogbook();
+      else if (current) current.replaceWith(makeAccuracyBar(progress, puzzle, progress.completed));
+    }
+  }
+
+  function showDailyStarTab() {
+    setActiveTab('play');
+    const day = localDay();
+    const puzzle = puzzleForCurrentDay(day);
+    const progress = progressFor(day, puzzle);
+    if (progress.completed) renderResult(progress, puzzle);
+    else renderRiddle(progress, puzzle);
   }
 
   function startDailyStar() {
+    setActiveTab('play');
+    logbookPage = 0;
     const day = localDay();
     const puzzle = puzzleForCurrentDay(day);
     const progress = progressFor(day, puzzle);
@@ -646,6 +847,11 @@
     $('dailyStar').focus({ preventScroll: true });
   }
 
+  $('starPlayTab').addEventListener('click', showDailyStarTab);
+  $('starLogbookTab').addEventListener('click', () => {
+    logbookPage = 0;
+    renderLogbook();
+  });
   $('closeDailyStar').addEventListener('click', closeDailyStar);
   document.addEventListener('keydown', event => {
     if (event.key === 'Escape' && !$('dailyStarModal').classList.contains('hidden')) closeDailyStar();

@@ -79,8 +79,8 @@ const today = () => fmt(new Date());
 // Monday of the week containing d (local time)
 const weekKey = (d = new Date()) => { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return fmt(x); };
 const defaultDailyStar = () => ({
-  version: 6, date: null, puzzleId: null, guesses: [], personalizedHints: [],
-  similarityScore: null, completed: false, won: false,
+  version: 7, date: null, puzzleId: null, guesses: [], personalizedHints: [],
+  accuracyScores: [], completed: false, won: false,
 });
 const defaultState = () => ({
   coins: 100, saved: 0, history: [], inventory: {}, placed: [],
@@ -92,7 +92,48 @@ const defaultState = () => ({
   layout: {},           // where you moved the shop / Maple: { shop: {x,y}, fox: {x,y} }
   buildPos: {},         // where you moved each town building: { key: {x,y} }
   dailyStar: defaultDailyStar(),
+  dailyStarLogbook: [],
 });
+function normalizeDailyStar(progress) {
+  let dailyStar = progress;
+  if (dailyStar?.version === 5) {
+    dailyStar = { ...dailyStar, version: 6, personalizedHints: [], similarityScore: null };
+  }
+  if (dailyStar?.version === 6) {
+    const guesses = Array.isArray(dailyStar.guesses) ? dailyStar.guesses : [];
+    const previousScore = dailyStar.similarityScore;
+    dailyStar = {
+      ...dailyStar,
+      version: 7,
+      completed: dailyStar.won === true || guesses.length >= 5,
+      accuracyScores: guesses.map((_, index) =>
+        index === guesses.length - 1 && Number.isInteger(previousScore) ? previousScore : null),
+    };
+    delete dailyStar.similarityScore;
+  }
+  if (!dailyStar || dailyStar.version !== 7 ||
+    !(dailyStar.date === null || typeof dailyStar.date === 'string') ||
+    !(dailyStar.puzzleId === null || typeof dailyStar.puzzleId === 'string') ||
+    !Array.isArray(dailyStar.guesses) || dailyStar.guesses.length > 5 ||
+    dailyStar.guesses.some(guess => typeof guess !== 'string') ||
+    !Array.isArray(dailyStar.personalizedHints) || dailyStar.personalizedHints.length > 4 ||
+    dailyStar.personalizedHints.some(hint => hint !== null && (typeof hint !== 'string' || hint.length > 200)) ||
+    !Array.isArray(dailyStar.accuracyScores) || dailyStar.accuracyScores.length !== dailyStar.guesses.length ||
+    dailyStar.accuracyScores.some(score => score !== null &&
+      (!Number.isInteger(score) || score < 0 || score > 100)) ||
+    typeof dailyStar.completed !== 'boolean' || typeof dailyStar.won !== 'boolean') {
+    return defaultDailyStar();
+  }
+  return dailyStar;
+}
+function normalizeDailyStarLogbook(entries) {
+  if (!Array.isArray(entries)) return [];
+  return entries.filter(entry => entry && typeof entry.date === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(entry.date) &&
+    typeof entry.puzzleId === 'string' && typeof entry.tip === 'string' &&
+    (entry.accuracyScore === null ||
+      (Number.isInteger(entry.accuracyScore) && entry.accuracyScore >= 0 && entry.accuracyScore <= 100)));
+}
 let S;
 let hadLocalSave = false; // a brand-new local island must never overwrite the cloud copy
 try {
@@ -102,21 +143,8 @@ try {
   S = Object.assign(defaultState(), saved);
   if (raw) S.worldV = saved.worldV || 0; // an old save has no worldV: don't let the default hide that
 } catch { S = defaultState(); }
-if (S.dailyStar?.version === 5) {
-  S.dailyStar = { ...S.dailyStar, version: 6, personalizedHints: [], similarityScore: null };
-}
-if (!S.dailyStar || S.dailyStar.version !== 6 ||
-  !(S.dailyStar.date === null || typeof S.dailyStar.date === 'string') ||
-  !(S.dailyStar.puzzleId === null || typeof S.dailyStar.puzzleId === 'string') ||
-  !Array.isArray(S.dailyStar.guesses) || S.dailyStar.guesses.length > 3 ||
-  S.dailyStar.guesses.some(guess => typeof guess !== 'string') ||
-  !Array.isArray(S.dailyStar.personalizedHints) || S.dailyStar.personalizedHints.length > 2 ||
-  S.dailyStar.personalizedHints.some(hint => hint !== null && (typeof hint !== 'string' || hint.length > 200)) ||
-  !(S.dailyStar.similarityScore === null ||
-    (Number.isInteger(S.dailyStar.similarityScore) && S.dailyStar.similarityScore >= 0 && S.dailyStar.similarityScore <= 100)) ||
-  typeof S.dailyStar.completed !== 'boolean' || typeof S.dailyStar.won !== 'boolean') {
-  S.dailyStar = defaultDailyStar();
-}
+S.dailyStar = normalizeDailyStar(S.dailyStar);
+S.dailyStarLogbook = normalizeDailyStarLogbook(S.dailyStarLogbook);
 // Islands saved before the bigger world (20×14) shift by (+10, +7) so everything keeps its place.
 // (Runs once the map exists — see migrateWorld() after the map is built.)
 const onLand = (x, y) => (map[y]?.[x] ?? 0) > 0;
@@ -2166,6 +2194,8 @@ function showWelcome() {
 // Called by cloud.js when the cloud copy is newer than this browser's copy.
 window.loadCloudState = data => {
   S = Object.assign(defaultState(), data);
+  S.dailyStar = normalizeDailyStar(S.dailyStar);
+  S.dailyStarLogbook = normalizeDailyStarLogbook(S.dailyStarLogbook);
   if (!data.worldV) S.worldV = 0;
   migrateWorld(); migrateJars();
   try { localStorage.setItem('fmi', JSON.stringify(S)); } catch {}
