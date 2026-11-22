@@ -1248,7 +1248,7 @@ function drawFutureChart(st, rate, start) {
       <text x="${x}" y="${T - 10}" class="mslabel" text-anchor="${y === SPAN ? 'end' : 'middle'}">${yrs(y)}</text>
       <circle cx="${x}" cy="${sy(project(start, rate, y, false))}" r="${on ? 6 : 5}" fill="${FUTURE_COLORS.save}" class="end"/>
       <circle cx="${x}" cy="${sy(project(start, rate, y, true))}" r="${on ? 6 : 5}" fill="${FUTURE_COLORS.invest}" class="end"/>
-      <rect x="${x - 14}" y="${T - 24}" width="28" height="${H - B - T + 24}" fill="transparent"/>
+      <rect x="${x - 45}" y="${T - 24}" width="90" height="${H - B - T + 24}" fill="transparent"/>
     </g>`;
   }).join('');
   const endSave = project(start, rate, SPAN, false), endInv = project(start, rate, SPAN, true);

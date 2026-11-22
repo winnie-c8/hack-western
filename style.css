@@ -1054,3 +1054,13 @@ body.intro-open { overflow: hidden; }
   }
   .pad-action:active { background: var(--sage); transform: translate(2px, 2px); box-shadow: none; }
 }
+
+/* ===== Phones & touch screens: comfortable tap targets, no iOS zoom on focus (checked by scripts/mobile-check.mjs) ===== */
+@media (max-width: 760px), (pointer: coarse) {
+  input:not(.amt-input), select, textarea { font-size: 16px; }   /* under 16px, iPhones zoom in when you tap a field */
+  .goal-opt, .hz, .link-btn { min-height: 36px; }
+  .link-btn { padding: 8px 14px; }
+  .close, .chat-head button { min-width: 36px; min-height: 36px; }
+  .note-form { flex-wrap: wrap; }
+  .note-form input { flex: 1 1 100%; }                           /* the note gets its own line instead of being squeezed */
+}
