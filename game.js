@@ -1371,6 +1371,18 @@ $('moreBtn').onclick = e => {
 };
 $('moreMenu').querySelectorAll('[data-open]').forEach(b => b.addEventListener('click', closeMore));
 addEventListener('click', e => { if (!e.target.closest('.more-wrap')) closeMore(); });
+
+// Top-left cards (title, coins/streak, clock): hovering any of them opens them all ("peek"). While open, the gaps
+// between the cards count as hovering too, and they wait a moment before tucking back, so they never flicker.
+{
+  const hud = document.querySelector('.hud-left');
+  let peekTimer = null;
+  const open = () => { clearTimeout(peekTimer); hud.classList.add('peek'); };
+  const closeSoon = () => { clearTimeout(peekTimer); peekTimer = setTimeout(() => hud.classList.remove('peek'), 350); };
+  hud.querySelectorAll(':scope > *').forEach(el => el.addEventListener('pointerenter', open));
+  hud.addEventListener('pointerenter', open);
+  hud.addEventListener('pointerleave', closeSoon);
+}
 addEventListener('keydown', e => { if (e.key === 'Escape' && !$('moreMenu').classList.contains('hidden')) { closeMore(); $('moreBtn').focus(); } }, true);
 $('editDone').onclick = () => setEdit(false);
 const characterOptions = $('characterOptions');
@@ -1893,7 +1905,7 @@ function renderShop() {
 function renderInventory() {
   const ids = Object.keys(S.inventory);
   $('inventory').innerHTML = ids.map(id => { const s = SHOP.find(i => i.id === id); return `<button class="item ${selectedItem === id ? 'selected' : ''}" data-id="${id}" title="${s.name}" aria-label="${s.name}, ${S.inventory[id]} in bag"><img src="${iconURL(s.id)}" alt=""><span class="count">×${S.inventory[id]}</span></button>`; }).join('')
-    || '<button type="button" class="empty walk-shop" title="Walk to the shop">Empty. Visit the shop!</button>';
+    || '<button type="button" class="empty walk-shop" title="Walk to the shop">empty. Visit the shop!</button>';
   $('inventory').querySelector('.walk-shop')?.addEventListener('click', walkToShop);
   $('inventory').querySelectorAll('.item').forEach(el => el.onclick = () => {
     selectedItem = selectedItem === el.dataset.id ? null : el.dataset.id;

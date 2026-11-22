@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tomo Island</title>
 <link rel="preload" href="fonts/VCR_OSD_MONO.ttf" as="font" type="font/ttf" crossorigin>
-<link rel="stylesheet" href="style.css?v=40">
+<link rel="stylesheet" href="style.css?v=46">
 </head>
 <body>
 <div id="intro" class="intro" role="dialog" aria-label="Welcome to Tomo Island">
@@ -145,7 +145,7 @@
 
       <!-- the small, optional part: which account + which goal -->
       <div class="bank-small">
-        <label class="small-label">which account?<select id="depType"></select></label>
+        <label class="small-label">which account? <span class="optional-note">(optional, only if you know and just to get you thinking :D)</span><select id="depType"></select></label>
         <div id="acctEditor" class="acct-editor hidden">
           <div class="acct-head"><span>Your savings accounts</span><button type="button" id="acctDone">Done</button></div>
           <ul id="acctList" class="acct-list"></ul>
@@ -160,9 +160,9 @@
       <button class="link-btn" data-close>not today</button>
 
       <details class="earn">
-        <summary><span class="q">?</span> How you earn <i data-pi="coin"></i> <span class="arrow">▸</span></summary>
+        <summary>How you earn <i data-pi="coin"></i> <span class="arrow">▸</span></summary>
         <div class="card">
-          <p class="muted">Coins reward the <b>habit</b>, not the amount. $5 every week beats $5,000 once.</p>
+          <p class="muted">every day you put money into your savings, get rewarded with coins. coins are rewarded through daily tasks, <b>not</b> the amount; $1 every day beats $5,000 once.</p>
           <ul id="rules" class="checklist"></ul>
         </div>
       </details>
@@ -458,10 +458,10 @@
 </div>
 
 <script src="icons.js?v=36"></script>
-<script src="sky.js?v=34"></script>
+<script src="sky.js?v=36"></script>
 <script src="intro.js?v=34"></script>
 <script src="Updated/Music%20for%20game.js?v=2"></script>
-<script src="game.js?v=45"></script>
+<script src="game.js?v=47"></script>
 <script src="Set%20goals.js?v=27"></script>
 <script src="daily-star.js?v=27"></script>
 <script type="module" src="cloud.js"></script>
