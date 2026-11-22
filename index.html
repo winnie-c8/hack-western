@@ -5,11 +5,13 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tomo Island</title>
 <link rel="preload" href="fonts/VCR_OSD_MONO.ttf" as="font" type="font/ttf" crossorigin>
-<link rel="stylesheet" href="style.css?v=56">
+<link rel="stylesheet" href="style.css?v=59">
 </head>
 <body>
 <div id="intro" class="intro" role="dialog" aria-label="Welcome to Tomo Island">
   <canvas id="introScene" width="320" height="180" aria-hidden="true"></canvas>
+  <!-- same music button as on the island (top right); both stay in sync -->
+  <button class="help-dot music-dot intro-music" id="introMusic" type="button" aria-label="Background music" aria-pressed="false" title="Play background music"><i data-pi="musicOff"></i></button>
   <div class="intro-stage">
     <div class="intro-sign">
       <h2 class="intro-title" data-text="Tomo Island" aria-label="Tomo Island"></h2>
@@ -59,7 +61,7 @@
   </div>
 
   <div class="hud hud-top">
-    <div class="saved-banner" id="savedBanner" title="Real money you've saved so far" aria-live="polite">
+    <div class="saved-banner" id="savedBanner" title="Real money you've saved so far. Click to walk to the bank" role="button" tabindex="0" aria-live="polite">
       <span class="saved-ico"><i data-pi="piggy"></i></span>
       <div class="saved-text"><b id="saved">$0</b><small>real money saved</small></div>
     </div>
@@ -136,29 +138,67 @@
         <p class="welcome-sub"></p>
       </div>
       <!-- the big, obvious part: how much + LOG! (Figma Desktop-3) -->
-      <h3 class="bank-q"><label for="depAmount">how much <span class="real">real money</span> did you save today?</label></h3>
-      <div class="amt-tiles" role="group" aria-label="Quick amounts">
-        <button type="button" class="amt-tile" data-amt="1">$1</button>
-        <button type="button" class="amt-tile" data-amt="5">$5</button>
-        <button type="button" class="amt-tile" data-amt="10">$10</button>
+      <h3 class="bank-q">how much did you save today?</h3>
+      <div class="bank-today" aria-live="polite">
+        <b id="bankAmount" class="bank-amount">…</b>
+        <small id="bankStatus" class="muted">checking your bank…</small>
       </div>
-      <input id="depAmount" class="amt-input" type="number" min="1" placeholder="or type an amount" inputmode="numeric">
 
       <!-- the small, optional part: which account + which goal -->
       <div class="bank-small">
-        <label class="small-label">which account? <span class="optional-note">(optional, only if you know and just to get you thinking :D)</span><select id="depType"></select></label>
+        <div class="small-label"><span id="acctDropLabel">which account?</span> <span class="optional-note">(optional)</span>
+          <!-- a cute pixel dropdown; the hidden <select> underneath keeps the picked value -->
+          <div class="acct-drop" id="acctDrop">
+            <button type="button" class="acct-drop-btn" id="acctDropBtn" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="acctDropLabel acctDropBtn"><span id="acctDropValue"></span><span class="arrow">▸</span></button>
+            <ul class="acct-drop-list" id="acctDropList" role="listbox" aria-labelledby="acctDropLabel" hidden></ul>
+          </div>
+          <select id="depType" hidden></select>
+        </div>
         <div id="acctEditor" class="acct-editor hidden">
           <div class="acct-head"><span>Your savings accounts</span><button type="button" id="acctDone">Done</button></div>
           <ul id="acctList" class="acct-list"></ul>
           <div class="acct-add"><input id="acctName" maxlength="30" placeholder="e.g. Emergency fund"><button type="button" id="acctAdd">+ Add</button></div>
         </div>
-        <div class="small-label" id="goalPickLabel">goal? <span class="muted">(optional)</span></div>
+        <div class="small-label" id="goalPickLabel">goal? <span class="optional-note">(optional)</span></div>
         <div id="goalPick" class="goal-pick" role="radiogroup" aria-labelledby="goalPickLabel"></div>
         <input type="hidden" id="depGoal" value="">
       </div>
 
       <button id="depositBtn" class="log-btn"><i data-pi="piggy"></i> LOG MY SAVINGS</button>
-      <button class="link-btn" data-close>not today</button>
+      <!-- opens Plaid Link (Plaid's own pop-up) to pick a different bank + savings account -->
+      <button type="button" id="chooseAcct" class="choose-acct-btn"><i data-pi="bank"></i> choose another savings account</button>
+      <p class="acct-hint">it's a demo! in plaid, tap "continue without phone number", pick any bank, then log in with <b>user_good</b> / <b>pass_good</b></p>
+      <!-- demo only: the sandbox person moves more money into savings, so you can log again later the same day -->
+      <button type="button" id="demoSave" class="demo-save-btn"><i data-pi="sparkle"></i> demo: fake person saves again</button>
+      <button class="link-btn" id="bankLater" data-close>not today</button>
+
+      <details class="earn logistics">
+        <summary>Are you asking for my bank info rn?? <i data-pi="lock"></i> <span class="arrow">▸</span></summary>
+        <div class="card">
+          <p><b>nope!!</b> two things:</p>
+          <ol class="plain-list">
+            <li><b>this is a demo.</b> it runs on plaid's <i>sandbox</i>: every bank, person and savings account here is made up. fictional people, fictional money. nothing real is connected.</li>
+            <li><b>even for real (no sandbox),</b> plaid only shares the one savings account you pick, and tomo only looks for new deposits going into it. we never see your password, can't move your money, and don't look at your spending.</li>
+          </ol>
+          <details class="see-more">
+            <summary>see more <span class="arrow">▸</span></summary>
+            <h4>so what's plaid?</h4>
+            <p>plaid is the company in the middle that lots of money apps use to talk to banks. instead of an app asking for your bank password, you log in inside plaid's own window, and plaid hands the app a read-only key for just what you agreed to share.</p>
+            <h4>what happens when you choose an account</h4>
+            <ol class="plain-list">
+              <li>you press <b>choose another savings account</b> and plaid's window pops up (that's plaid, not us).</li>
+              <li>you pick your bank and log in there. your login goes to plaid and your bank, never to tomo.</li>
+              <li>you choose which account to share. tomo asks plaid to only show <b>savings</b> accounts.</li>
+              <li>plaid gives our server a key for that one connection. it stays on the server and never goes to your browser.</li>
+              <li>when you open the bank, our server asks plaid "any new deposits into that savings account today?" and shows you the total. you still press <b>LOG MY SAVINGS</b> yourself.</li>
+            </ol>
+            <h4>what tomo can't do</h4>
+            <p>move money, see your password, open new accounts or change anything at your bank. the key only reads. in a real version you could cut it off any time from your bank or plaid's portal (my.plaid.com).</p>
+            <h4>and right now?</h4>
+            <p>it's all sandbox: a pretend person "saves" a few dollars into a pretend savings account each day, so you can try the whole thing without any real money.</p>
+          </details>
+        </div>
+      </details>
 
       <details class="earn">
         <summary>How you earn <i data-pi="coin"></i> <span class="arrow">▸</span></summary>
@@ -497,15 +537,16 @@
   </section>
 </div>
 
+<script src="https://cdn.plaid.com/link/v2/stable/link-initialize.js" async></script>
 <script src="icons.js?v=36"></script>
 <script src="sky.js?v=36"></script>
 <script src="intro.js?v=34"></script>
-<script src="Updated/Music%20for%20game.js?v=2"></script>
-<script src="game.js?v=53"></script>
+<script src="Updated/Music%20for%20game.js?v=3"></script>
+<script src="game.js?v=54"></script>
 <script src="Set%20goals.js?v=27"></script>
-<script src="daily-star.js?v=47"></script>
-<script src="tutorial.js?v=3"></script>
+<script src="daily-star.js?v=50"></script>
+<script src="tutorial.js?v=5"></script>
 <script type="module" src="cloud.js"></script>
-<script type="module" src="town.js?v=30"></script>
+<script type="module" src="town.js?v=31"></script>
 </body>
 </html>

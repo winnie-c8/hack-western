@@ -20,15 +20,21 @@
     (document.querySelector('.dot-stack') || document.querySelector('.hud-right') || document.body).append(toggle);
   }
 
+  // every music button (the island's, plus the intro screen's copy) shows the same state
+  const toggles = [toggle, document.getElementById('introMusic')].filter(Boolean);
+  let touched = false; // once the player has pressed a music button, "Enter my world!" doesn't override them
+
   // pixel music note: teal notes when playing, grey notes with a red slash when off
   function updateToggle(playing, unavailable = false) {
-    toggle.innerHTML = window.pi ? window.pi(playing && !unavailable ? 'music' : 'musicOff') : (playing ? 'on' : 'off');
-    toggle.classList.toggle('on', playing && !unavailable);
-    toggle.classList.toggle('unavailable', unavailable);
-    toggle.setAttribute('aria-pressed', String(playing));
-    toggle.title = unavailable
-      ? 'Background music could not be played'
-      : playing ? 'Mute background music' : 'Play background music';
+    for (const t of toggles) {
+      t.innerHTML = window.pi ? window.pi(playing && !unavailable ? 'music' : 'musicOff') : (playing ? 'on' : 'off');
+      t.classList.toggle('on', playing && !unavailable);
+      t.classList.toggle('unavailable', unavailable);
+      t.setAttribute('aria-pressed', String(playing));
+      t.title = unavailable
+        ? 'Background music could not be played'
+        : playing ? 'Mute background music' : 'Play background music';
+    }
   }
 
   async function playMusic() {
@@ -41,17 +47,18 @@
     }
   }
 
-  toggle.addEventListener('click', () => {
+  toggles.forEach(t => t.addEventListener('click', () => {
+    touched = true;
     if (audio.paused) {
       void playMusic();
     } else {
       audio.pause();
       updateToggle(false);
     }
-  });
+  }));
   audio.addEventListener('error', () => updateToggle(false, true));
 
   document.getElementById('enterWorld')?.addEventListener('click', () => {
-    void playMusic();
+    if (!touched) void playMusic();
   }, { once: true });
 })();

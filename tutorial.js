@@ -92,10 +92,8 @@
     {
       title: 'The Bank',
       open: () => { openPanel('bank'); $('depGoal').value = '0'; window.renderGoalPick(); },
-      target: () => $('depAmount').value ? '#depositBtn' : '[data-amt="5"]', // first the $5 tile, then the log button
-      say: () => $('depAmount').value
-        ? 'Now press LOG MY SAVINGS.'
-        : 'This is the Bank. Whenever you save real money, log it here. Try it: pick $5.',
+      target: '#depositBtn',
+      say: "This is the Bank. It shows what you saved today, straight from your bank account. Press LOG MY SAVINGS.",
       wait: type => type === 'saved',
       done: 'Nice! :coin: Coins are rewarded based on consistency (how frequently you save), not how MUCH you save!',
     },
