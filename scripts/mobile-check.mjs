@@ -184,6 +184,12 @@ for (const { name, engine } of PHONES) {
   }
   await page.evaluate(() => closePanels());
 
+  // 4b. Sync window as opened from a sync link: "You're syncing to …" with the big SYNC button
+  await page.evaluate(() => { closePanels(); syncOffer = "ABCDEFGHJKLM"; $("syncOfferCode").textContent = "ABCD-EFGH-JKLM"; openPanel("sync"); });
+  await page.waitForTimeout(300);
+  await check("sync-offer");
+  await page.evaluate(() => { syncOffer = null; closePanels(); });
+
   // 5a. tapping Maple on the island opens her chat (there's no A button; you tap things to use them)
   const tapped = await page.evaluate(() => {
     closePanels(); followCam(true);

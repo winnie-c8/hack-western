@@ -109,6 +109,15 @@ window.sync = {
     useDoc(ref, true);
     return true;
   },
+  // a quick look at the island behind a code (for "You're syncing to …"); null if there's no such island
+  async peek(input) {
+    const code = cleanSync(input);
+    if (code.length !== SYNC_LEN || !(await ready)) return null;
+    const snap = await getDoc(doc(db, 'islands', code));
+    if (!snap.exists()) return null;
+    const d = snap.data();
+    return { name: (d.name || '').trim(), saved: d.saved || 0, streak: d.streak || 0, coins: d.coins || 0 };
+  },
   // stop syncing on this device only; it keeps its current island as its own private save again
   async unlink() {
     rememberSync(null);
