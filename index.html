@@ -68,6 +68,7 @@
       <div id="moreMenu" class="more-menu hidden" role="menu" aria-label="More">
         <button class="more-item" id="editBtn" type="button" role="menuitem" aria-pressed="false"><i data-pi="pencil"></i><span>edit island</span></button>
         <button class="more-item" data-open="history" type="button" role="menuitem"><i data-pi="scroll"></i><span>history</span></button>
+        <button class="more-item" data-open="character" type="button" role="menuitem"><i data-pi="sparkle"></i><span>character</span></button>
       </div>
     </div>
     <button class="help-dot" id="helpBtn" aria-label="Controls" aria-controls="helpPop">?</button>
@@ -245,6 +246,38 @@
         </div>
         <ul id="history" class="history"></ul>
       </details>
+    </div>
+  </div>
+</div>
+
+<div class="modal hidden" id="panel-character" role="dialog" aria-modal="true" aria-labelledby="characterTitle">
+  <div class="window wide character-window">
+    <div class="window-head"><h2 id="characterTitle"><i data-pi="sparkle"></i> Character</h2><button class="close" data-close aria-label="Close character customization">✕</button></div>
+    <div class="window-body">
+      <div class="character-customizer">
+        <nav id="characterCategories" class="character-categories" aria-label="Character categories">
+          <h3>Categories</h3>
+          <button class="character-category" type="button" data-character-category="hair" aria-pressed="true">Hair</button>
+          <button class="character-category" type="button" data-character-category="skin" aria-pressed="false">Skin colour</button>
+          <button class="character-category" type="button" data-character-category="top" aria-pressed="false">Top</button>
+          <button class="character-category" type="button" data-character-category="bottoms" aria-pressed="false">Bottoms</button>
+        </nav>
+        <section class="character-avatar" aria-label="Your avatar">
+          <h3>Your avatar</h3>
+          <canvas id="characterPreview" width="100" height="76" role="img" aria-label="Preview of your character"></canvas>
+          <p class="character-privacy">Saved on this device only.</p>
+        </section>
+        <section id="characterOptions" class="character-options" aria-live="polite"></section>
+      </div>
+      <section class="character-gender" aria-labelledby="characterGenderTitle">
+        <h3 id="characterGenderTitle">Gender</h3>
+        <div id="characterGenderOptions" class="character-gender-options" role="group" aria-label="Gender">
+          <button class="character-option" type="button" data-character-field="gender" data-character-value="girl">Girl</button>
+          <button class="character-option" type="button" data-character-field="gender" data-character-value="boy">Boy</button>
+          <button class="character-option" type="button" data-character-field="gender" data-character-value="nonbinary">Non-binary</button>
+          <button class="character-option" type="button" data-character-field="gender" data-character-value="unspecified">Prefer not to say</button>
+        </div>
+      </section>
     </div>
   </div>
 </div>
