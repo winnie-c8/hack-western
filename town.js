@@ -152,10 +152,10 @@ function renderBoard(target, codes) {
 }
 function newsPoster(f, showTown) {
   const p = newsPosterBody(f, showTown);
-  if (f.id && f.code && !demo) p.append(posterActions(f, p));
+  if (f.id && f.code) p.append(posterActions(f, p));
   return p;
 }
-// heart for everyone else's posts; edit / delete on your own notes
+// a heart on every post (your own too); edit / delete on your own notes. In the practice town hearts stay on this screen.
 function posterActions(f, p) {
   const me = auth.currentUser?.uid, ref = doc(db, 'towns', f.code, 'feed', f.id);
   // keep hearts on the cached feed item, so an instant (optimistic) change survives the next re-render
@@ -170,12 +170,10 @@ function posterActions(f, p) {
     const mine = !!hearts[me] || (!!island && !!hearts[island]);
     heart.className = 'heart' + (mine ? ' on' : '');
     heart.textContent = `${mine ? '♥' : '♡'} ${n || ''}`.trim();
-    if (isMine(f)) heart.title = n ? `${n} heart${n === 1 ? '' : 's'}` : 'No hearts yet';
-    else heart.setAttribute('aria-label', mine ? 'Remove heart' : 'Heart this');
+    heart.setAttribute('aria-label', mine ? 'Remove heart' : 'Heart this');
   };
   paint();
-  if (isMine(f)) heart.disabled = true;
-  else heart.onclick = () => {
+  heart.onclick = () => {
     // update the button right away, then save; put it back if the save fails
     const island = islandKey(), key = island || me; // heart as the island when synced
     const on = !(hearts[me] || (island && hearts[island]));
@@ -184,6 +182,7 @@ function posterActions(f, p) {
     if (on) { hearts[key] = true; change[`hearts.${key}`] = true; }
     else for (const k of [me, island]) if (k && hearts[k]) { delete hearts[k]; change[`hearts.${k}`] = deleteField(); }
     paint();
+    if (demo) return; // practice town: nothing is saved
     updateDoc(ref, change).catch(e => {
       for (const k of Object.keys(hearts)) delete hearts[k]; Object.assign(hearts, before);
       paint();
@@ -191,7 +190,7 @@ function posterActions(f, p) {
     });
   };
   row.append(heart);
-  if (f.note && isMine(f)) {
+  if (f.note && isMine(f) && !demo) {
     const edit = el('button', null, ':pencil:'), del = el('button', null, ':trash:');
     edit.type = del.type = 'button';
     edit.setAttribute('aria-label', 'Edit note'); del.setAttribute('aria-label', 'Delete note');

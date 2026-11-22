@@ -140,9 +140,8 @@ service cloud.firestore {
           && request.resource.data.text.size() <= 120;
         allow delete: if member()
           && mine() && resource.data.get('note', false) == true;
-        // other townsfolk can add/remove only their own heart on any post
+        // any member can add/remove only their own heart on any post, their own posts included
         allow update: if member()
-          && !mine()
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['hearts', 'heartBy'])
           && heartOk();
       }

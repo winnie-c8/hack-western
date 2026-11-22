@@ -2,6 +2,8 @@ import "dotenv/config";
 import express from "express";
 import cors from "cors";
 import { GoogleGenAI, Type } from "@google/genai";
+import { Configuration, PlaidApi, PlaidEnvironments } from "plaid/legacy";
+import { randomUUID } from "node:crypto";
 
 const app = express();
 app.use(cors({
@@ -17,6 +19,159 @@ app.use(cors({
 app.use(express.json({ limit: "200kb" }));
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+
+// ---------- Plaid (sandbox): a fake person's savings account that saves a little every day ----------
+// Everything here is Plaid's Sandbox: made-up people at made-up banks, no real money and no real logins.
+// The game reads deposits into ONE savings account back from Plaid instead of the player typing an amount.
+//   /connect     quietly opens a sandbox test person (user_good) at a Canadian test bank and picks their savings account
+//   /link_token  starts Plaid Link, Plaid's own pop-up, so the player can choose another bank + savings account
+//   /exchange    turns what Link hands back into a saved connection for the account they chose
+//   /today       what landed in that savings account today (the first check of a day makes the fake person save)
+//   /sandbox_deposit  makes the fake person save again (for demos and tests: "saved more later today")
+const plaid = new PlaidApi(new Configuration({
+  basePath: PlaidEnvironments.sandbox,
+  baseOptions: {
+    headers: {
+      "PLAID-CLIENT-ID": process.env.PLAID_CLIENT_ID,
+      "PLAID-SECRET": process.env.PLAID_SECRET,
+    },
+  },
+}));
+
+const SAVE_NAME = "Transfer to savings"; // how the fake person's savings deposit shows up in their bank
+const SAVINGS = ["savings"];             // the only kind of account the game looks at
+const wait = ms => new Promise(r => setTimeout(r, ms));
+const plaidError = (res, e, msg) => { console.error(msg, e.config?.url, e.response?.data || e.message); res.status(500).json({ error: msg }); };
+const dayOf = d => (/^\d{4}-\d{2}-\d{2}$/.test(d) ? d : new Date().toISOString().slice(0, 10));
+
+// Each player gets a random link id. The Plaid access token stays on the server and never goes to the browser.
+// Kept in memory: if the server restarts, the game quietly connects a new fake account.
+const links = new Map(); // linkId -> { accessToken, accountId, cursor, deposits: Map(id -> deposit), savedDay, queue }
+
+// Pull new transactions into link.deposits. If Plaid's data changes mid-way, start the pages over.
+async function syncLink(link) {
+  for (;;) {
+    let cursor = link.cursor, more = true;
+    const added = [];
+    try {
+      while (more) {
+        const r = await retry(() => plaid.transactionsSync({ access_token: link.accessToken, cursor: cursor || undefined }));
+        added.push(...r.data.added);
+        cursor = r.data.next_cursor;
+        more = r.data.has_more;
+        link.status = r.data.transactions_update_status;
+      }
+    } catch (e) {
+      if (e.response?.data?.error_code === "TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION") continue;
+      throw e;
+    }
+    link.cursor = cursor;
+    // only money coming INTO the chosen savings account (in Plaid, money coming in has a negative amount)
+    for (const t of added) if (t.amount < 0 && t.name === SAVE_NAME && t.account_id === link.accountId) {
+      link.deposits.set(t.transaction_id, { id: t.transaction_id, amount: Math.abs(t.amount), date: t.date });
+    }
+    return added.length;
+  }
+}
+
+// Save a new connection: find the savings account, wait for Plaid to load its history (adding to it sooner fails)
+async function addLink(accessToken, accountId) {
+  const { accounts, item } = (await plaid.accountsGet({ access_token: accessToken })).data;
+  const acct = accounts.find(a => a.account_id === accountId) || accounts.find(a => SAVINGS.includes(a.subtype));
+  if (!acct) throw new Error("no savings account");
+  const link = { accessToken, accountId: acct.account_id, cursor: null, deposits: new Map(), savedDay: null };
+  for (let i = 0; i < 20; i++) { await syncLink(link); if (link.status === "HISTORICAL_UPDATE_COMPLETE") break; await wait(1500); }
+  let bank = "";
+  try { bank = (await plaid.institutionsGetById({ institution_id: item.institution_id, country_codes: ["CA", "US"] })).data.institution.name; } catch {}
+  const linkId = randomUUID();
+  links.set(linkId, link);
+  return { linkId, account: { name: acct.name, mask: acct.mask, bank } };
+}
+
+// The default: a sandbox test person at a Canadian test bank, no pop-up needed
+app.post("/api/plaid/connect", async (req, res) => {
+  try {
+    const pt = await plaid.sandboxPublicTokenCreate({
+      institution_id: "ins_43", // Tartan-Dominion Bank of Canada (sandbox)
+      initial_products: ["transactions"],
+      options: { override_username: "user_good", override_password: "pass_good" },
+    });
+    const r = await plaid.itemPublicTokenExchange({ public_token: pt.data.public_token });
+    res.json(await addLink(r.data.access_token));
+  } catch (e) { plaidError(res, e, "Could not open the sandbox bank"); }
+});
+
+// "Choose another savings account": Plaid Link only offers savings accounts
+app.post("/api/plaid/link_token", async (req, res) => {
+  try {
+    const r = await plaid.linkTokenCreate({
+      user: { client_user_id: randomUUID() },
+      client_name: "Tomo Island",
+      products: ["transactions"],
+      country_codes: ["CA"],
+      language: "en",
+      account_filters: { depository: { account_subtypes: SAVINGS } },
+    });
+    res.json({ link_token: r.data.link_token });
+  } catch (e) { plaidError(res, e, "Could not start Plaid"); }
+});
+
+app.post("/api/plaid/exchange", async (req, res) => {
+  try {
+    const r = await plaid.itemPublicTokenExchange({ public_token: req.body.public_token });
+    res.json(await addLink(r.data.access_token, req.body.accountId));
+  } catch (e) { plaidError(res, e, "Could not connect that account"); }
+});
+
+// What landed in the savings account today. The first check of a new day makes the fake person save ($2 to $25).
+app.post("/api/plaid/today", (req, res) => queued(req, res, (link, day) => checkToday(link, day)));
+
+// Sandbox only: the fake person saves again today (like saving at 4 pm, then again at 7 pm)
+app.post("/api/plaid/sandbox_deposit", (req, res) => queued(req, res, async (link, day) => {
+  await checkToday(link, day); // today's usual deposit comes first
+  const amount = Math.round(Number(req.body.amount)) || 2 + Math.floor(Math.random() * 24);
+  return deposit(link, day, Math.min(Math.max(amount, 1), 500));
+}));
+
+// one Plaid job at a time per account, so two quick checks can't make two deposits
+async function queued(req, res, job) {
+  const link = links.get(req.body.linkId);
+  if (!link) return res.status(404).json({ error: "reconnect" });
+  const run = (link.queue || Promise.resolve()).then(() => job(link, dayOf(req.body.day)));
+  link.queue = run.catch(() => {});
+  try { res.json({ deposits: await run }); }
+  catch (e) { plaidError(res, e, "Could not check the sandbox bank"); }
+}
+
+const todays = (link, day) => [...link.deposits.values()].filter(d => d.date === day);
+
+async function checkToday(link, day) {
+  // once Plaid has made today's automatic deposit, never make a second one, even if a later step fails
+  if (link.savedDay !== day) return deposit(link, day, 2 + Math.floor(Math.random() * 24), () => { link.savedDay = day; });
+  await syncLink(link);
+  return todays(link, day);
+}
+
+// Put a sandbox deposit into the savings account, then wait until Plaid reports it back
+async function deposit(link, day, amount, made = () => {}) {
+  const before = todays(link, day).length;
+  await retry(() => plaid.sandboxTransactionsCreate({
+    access_token: link.accessToken,
+    transactions: [{ date_transacted: day, date_posted: day, amount: -amount, description: SAVE_NAME, iso_currency_code: "CAD", account_id: link.accountId }],
+  }));
+  made();
+  await retry(() => plaid.transactionsRefresh({ access_token: link.accessToken }));
+  for (let i = 0; i < 10; i++) { await syncLink(link); if (todays(link, day).length > before) break; await wait(1500); }
+  return todays(link, day);
+}
+
+// A brand-new sandbox account sometimes answers with a passing INTERNAL_SERVER_ERROR: wait and try again
+async function retry(fn, tries = 4) {
+  for (let i = 1; ; i++) {
+    try { return await fn(); }
+    catch (e) { if (i >= tries || e.response?.data?.error_code !== "INTERNAL_SERVER_ERROR") throw e; await wait(2000); }
+  }
+}
 
 const FOX_PERSONA = `You are Maple, a warm, playful fox who lives in a cozy island village in a savings game for young Canadians (Gen Z).
 
