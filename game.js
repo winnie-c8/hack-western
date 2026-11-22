@@ -78,6 +78,10 @@ const fmt = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')
 const today = () => fmt(new Date());
 // Monday of the week containing d (local time)
 const weekKey = (d = new Date()) => { const x = new Date(d); x.setDate(x.getDate() - ((x.getDay() + 6) % 7)); return fmt(x); };
+const defaultDailyStar = () => ({
+  version: 7, date: null, puzzleId: null, guesses: [], personalizedHints: [],
+  accuracyScores: [], completed: false, won: false,
+});
 const defaultState = () => ({
   coins: 100, saved: 0, history: [], inventory: {}, placed: [],
   goals: [], personalGoals: [], streak: 0, lastStreakDay: null, missionsDay: today(), missionsDone: [],
@@ -87,8 +91,49 @@ const defaultState = () => ({
   pathKits: ['dirt'],   // path styles you own (bought in the shop)
   layout: {},           // where you moved the shop / Maple: { shop: {x,y}, fox: {x,y} }
   buildPos: {},         // where you moved each town building: { key: {x,y} }
-  dailyStar: { date: null, games: [], completed: false, score: null, rounds: [] },
+  dailyStar: defaultDailyStar(),
+  dailyStarLogbook: [],
 });
+function normalizeDailyStar(progress) {
+  let dailyStar = progress;
+  if (dailyStar?.version === 5) {
+    dailyStar = { ...dailyStar, version: 6, personalizedHints: [], similarityScore: null };
+  }
+  if (dailyStar?.version === 6) {
+    const guesses = Array.isArray(dailyStar.guesses) ? dailyStar.guesses : [];
+    const previousScore = dailyStar.similarityScore;
+    dailyStar = {
+      ...dailyStar,
+      version: 7,
+      completed: dailyStar.won === true || guesses.length >= 5,
+      accuracyScores: guesses.map((_, index) =>
+        index === guesses.length - 1 && Number.isInteger(previousScore) ? previousScore : null),
+    };
+    delete dailyStar.similarityScore;
+  }
+  if (!dailyStar || dailyStar.version !== 7 ||
+    !(dailyStar.date === null || typeof dailyStar.date === 'string') ||
+    !(dailyStar.puzzleId === null || typeof dailyStar.puzzleId === 'string') ||
+    !Array.isArray(dailyStar.guesses) || dailyStar.guesses.length > 5 ||
+    dailyStar.guesses.some(guess => typeof guess !== 'string') ||
+    !Array.isArray(dailyStar.personalizedHints) || dailyStar.personalizedHints.length > 4 ||
+    dailyStar.personalizedHints.some(hint => hint !== null && (typeof hint !== 'string' || hint.length > 200)) ||
+    !Array.isArray(dailyStar.accuracyScores) || dailyStar.accuracyScores.length !== dailyStar.guesses.length ||
+    dailyStar.accuracyScores.some(score => score !== null &&
+      (!Number.isInteger(score) || score < 0 || score > 100)) ||
+    typeof dailyStar.completed !== 'boolean' || typeof dailyStar.won !== 'boolean') {
+    return defaultDailyStar();
+  }
+  return dailyStar;
+}
+function normalizeDailyStarLogbook(entries) {
+  if (!Array.isArray(entries)) return [];
+  return entries.filter(entry => entry && typeof entry.date === 'string' &&
+    /^\d{4}-\d{2}-\d{2}$/.test(entry.date) &&
+    typeof entry.puzzleId === 'string' && typeof entry.tip === 'string' &&
+    (entry.accuracyScore === null ||
+      (Number.isInteger(entry.accuracyScore) && entry.accuracyScore >= 0 && entry.accuracyScore <= 100)));
+}
 let S;
 let realS = null;         // while the tutorial's practice island is showing, the player's real island waits here
 let hadLocalSave = false; // a brand-new local island must never overwrite the cloud copy
@@ -99,6 +144,8 @@ try {
   S = Object.assign(defaultState(), saved);
   if (raw) S.worldV = saved.worldV || 0; // an old save has no worldV: don't let the default hide that
 } catch { S = defaultState(); }
+S.dailyStar = normalizeDailyStar(S.dailyStar);
+S.dailyStarLogbook = normalizeDailyStarLogbook(S.dailyStarLogbook);
 // Islands saved before the bigger world (20×14) shift by (+10, +7) so everything keeps its place.
 // (Runs once the map exists — see migrateWorld() after the map is built.)
 const onLand = (x, y) => (map[y]?.[x] ?? 0) > 0;
@@ -2240,7 +2287,7 @@ async function askVillager(question) {
   const context = `(Player info: today is ${today()}, saved $${S.saved} total, ${S.streak}-day streak, goals: ${goals})`;
   try {
     const API = ['localhost', '127.0.0.1'].includes(location.hostname)
-      ? 'http://localhost:3001' : 'https://future-me-cdzs.onrender.com';
+      ? 'http://localhost:3001' : 'https://hack-western.onrender.com';
     const res = await fetch(`${API}/api/fox`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2408,6 +2455,8 @@ window.loadCloudState = data => {
   if (realS) { pendingCloud = data; return; }
   const here = S?.player; // your spot isn't synced: stay where you are on this device
   S = Object.assign(defaultState(), data);
+  S.dailyStar = normalizeDailyStar(S.dailyStar);
+  S.dailyStarLogbook = normalizeDailyStarLogbook(S.dailyStarLogbook);
   if (!data.worldV) S.worldV = 0;
   migrateWorld(); migrateJars();
   if (here && onLand(here.x, here.y)) S.player = { x: here.x, y: here.y };
