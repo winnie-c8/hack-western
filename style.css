@@ -1243,4 +1243,5 @@ body.intro-open { overflow: hidden; }
   .saved-text b { font-size: 1.4rem; }
   .saved-text small { letter-spacing: 1px; font-size: .7rem; }
   .saved-ico .pi { width: 1.6rem; height: 1.6rem; }
+  .hud-top { justify-content: flex-start; padding-left: 10px; }   /* line the sign up with the bag, away from the town island */
 }
