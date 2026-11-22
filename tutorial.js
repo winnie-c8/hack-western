@@ -181,6 +181,7 @@
   const value = v => typeof v === 'function' ? v() : v;
 
   function shouldRun() {
+    if (window.openedFromSyncLink) return false; // joining an existing island from a sync link / QR code
     try { if (localStorage.getItem(DONE_KEY)) return false; } catch {}
     return !window.getState().tutorialDone;
   }

@@ -2609,6 +2609,7 @@ $('syncOfferCancel').onclick = () => { syncOffer = null; syncStatus(''); closePa
   const m = location.hash.match(/sync=([A-Za-z0-9-]{12,16})/);
   if (!m) return;
   history.replaceState(null, '', location.pathname + location.search); // don't leave the code in the address bar
+  window.openedFromSyncLink = true; // joining an island that already exists: no first-visit tour (tutorial.js)
   const code = m[1].toUpperCase().replace(/[^A-Z0-9]/g, '');
   const show = () => {
     syncOffer = code;

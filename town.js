@@ -62,6 +62,17 @@ let openCode = null;      // town shown in the detail view (null = gallery)
 let showForm = false;     // "start or join" form open in the gallery
 
 function watch(code) {
+  // The news feed is members-only, so it starts once this device is a member (a device that just synced
+  // into an island joins its towns first, below). If it ever fails, the next town update tries again.
+  let uFeed = null;
+  const startFeed = () => {
+    if (uFeed) return;
+    const feedQ = query(collection(db, 'towns', code, 'feed'), orderBy('createdAt', 'desc'), limit(12));
+    uFeed = onSnapshot(feedQ, snap => {
+      live.feeds.set(code, snap.docs.map(d => ({ id: d.id, ...d.data() })));
+      render();
+    }, err => { console.warn('[town] feed failed', code, err); uFeed = null; });
+  };
   const uDoc = onSnapshot(doc(db, 'towns', code), snap => {
     const me = auth.currentUser?.uid;
     if (!snap.exists()) { // town deleted
@@ -84,17 +95,13 @@ function watch(code) {
     if ((mine.island || null) !== island) // synced / unsynced since joining: keep the island tag right
       updateDoc(doc(db, 'towns', code), { [`members.${me}.island`]: island || deleteField() }).catch(e => console.warn('[town] island tag failed', e));
     live.towns.set(code, snap.data());
+    startFeed();
     render();
   }, err => {
     console.warn('[town] listen failed', code, err);
     status('Could not load a town. Check your connection.');
   });
-  const feedQ = query(collection(db, 'towns', code, 'feed'), orderBy('createdAt', 'desc'), limit(12));
-  const uFeed = onSnapshot(feedQ, snap => {
-    live.feeds.set(code, snap.docs.map(d => ({ id: d.id, ...d.data() })));
-    render();
-  }, err => console.warn('[town] feed failed', code, err));
-  unsubs.set(code, [uDoc, uFeed]);
+  unsubs.set(code, [uDoc, () => uFeed?.()]);
 }
 
 function syncWatches() {
@@ -281,7 +288,7 @@ function renderGallery(ids) {
   const art = $('townIsle')?.toDataURL(); // the little town island picture from the corner of the screen
   const cards = ids.filter(c => towns.has(c)).map(code => {
     const t = towns.get(code), p = t.project;
-    const n = Object.keys(t.members || {}).length, built = (t.built || []).length;
+    const n = new Set(Object.keys(t.members || {}).map(uid => personOf(t, uid))).size, built = (t.built || []).length; // synced devices = one person
     const card = el('button', 'town-card');
     card.type = 'button';
     card.setAttribute('aria-label', `Open ${t.name}`);
