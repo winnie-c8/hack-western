@@ -2192,7 +2192,9 @@ function renderSync() {
   const code = window.sync?.code(), offer = syncOffer && syncOffer !== code ? syncOffer : null;
   $('syncOffer').hidden = !offer;
   $('syncOff').hidden = !!code || !!offer; $('syncOn').hidden = !code || !!offer;
+  if (!code && !offer && !$('syncIslandName').value) $('syncIslandName').value = suggestIslandName();
   if (!code || offer) return;
+  $('syncIslandShow').textContent = S.islandName || 'Your island';
   $('syncCodeShow').textContent = fmtSync(code);
   $('syncQr').hidden = true;
   loadQr().then(qrcode => {
@@ -2205,8 +2207,14 @@ const cloudReady = () => {
   syncStatus("Syncing isn't available right now. Check your connection and try again.");
   return false;
 };
-$('syncCreate').onclick = async () => {
+// The island needs a name before it's shared, so the other device sees "You're syncing to <name>"
+const suggestIslandName = () => S.islandName || ((S.name || '').trim() ? `${S.name.trim()}'s Island` : '');
+$('syncCreateForm').onsubmit = async e => {
+  e.preventDefault();
   if (!cloudReady()) return;
+  const name = $('syncIslandName').value.trim().slice(0, 30);
+  if (!name) { syncStatus('Give your island a name first!'); return $('syncIslandName').focus(); }
+  S.islandName = name; save(); // saved before the code is made, so the synced copy has it
   syncStatus('Creating your code…');
   try { await window.sync.create(); syncStatus(''); renderSync(); }
   catch (e) { console.warn('[sync] create failed', e); syncStatus('Could not create a code. Check your connection and try again.'); }
@@ -2244,7 +2252,7 @@ async function peekOffer(code) {
       $('syncOfferGo').disabled = true;
       return;
     }
-    $('syncOfferName').textContent = info.name ? `${info.name}'s island` : 'your island';
+    $('syncOfferName').textContent = info.islandName || (info.name ? `${info.name}'s island` : 'your island');
     $('syncOfferStats').innerHTML = pit(`:piggy: $${info.saved.toLocaleString()} saved · :flame: ${info.streak}-day streak · :coin: ${info.coins.toLocaleString()} coins`);
   } catch (e) {
     console.warn('[sync] peek failed', e);

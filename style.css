@@ -1444,3 +1444,8 @@ body.intro-open { overflow: hidden; }
 button.primary.sync-big { min-height: 64px; font-size: 1.8rem; letter-spacing: 6px; margin-top: 10px; }
 button.primary.sync-big:disabled { opacity: .5; cursor: not-allowed; }
 .sync-offer-cancel { display: block; margin: 10px auto 0; min-height: 36px; }
+/* "Name your island" step before creating a sync code, and the name shown once synced */
+.sync-create-form label { display: block; margin-bottom: 6px; }
+.sync-create-form input { margin-top: 0; }
+.sync-create-form .sync-note { margin-bottom: 4px; }
+.sync-island-name { text-align: center; font-size: 1.3rem; margin: 0 0 8px; }

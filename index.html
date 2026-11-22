@@ -324,7 +324,12 @@
       </div>
       <div id="syncOff">
         <p>Play the same island on your phone and laptop. No account or password, and you only link each device once.</p>
-        <button class="primary sync-create" id="syncCreate" type="button">Create a sync code</button>
+        <form id="syncCreateForm" class="sync-create-form">
+          <label for="syncIslandName">First, name your island</label>
+          <input id="syncIslandName" maxlength="30" placeholder="e.g. Maple Grove" autocomplete="off">
+          <p class="muted sync-note">Your other devices will see this name when they sync.</p>
+          <button class="primary sync-create" id="syncCreate">Create a sync code</button>
+        </form>
         <form id="syncJoinForm" class="sync-join">
           <label for="syncInput">Got a code from your other device?</label>
           <div class="sync-row">
@@ -335,6 +340,7 @@
         </form>
       </div>
       <div id="syncOn" hidden>
+        <p class="sync-island-name"><i data-pi="island"></i> <b id="syncIslandShow"></b></p>
         <p>This device is synced. To add another device, scan this with its camera, or open the game there and enter the code under <b>More → Sync devices</b>.</p>
         <img id="syncQr" class="sync-qr" alt="QR code that links another device to this island" hidden>
         <div class="sync-code" id="syncCodeShow"></div>
