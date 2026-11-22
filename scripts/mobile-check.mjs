@@ -24,7 +24,7 @@ const PHONES = [
 // (".hud-right > *" = each menu button on its own: the menu's invisible container is bigger than the buttons)
 const HUD_PIECES = [".hud-left .home-title", ".hud-left .stats", ".hud-left .sky-clock", ".hud-right > *",
   ".hud-bottom .bag", ".dpad", ".town-isle"];
-const PANELS = ["shop", "goals", "history", "daily", "town"]; // opened one at a time on the island
+const PANELS = ["shop", "goals", "history", "daily", "town", "sync"]; // opened one at a time on the island
 const MIN_TAP = 32;        // px, smallest allowed button/link/input side
 const MIN_INPUT_FONT = 16; // px, smaller makes iOS Safari zoom on focus
 const MIN_TEXT_FONT = 11;  // px, smallest readable text

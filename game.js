@@ -1489,6 +1489,7 @@ function openPanel(name) {
     el.querySelector('.close')?.focus();
   }
   if (name === 'history') { animateChart = true; renderFuture(); } // draw the graph in, line by line
+  if (name === 'sync') renderSync();
 }
 document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openPanel(b.dataset.open));
 paintTownIsle();
@@ -2153,8 +2154,84 @@ window.loadCloudState = data => {
   applyLayout(); applySavedPaths(); paintAll(); window.setTownBuilds(lastBuildList);
   followCam(true);
   rollDay(); renderAll();
+  window.onIslandLoaded?.(); // e.g. town.js re-checks which towns this island is in
 };
 window.getState = () => S;
+
+// ---------- Sync devices: same island on phone + laptop, no login (cloud.js provides window.sync) ----------
+const syncURL = code => `${location.origin}${location.pathname}#sync=${code}`;
+const fmtSync = code => code.match(/.{1,4}/g).join('-');
+const syncStatus = text => { $('syncStatus').textContent = text; };
+let qrLib = null; // QR code maker, loaded the first time it's needed
+const loadQr = () => qrLib ||= new Promise((resolve, reject) => {
+  const s = document.createElement('script');
+  s.src = 'https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.js';
+  s.onload = () => resolve(window.qrcode);
+  s.onerror = () => { qrLib = null; reject(new Error('QR library failed to load')); };
+  document.head.append(s);
+});
+function renderSync() {
+  const code = window.sync?.code();
+  $('syncOff').hidden = !!code; $('syncOn').hidden = !code;
+  if (!code) return;
+  $('syncCodeShow').textContent = fmtSync(code);
+  $('syncQr').hidden = true;
+  loadQr().then(qrcode => {
+    const qr = qrcode(0, 'M'); qr.addData(syncURL(code)); qr.make();
+    $('syncQr').src = qr.createDataURL(6, 2); $('syncQr').hidden = false;
+  }).catch(e => console.warn('[sync]', e)); // the typed code still works without the picture
+}
+const cloudReady = () => {
+  if (window.sync) return true;
+  syncStatus("Syncing isn't available right now. Check your connection and try again.");
+  return false;
+};
+$('syncCreate').onclick = async () => {
+  if (!cloudReady()) return;
+  syncStatus('Creating your code…');
+  try { await window.sync.create(); syncStatus(''); renderSync(); }
+  catch (e) { console.warn('[sync] create failed', e); syncStatus('Could not create a code. Check your connection and try again.'); }
+};
+$('syncJoinForm').onsubmit = async e => {
+  e.preventDefault();
+  if (!cloudReady()) return;
+  const typed = $('syncInput').value.replace(/[^a-z0-9]/gi, '');
+  if (typed.length !== 12) return syncStatus('Sync codes have 12 letters and numbers, like ABCD-EFGH-JK23.');
+  if (!confirm("Use your synced island on this device? The island that's on this device now will be replaced.")) return;
+  syncStatus('Linking…');
+  try {
+    if (!(await window.sync.join(typed))) return syncStatus('No island found with that code. Check it and try again.');
+    $('syncInput').value = ''; syncStatus(''); renderSync();
+    toast('Synced! This device now shares your island.');
+  } catch (e) { console.warn('[sync] join failed', e); syncStatus('Could not link. Check your connection and try again.'); }
+};
+$('syncCopy').onclick = async () => {
+  try { await navigator.clipboard.writeText(syncURL(window.sync.code())); toast('Link copied! Open it on your other device.'); }
+  catch { toast('Could not copy. Type the code on your other device instead.'); }
+};
+$('syncUnlink').onclick = async () => {
+  if (!confirm("Stop syncing on this device? It keeps a copy of your island, but changes won't sync any more. Your other devices aren't affected.")) return;
+  await window.sync.unlink(); syncStatus(''); renderSync();
+  toast('This device is no longer synced');
+};
+// Opened from a scanned QR code / copied link (…#sync=CODE): show the Sync window with the code filled in
+(function syncFromLink() {
+  const m = location.hash.match(/sync=([A-Za-z0-9-]{12,16})/);
+  if (!m) return;
+  history.replaceState(null, '', location.pathname + location.search); // don't leave the code in the address bar
+  const code = m[1].toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const show = () => {
+    openPanel('sync');
+    if (window.sync?.code() === code) return syncStatus('This device is already synced with that island.');
+    $('syncInput').value = fmtSync(code);
+    syncStatus('Tap Link to play your synced island on this device.');
+  };
+  if (!document.body.classList.contains('intro-open')) return show();
+  new MutationObserver((_, obs) => {
+    if (document.body.classList.contains('intro-open')) return;
+    obs.disconnect(); setTimeout(show, 300); // after the welcome pop-up
+  }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
+})();
 window.hasLocalSave = () => hadLocalSave;
 window.saveGame = () => save();
 window.toast = toast;
