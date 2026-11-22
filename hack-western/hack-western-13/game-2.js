@@ -495,7 +495,7 @@ const draw = () => {
   ].sort((a, b) => a.y - b.y);
   ents.forEach(e => e.draw());
 
-  if (nearVillager()) drawBubble('Space to chat', VILLAGER.x * TILE + TILE / 2, VILLAGER.y * TILE - 14 * PX);
+  if (nearVillager()) drawBubble('Space to chat', VILLAGER.x * TILE + TILE / 2, VILLAGER.y * TILE - 3 * PX); // Maple is 11 art px tall: the tail tip sits just above her ears
   else if (nearShop()) drawBubble('Space to enter shop', (SHOP_BLD.x + 1) * TILE, (SHOP_BLD.y + 2) * TILE + 2 * PX);
   else {
     const b = townBuilds.find(b => P.x >= b.x - 1 && P.x <= b.x + 2 && P.y >= b.y - 1 && P.y <= b.y + 2);

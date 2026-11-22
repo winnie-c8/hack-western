@@ -268,17 +268,6 @@
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
   }
 
-  function syncSceneBackdrop() {
-    const source = $('introScene');
-    const backdrop = $('dailyStarScene');
-    if (!source || !backdrop) throw new Error('The Daily Star background canvas is missing.');
-    const context = backdrop.getContext('2d');
-    if (!context) throw new Error('Could not draw the Daily Star background.');
-    context.imageSmoothingEnabled = false;
-    context.clearRect(0, 0, backdrop.width, backdrop.height);
-    context.drawImage(source, 0, 0, backdrop.width, backdrop.height);
-  }
-
   function puzzleForDay(day) {
     // Hash the date so the same daily mystery is selected across reloads and devices.
     let seed = 2166136261;
@@ -682,6 +671,7 @@
       progress.accuracyScores.push(null);
       progress.won = isCorrectGuess(guess, puzzle);
       progress.completed = progress.won || progress.guesses.length === MAX_GUESSES;
+      window.getState().starPlayed = true; // they've really played: no more rising through the stars on the way in
       window.saveGame();
       scoringAttempts.add(guessIndex);
       if (progress.completed) renderResult(progress, puzzle);
@@ -825,7 +815,124 @@
     else renderRiddle(progress, puzzle);
   }
 
+  // ---------- The ascended sky: the Daily Star lives up among the stars ----------
+  // One pixel night sky (320×180, scaled up crisp like the intro) shared by the ride up and the Daily Star's
+  // background, so arriving is seamless and you stay up there while you play.
+  const SKY_W = 320, SKY_H = 180, SKY_TOP = '#060a1c', SKY_BOTTOM = '#1b2452', CALM = .02;
+  const STAR_COLORS = ['#fff7e6', '#fff3c4', '#cfe3ff', '#f2c26b', '#c7a6e0'];
+  const reduceMotion = () => matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
+  const mix = (a, b, f) => `rgb(${hex(a).map((v, i) => Math.round(v + (hex(b)[i] - v) * f)).join(',')})`;
+  let skyStars = null;
+  const makeStars = () => Array.from({ length: 160 }, () => ({
+    x: Math.random() * SKY_W, y: Math.random() * SKY_H, z: 1 + Math.floor(Math.random() * 3),
+    c: STAR_COLORS[Math.floor(Math.random() * STAR_COLORS.length)], tw: Math.random() * Math.PI * 2,
+  }));
+
+  // v = how fast we're rising (stars stream down and stretch into streaks); at CALM they just drift and twinkle
+  function paintSky(g, v, dt, now, top = SKY_TOP, bottom = SKY_BOTTOM) {
+    const sky = g.createLinearGradient(0, 0, 0, SKY_H);
+    sky.addColorStop(0, top); sky.addColorStop(1, bottom);
+    g.globalAlpha = 1; g.fillStyle = sky; g.fillRect(0, 0, SKY_W, SKY_H);
+    const calm = Math.max(0, 1 - (v - CALM) * 6); // 1 when floating, 0 while rushing upward
+    for (const s of skyStars) {
+      s.y += v * s.z * dt * .12;
+      if (s.y > SKY_H + 24) { s.y = -Math.random() * 24; s.x = Math.random() * SKY_W; }
+      const len = 1 + Math.round(v * s.z * 6), x = Math.round(s.x), y = Math.round(s.y);
+      const twinkle = 1 - calm * .35 * (1 + Math.sin(now / 450 + s.tw)) / 2;
+      g.globalAlpha = (.45 + s.z * .18) * twinkle;
+      g.fillStyle = s.c;
+      g.fillRect(x, y - len + 1, 1, len);
+      if (s.z === 3 && calm > .5) { g.globalAlpha *= calm * .5; g.fillRect(x - 1, y, 3, 1); g.fillRect(x, y - 1, 1, 3); } // little sparkle
+    }
+    g.globalAlpha = 1;
+  }
+
+  // the Daily Star's background: the calm ascended sky, gently twinkling for as long as it's open
+  let skyRaf = 0;
+  function startSky() {
+    const g = $('dailyStarScene').getContext('2d');
+    g.imageSmoothingEnabled = false;
+    skyStars ||= makeStars();
+    cancelAnimationFrame(skyRaf);
+    if (reduceMotion()) return paintSky(g, 0, 0, 0);
+    let last = 0;
+    const loop = now => {
+      paintSky(g, CALM, last ? Math.min(50, now - last) : 16, now);
+      last = now;
+      skyRaf = requestAnimationFrame(loop);
+    };
+    skyRaf = requestAnimationFrame(loop);
+  }
+  const stopSky = () => { cancelAnimationFrame(skyRaf); skyRaf = 0; };
+
+  // ---------- The ride up: until they've played once, entering the Daily Star rises into the sky ----------
+  // The island drops away below, stars rush past, then we slow down and float: that's the Daily Star's sky.
+  // Click or press a key to skip.
+  let ascending = false;
+  function ascendToStars() {
+    return new Promise(resolve => {
+      const DUR = 3000;
+      const cv = document.createElement('canvas');
+      cv.width = SKY_W; cv.height = SKY_H; cv.className = 'star-ascent'; cv.setAttribute('aria-hidden', 'true');
+      document.body.append(cv);
+      const g = cv.getContext('2d');
+      g.imageSmoothingEnabled = false;
+      // a still of the island scene, to fall away below us
+      const island = document.createElement('canvas');
+      island.width = SKY_W; island.height = SKY_H;
+      if ($('introScene')) island.getContext('2d').drawImage($('introScene'), 0, 0, SKY_W, SKY_H);
+      skyStars = makeStars();
+      let start = null, last = 0, done = false;
+
+      const finish = () => {
+        if (done) return;
+        done = true;
+        removeEventListener('keydown', finish, true);
+        resolve();                                     // the Daily Star opens in the same sky underneath...
+        requestAnimationFrame(() => {                  // ...then the ride's canvas fades away on top of it
+          cv.classList.add('done');
+          setTimeout(() => cv.remove(), 500);
+        });
+      };
+      cv.addEventListener('click', finish);
+      addEventListener('keydown', finish, true);
+
+      const ease = f => f * f * (3 - 2 * f);
+      const frame = now => {
+        if (done) return;
+        start ??= now;
+        const t = Math.min(1, (now - start) / DUR), dt = last ? Math.min(50, now - last) : 16;
+        last = now;
+        // speed: build up to a rush, then slow down until we're floating (matches the Daily Star's sky)
+        const v = t < .5 ? CALM + Math.pow(t / .5, 2) : 1 + (CALM - 1) * ease((t - .5) / .5);
+        // sky: from the island's dusk up into the night
+        const f = ease(Math.min(1, t / .7));
+        paintSky(g, v, dt, now, mix('#3b4775', SKY_TOP, f), mix('#c88498', SKY_BOTTOM, f));
+        // the island drops away beneath us and fades
+        const drop = Math.round(Math.pow(t, 1.4) * SKY_H * 1.6);
+        if (drop < SKY_H) { g.globalAlpha = Math.max(0, 1 - t * 2.2); g.drawImage(island, 0, drop); g.globalAlpha = 1; }
+        if (t < 1) requestAnimationFrame(frame); else finish();
+      };
+      requestAnimationFrame(frame);
+    });
+  }
+
+  // Ride up until they've actually played (made a guess) at least once.
+  // Leaving without playing means they get the ride again next time.
+  function hasPlayed(state) {
+    return !!(state.starPlayed || state.dailyStarLogbook?.length || state.dailyStar?.guesses?.length);
+  }
   function startDailyStar() {
+    const state = window.getState?.();
+    const ride = state && !hasPlayed(state) && $('dailyStarModal').classList.contains('hidden') && !reduceMotion();
+    if (!ride) return openDailyStar();
+    if (ascending) return;
+    ascending = true;
+    ascendToStars().then(() => { ascending = false; openDailyStar({ arrived: true }); });
+  }
+
+  function openDailyStar({ arrived = false } = {}) {
     setActiveTab('play');
     logbookPage = 0;
     const day = localDay();
@@ -833,15 +940,18 @@
     const progress = progressFor(day, puzzle);
     const modal = $('dailyStarModal');
     const shouldEnter = modal.classList.contains('hidden');
-    syncSceneBackdrop();
+    startSky();
     if (shouldEnter) {
       document.body.classList.add('daily-star-open');
       modal.classList.remove('hidden', 'skyward-visible');
+      // straight off the ride: already up in the sky, so no slide-in
+      modal.classList.toggle('arrived', arrived);
     }
     if (progress.completed) renderResult(progress, puzzle);
     else renderRiddle(progress, puzzle);
     if (shouldEnter) {
-      requestAnimationFrame(() => requestAnimationFrame(() => modal.classList.add('skyward-visible')));
+      if (arrived) modal.classList.add('skyward-visible');
+      else requestAnimationFrame(() => requestAnimationFrame(() => modal.classList.add('skyward-visible')));
     }
     requestAnimationFrame(() => $('dailyStarGuess')?.focus({ preventScroll: true }));
     startCountdown();
@@ -850,14 +960,14 @@
   function closeDailyStar() {
     const modal = $('dailyStarModal');
     if (modal.classList.contains('hidden')) return;
-    modal.classList.remove('skyward-visible');
+    modal.classList.remove('arrived', 'skyward-visible');
     document.body.classList.remove('daily-star-open');
     clearInterval(countdownInterval);
     countdownInterval = null;
     const finishExit = () => {
-      if (!modal.classList.contains('skyward-visible')) modal.classList.add('hidden');
+      if (!modal.classList.contains('skyward-visible')) { modal.classList.add('hidden'); stopSky(); }
     };
-    if (matchMedia('(prefers-reduced-motion: reduce)').matches) finishExit();
+    if (reduceMotion()) finishExit();
     else setTimeout(finishExit, 720);
     $('dailyStar').focus({ preventScroll: true });
   }

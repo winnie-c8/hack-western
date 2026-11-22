@@ -788,15 +788,26 @@ const BIG = new Set([
   'gazebo', 'greenhouse', 'treehouse', 'cabin', 'cottage', 'mushroom-house', 'small-shop',
   'windmill', 'playground', 'bakery', 'school', 'post-office', 'movie-theater', 'library', 'church', 'hospital', 'carousel',
 ]);
+// How strong the sunlight is (0..1): 1 through the day, easing to 0 over the hour or so after sunrise / before sunset
+function sunlight() {
+  const s = window.SKY?.current();
+  if (!s) return 1;
+  return s.up ? Math.min(1, s.sun * 8, (1 - s.sun) * 8) : 0;
+}
 function drawItem(id, x, y, alpha = 1) {
   const size = BIG.has(id) ? 56 : 36, cx = x * TILE + TILE / 2, bottom = y * TILE + TILE - 2;
   const left = cx - size / 2, top = bottom - size, o = Math.max(2, Math.round(size / 16));
   if (alpha === 1) {
-    // cast shadow: the item's silhouette squashed onto the ground, falling down-right
-    ctx.save();
-    ctx.translate(cx, bottom); ctx.transform(1, 0, -0.7, -0.3, 0, 0);
-    ctx.drawImage(silhouette(id, '#1c342c'), -size / 2, -size, size, size);
-    ctx.restore();
+    // soft grey cast shadow: the item's silhouette squashed onto the ground, falling down-right.
+    // It follows the real sun: full in the day, fading out around sunrise and sunset, none at night.
+    const light = sunlight();
+    if (light > 0) {
+      ctx.save();
+      ctx.globalAlpha = .22 * light;
+      ctx.translate(cx, bottom); ctx.transform(1, 0, -0.7, -0.3, 0, 0);
+      ctx.drawImage(silhouette(id, '#3e4a47'), -size / 2, -size, size, size);
+      ctx.restore();
+    }
     ctx.globalAlpha = 1;
     // dark pixel outline
     const sil = silhouette(id, PAL.outline);
@@ -909,12 +920,12 @@ function drawBank(sx = BANK_BLD.x, sy = BANK_BLD.y) {
     if (i < 10) r(-1 + inset, -6 - i, 42 - 2 * inset, 1, i === 0 ? tealDk : i % 2 ? teal : tealMid);
   }
   r(2, -7, 36, 1, tealHi);
-  // spinning gold coin in the pediment
-  const cw = Math.round(2.5 * Math.abs(Math.cos(t / 22)));
+  // gold coin in the pediment (holds still, facing front)
+  const cw = 2;
   r(20 - cw - 1, -14, 2 * cw + 3, 7, O);
   r(20 - cw, -13, 2 * cw + 1, 5, '#f2c26b');
-  r(cw > 0 ? 20 - cw : 20, -13, 1, 5, '#c79a45');
-  if (cw >= 2) { r(19, -12, 1, 2, '#fff3c4'); r(21, -12, 1, 3, '#c79a45'); }
+  r(20 - cw, -13, 1, 5, '#c79a45');
+  r(19, -12, 1, 2, '#fff3c4'); r(21, -12, 1, 3, '#c79a45');
   // flag on top, waving
   r(20, -24, 1, 8, '#8d6440');
   const wave = Math.floor(t / 14) % 2;
@@ -1017,16 +1028,31 @@ function movableAt(x, y) {
   return null;
 }
 
+// a "✓" in the text is drawn as a pixel tick, centred on the text (the font's own ✓ sits too low)
+const TICK = ['....#', '...##', '#.##.', '###..', '.#...'];
 function drawBubble(text, cx, bottom) {
   ctx.font = '16px "VCR OSD Mono", monospace';
-  const w = Math.ceil(ctx.measureText(text).width / PX) * PX + 6 * PX, h = 6 * PX;
+  const parts = text.split('✓'), tickW = 5 * PX * .75, gap = PX;
+  const textW = ctx.measureText(text.replaceAll('✓', '')).width + (parts.length - 1) * (tickW + gap);
+  const w = Math.ceil(textW / PX) * PX + 6 * PX, h = 6 * PX;
   const x = Math.round(cx - w / 2), y = bottom - h;
   ctx.fillStyle = PAL.shadow; ctx.fillRect(x + 2 * PX, y + PX, w - 2 * PX, h);  // hard drop shadow
   ctx.fillStyle = PAL.outline; ctx.fillRect(x + PX, y, w - 2 * PX, h); ctx.fillRect(x, y + PX, w, h - 2 * PX);
   ctx.fillStyle = '#fff7e6'; ctx.fillRect(x + PX, y + PX, w - 2 * PX, h - 2 * PX);
   ctx.fillStyle = PAL.outline; ctx.fillRect(cx - PX, y + h, 2 * PX, PX);
-  ctx.fillStyle = PAL.outline; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-  ctx.fillText(text, cx, y + h / 2 + 1);
+  ctx.fillStyle = PAL.outline; ctx.textBaseline = 'middle';
+  if (parts.length === 1) { ctx.textAlign = 'center'; ctx.fillText(text, cx, y + h / 2 + 1); return; }
+  ctx.textAlign = 'left';
+  const p = PX * .75; // tick pixels a bit smaller than art pixels, so it matches the text size
+  let tx = Math.round(cx - textW / 2);
+  parts.forEach((part, i) => {
+    ctx.fillText(part, tx, y + h / 2 + 1); tx += ctx.measureText(part).width;
+    if (i === parts.length - 1) return;
+    const ty = Math.round(y + h / 2 - 2.5 * p); // centred on the bubble, same middle as the text
+    ctx.fillStyle = '#4f8a4a';
+    TICK.forEach((row, j) => [...row].forEach((c, k) => c === '#' && ctx.fillRect(tx + gap / 2 + k * p, ty + j * p, p, p)));
+    ctx.fillStyle = PAL.outline; tx += tickW + gap;
+  });
 }
 
 const draw = () => {
@@ -1081,7 +1107,7 @@ const draw = () => {
   ents.forEach(e => e.draw());
   if (window.SKY) atmosphere(SKY.current(), ox, oy, tx0, tx1, ty0, ty1);
 
-  if (nearVillager()) drawBubble('Click to chat', VILLAGER.x * TILE + TILE / 2, VILLAGER.y * TILE - 14 * PX);
+  if (nearVillager()) drawBubble('Click to chat', VILLAGER.x * TILE + TILE / 2, VILLAGER.y * TILE - 3 * PX); // Maple is 11 art px tall: the tail tip sits just above her ears
   else if (nearShop()) drawBubble('Click to enter shop', (SHOP_BLD.x + 1) * TILE, (SHOP_BLD.y + 2) * TILE + 2 * PX);
   else if (nearBank()) drawBubble('Click to enter bank', (BANK_BLD.x + 2) * TILE, (BANK_BLD.y + 2) * TILE + 2 * PX);
   else {
@@ -1323,7 +1349,7 @@ document.querySelectorAll('[data-pad]').forEach(btn => {
   btn.addEventListener('contextmenu', e => e.preventDefault()); // no long-press menu
 });
 
-// ---------- Auto-walk: "Empty. Visit the shop!" walks you along the paths to the shop door ----------
+// ---------- Auto-walk: "Empty. Visit the shop!" / the real-money sign walk you along the paths to a door ----------
 let autoPath = [], autoFace = null;
 function findPath(from, isGoal, canStep) {            // breadth-first search over tiles → list of steps (not incl. start)
   const id = (x, y) => y * COLS + x, start = id(from.x, from.y);
@@ -1343,14 +1369,20 @@ function findPath(from, isGoal, canStep) {            // breadth-first search ov
   }
   return null;
 }
-function walkToShop() {
+const walkToShop = () => walkTo(SHOP_BLD, [0, 1], 'shop');
+const walkToBank = () => walkTo(BANK_BLD, [1, 2], 'bank'); // the bank's big door is in the middle two columns
+// the real-money sign walks you to the bank, like "Empty. Visit the shop!" does to the shop
+const savedSign = document.getElementById('savedBanner'); // ($ isn't defined yet up here)
+savedSign.onclick = walkToBank;
+savedSign.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); walkToBank(); } };
+function walkTo(B, doorCols, name) {
   const onPath = (x, y) => map[y]?.[x] === 4;
-  // the spot right in front of the door (the shop's door faces south); otherwise any tile touching the shop
-  let doors = [0, 1].map(i => ({ x: SHOP_BLD.x + i, y: SHOP_BLD.y + SHOP_BLD.h })).filter(d => walkable(d.x, d.y));
+  // the spot right in front of the door (doors face south); otherwise any tile touching the building
+  let doors = doorCols.map(i => ({ x: B.x + i, y: B.y + B.h })).filter(d => walkable(d.x, d.y));
   if (!doors.length) {
-    for (let i = -1; i <= SHOP_BLD.w; i++) for (let j = -1; j <= SHOP_BLD.h; j++) {
-      const x = SHOP_BLD.x + i, y = SHOP_BLD.y + j;
-      const touching = (i >= 0 && i < SHOP_BLD.w) !== (j >= 0 && j < SHOP_BLD.h);
+    for (let i = -1; i <= B.w; i++) for (let j = -1; j <= B.h; j++) {
+      const x = B.x + i, y = B.y + j;
+      const touching = (i >= 0 && i < B.w) !== (j >= 0 && j < B.h);
       if (touching && walkable(x, y)) doors.push({ x, y });
     }
   }
@@ -1358,17 +1390,17 @@ function walkToShop() {
   const here = { x: P.x, y: P.y };
   let route = isDoor(here.x, here.y) ? [] : null;
   if (!route) {
-    // 1) off the grass onto the nearest path, 2) follow the paths to the shop door
+    // 1) off the grass onto the nearest path, 2) follow the paths to the door
     const leg1 = onPath(here.x, here.y) ? [] : findPath(here, onPath, walkable);
     const from = leg1?.length ? leg1[leg1.length - 1] : here;
     const leg2 = leg1 && findPath(from, isDoor, (x, y) => walkable(x, y) && (onPath(x, y) || isDoor(x, y)));
-    route = leg2 ? [...leg1, ...leg2] : findPath(here, isDoor, walkable); // paths don't reach the shop → walk there directly
+    route = leg2 ? [...leg1, ...leg2] : findPath(here, isDoor, walkable); // paths don't reach it → walk there directly
   }
-  if (!route) return toast("Can't find a way to the shop from here");
+  if (!route) return toast(`Can't find a way to the ${name} from here`);
   closePanels();
   autoPath = route;
-  const d = route.length ? route[route.length - 1] : here;  // face the shop when you get there
-  autoFace = d.y >= SHOP_BLD.y + SHOP_BLD.h ? 'up' : d.y < SHOP_BLD.y ? 'down' : d.x < SHOP_BLD.x ? 'right' : 'left';
+  const d = route.length ? route[route.length - 1] : here;  // face the building when you get there
+  autoFace = d.y >= B.y + B.h ? 'up' : d.y < B.y ? 'down' : d.x < B.x ? 'right' : 'left';
   if (!route.length) { P.dir = autoFace; autoFace = null; }
 }
 
@@ -1630,6 +1662,7 @@ function openPanel(name) {
     Object.keys(keys).forEach(k => keys[k] = false); // don't keep walking behind a pop-up
     el.querySelector('.close')?.focus();
   }
+  if (name === 'bank') checkBank();
   if (name === 'history') { animateChart = true; renderFuture(); } // draw the graph in, line by line
   if (name === 'sync') renderSync();
   emit('panel', name);
@@ -1684,6 +1717,11 @@ function renderAccounts() {
     + '<option value="__config">Configure accounts…</option>';
   sel.value = S.accounts.includes(cur) ? cur : S.accounts[0];
   lastAcct = sel.value;
+  // the cute dropdown on top of the hidden <select>
+  $('acctDropValue').textContent = sel.value;
+  $('acctDropList').innerHTML = [...sel.options].map(o => `<li role="option" tabindex="-1" data-v="${esc(o.value)}"
+    class="${o.value === '__config' ? 'config' : ''}" aria-selected="${o.value === sel.value}">${o.value === sel.value ? pi('check') : ''}<span>${esc(o.text)}</span></li>`).join('');
+  $('acctDropList').querySelectorAll('li').forEach(li => li.onclick = () => pickAcct(li.dataset.v));
   $('acctList').innerHTML = S.accounts.map((a, i) => `<li><span>${esc(a)}</span>
     <button type="button" data-rm="${i}" aria-label="Remove ${esc(a)}" ${S.accounts.length < 2 ? 'disabled title="Keep at least one account"' : ''}>✕</button></li>`).join('');
   $('acctList').querySelectorAll('[data-rm]').forEach(b => b.onclick = () => {
@@ -1694,7 +1732,27 @@ $('depType').onchange = () => {
   const sel = $('depType');
   if (sel.value === '__config') { sel.value = lastAcct; $('acctEditor').classList.remove('hidden'); $('acctName').focus(); }
   else lastAcct = sel.value;
+  renderAccounts();
 };
+function toggleAcctDrop(open = $('acctDropList').hidden) {
+  $('acctDropList').hidden = !open;
+  $('acctDrop').classList.toggle('open', open);
+  $('acctDropBtn').setAttribute('aria-expanded', open);
+  if (open) ($('acctDropList').querySelector('[aria-selected="true"]') || $('acctDropList').firstElementChild)?.focus();
+}
+function pickAcct(v) {
+  $('depType').value = v; $('depType').onchange();
+  toggleAcctDrop(false); if (v !== '__config') $('acctDropBtn').focus();
+}
+$('acctDropBtn').onclick = () => toggleAcctDrop();
+// keyboard: arrows move, Enter/Space picks, Escape closes
+$('acctDropList').addEventListener('keydown', e => {
+  const items = [...$('acctDropList').children], i = items.indexOf(document.activeElement);
+  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length].focus(); }
+  else if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); if (i >= 0) pickAcct(items[i].dataset.v); }
+  else if (e.key === 'Escape') { e.stopPropagation(); toggleAcctDrop(false); $('acctDropBtn').focus(); }
+});
+addEventListener('click', e => { if (!e.target.closest('#acctDrop') && !$('acctDropList').hidden) toggleAcctDrop(false); });
 $('acctAdd').onclick = () => {
   const n = $('acctName').value.trim();
   if (!n) return toast('Type an account name first');
@@ -1705,25 +1763,119 @@ $('acctAdd').onclick = () => {
 $('acctName').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); $('acctAdd').click(); } });
 $('acctDone').onclick = () => $('acctEditor').classList.add('hidden');
 
-// quick amount tiles: pick one and it fills the amount (click again to un-pick); typing your own un-picks them
-const syncTiles = () => document.querySelectorAll('[data-amt]').forEach(t => {
-  const on = t.dataset.amt === $('depAmount').value;
-  t.classList.toggle('on', on); t.setAttribute('aria-pressed', on);
-});
-document.querySelectorAll('[data-amt]').forEach(b => b.onclick = () => {
-  const inp = $('depAmount');
-  inp.value = inp.value === b.dataset.amt ? '' : b.dataset.amt;
-  syncTiles();
-});
-$('depAmount').addEventListener('input', syncTiles);
-$('depAmount').addEventListener('keydown', e => { if (e.key === 'Enter') $('depositBtn').click(); });
+// ---------- Today's savings come from a savings account through Plaid (sandbox) ----------
+// The server keeps the bank key; this browser only keeps a random link id (S.plaidLink) and the account's
+// display name (S.bankAccount). By default that's a made-up person's savings account at a sandbox bank;
+// "choose another savings account" opens Plaid Link to pick a different one.
+// LOG MY SAVINGS logs whatever new deposits Plaid shows today, through logSaving like before,
+// so coins still reward the habit, not the amount. Save again later the same day and you can log again.
+const SERVER = ['localhost', '127.0.0.1'].includes(location.hostname)
+  ? 'http://localhost:3001' : 'https://future-me-cdzs.onrender.com';
+const postJSON = (path, body = {}) => fetch(`${SERVER}${path}`, {
+  method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
+}).then(r => r.json().then(d => (r.ok ? d : Promise.reject(d))));
+
+let bankToday = { amount: 0, ids: [] }; // today's deposits not logged yet
+function renderBankToday(status) {
+  const a = S.bankAccount, from = realS ? 'practice bank' : a ? `${a.name}${a.mask ? ' ••' + a.mask : ''}${a.bank ? ' · ' + a.bank : ''}` : 'your savings account';
+  $('bankAmount').textContent = status === 'checking' ? '…' : `$${bankToday.amount}`;
+  $('bankStatus').textContent = {
+    checking: 'checking your bank…',
+    offline: "couldn't reach your bank. try again in a bit",
+    logged: 'all logged! save more today and it shows up here',
+    none: 'no new deposits yet today',
+  }[status] || `new deposits today · ${from} (sandbox)`;
+  $('depositBtn').disabled = !(bankToday.amount > 0);
+  // already saved today? then leaving is "back to my island", not "not today"
+  $('bankLater').textContent = S.lastDepositDay === today() ? 'back to my island' : 'not today';
+}
+
+// open (or reopen after a server restart) the default sandbox savings account.
+// Checks that overlap share one connection, so the bank never ends up with two accounts.
+let connecting = null;
+function connectDefault(stale) {
+  return connecting ||= postJSON('/api/plaid/connect', {}).then(({ linkId, account }) => {
+    if (!stale || S.plaidLink === stale) { S.plaidLink = linkId; S.bankAccount = account; save(); }
+  }).finally(() => { connecting = null; });
+}
+
+let checkNo = 0; // only the newest check gets to fill in the bank
+async function checkBank() {
+  const mine = ++checkNo;
+  bankToday = { amount: 0, ids: [] };
+  if (realS) { bankToday = { amount: 5, ids: [] }; return renderBankToday(); } // practice island: a pretend $5, no bank
+  renderBankToday('checking');
+  const fetchToday = () => postJSON('/api/plaid/today', { linkId: S.plaidLink, day: today() });
+  try {
+    if (!S.plaidLink) await connectDefault();
+    let deposits;
+    try { ({ deposits } = await fetchToday()); }
+    catch (e) {
+      if (e?.error !== 'reconnect') throw e;
+      await connectDefault(S.plaidLink); // the server restarted and forgot the account: open a new sandbox one
+      ({ deposits } = await fetchToday());
+    }
+    if (mine === checkNo) showDeposits(deposits);
+  } catch { if (mine === checkNo) renderBankToday('offline'); }
+}
+function showDeposits(deposits) {
+  const fresh = deposits.filter(d => !(S.plaidSeen || []).includes(d.id));
+  bankToday = { amount: Math.round(fresh.reduce((t, d) => t + d.amount, 0)), ids: fresh.map(d => d.id) };
+  renderBankToday(bankToday.amount ? '' : deposits.length ? 'logged' : 'none');
+}
+
 $('depositBtn').onclick = () => {
-  const amt = Math.floor(+$('depAmount').value);
-  if (!(amt > 0)) return toast('Enter an amount');
-  logSaving(amt, $('depType').value, $('depGoal').value === '' ? -1 : +$('depGoal').value);
-  $('depAmount').value = ''; syncTiles();
+  if (!(bankToday.amount > 0)) return toast('No new savings in your bank yet today');
+  if (!realS) S.plaidSeen = [...(S.plaidSeen || []), ...bankToday.ids].slice(-1000);
+  logSaving(bankToday.amount, $('depType').value, $('depGoal').value === '' ? -1 : +$('depGoal').value);
+  bankToday = { amount: 0, ids: [] };
   closePanels();
 };
+
+// Demo button: the sandbox person saves a few more dollars right now (like saving again at 7 pm after logging at 5 pm)
+$('demoSave').onclick = async () => {
+  if (realS) return toast('This is the practice bank. Try it on your own island!');
+  const btn = $('demoSave');
+  btn.disabled = true;
+  renderBankToday('checking');
+  try {
+    if (!S.plaidLink) await connectDefault();
+    const mine = ++checkNo;
+    const { deposits } = await postJSON('/api/plaid/sandbox_deposit', { linkId: S.plaidLink, day: today() });
+    if (mine === checkNo) showDeposits(deposits);
+    toast('Your fake person just saved some more!');
+  } catch (e) {
+    if (e?.error === 'reconnect') { S.plaidLink = null; save(); }
+    toast('Could not reach the sandbox bank'); checkBank();
+  }
+  btn.disabled = false;
+};
+
+// "choose another savings account": Plaid's own pop-up (Link) does the bank pick, login and account pick
+$('chooseAcct').onclick = async () => {
+  if (realS) return toast('This is the practice bank. Try it on your own island!');
+  if (!window.Plaid) return toast('Plaid could not load. Check your internet.');
+  const btn = $('chooseAcct');
+  btn.disabled = true;
+  try {
+    const { link_token } = await postJSON('/api/plaid/link_token');
+    Plaid.create({
+      token: link_token,
+      onSuccess: async (public_token, meta) => {
+        renderBankToday('checking');
+        try {
+          const { linkId, account } = await postJSON('/api/plaid/exchange', { public_token, accountId: meta.accounts?.[0]?.id });
+          S.plaidLink = linkId; S.bankAccount = { ...account, bank: account.bank || meta.institution?.name || '' }; save();
+          toast(`Now using ${account.name}!`);
+          await checkBank();
+        } catch { toast('Could not connect that account'); checkBank(); }
+        btn.disabled = false;
+      },
+      onExit: () => { btn.disabled = false; },
+    }).open();
+  } catch { toast('Could not start Plaid'); btn.disabled = false; }
+};
+
 function renderRules() {
   const ws = weekStreak();
   $('rules').innerHTML = `
@@ -2140,7 +2292,7 @@ function tickMission(li) {
   const id = li.dataset.id, m = MISSIONS.find(x => x.id === id);
   if (li.classList.contains('striking')) return;
   if (m.auto) {
-    if (id === 'deposit') { toast('Log any amount in the bank to tick this off'); return openPanel('bank'); }
+    if (id === 'deposit') { toast("Log today's savings in the bank to tick this off"); return openPanel('bank'); }
     if (id === 'goal') { toast('Add savings to a goal to tick this off'); return openPanel('goals'); }
     if (id === 'chat') return toast('Click on Maple :fox: to ask her a question');
   }
@@ -2286,9 +2438,12 @@ function renderAll() { if (editMode) renderEditTools(); renderAccounts(); render
 renderAll();
 
 // First time through "Enter my world!": Maple's tour (tutorial.js); after that, the bank says hello
+// Every later "Enter my world!" (after going back with the title sign): just the bank, no welcome sign
+const reEntry = () => { window.onEnterWorld = () => openPanel('bank'); };
 const firstEntry = () => {
   if (window.tutorial?.shouldRun()) window.tutorial.start();
   else { openPanel('bank'); showWelcome(); }
+  reEntry();
 };
 if (document.body.classList.contains('intro-open')) {
   new MutationObserver((_, obs) => {
@@ -2297,7 +2452,7 @@ if (document.body.classList.contains('intro-open')) {
       firstEntry();
     }
   }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
-} else { openPanel('bank'); showWelcome(); }
+} else { openPanel('bank'); showWelcome(); reEntry(); }
 window.showBankWelcome = () => { openPanel('bank'); showWelcome(); };
 
 // A warm hello at the top of the bank, the first time it pops up after entering the island

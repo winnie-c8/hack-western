@@ -96,6 +96,7 @@ kbd { font: inherit; background: var(--paper); border: 2px solid var(--wood-dark
 .music-dot, .pixel-dot { display: grid; place-items: center; }
 .music-dot .pi, .pixel-dot .pi { width: 17px; height: 17px; vertical-align: middle; color: var(--ink); }  /* "?" and music note: same pixel ink style */
 .music-dot.unavailable { opacity: .3; cursor: not-allowed; }
+.intro-music { position: absolute; z-index: 3; top: 18px; right: 18px; } /* the intro screen's copy of the music button */
 .help-pop {
   position: fixed; top: 50px; right: 10px; z-index: 15; width: 340px; max-width: calc(100vw - 20px);
   background: var(--paper); border: var(--px) solid var(--wood-dark); box-shadow: var(--shadow); padding: 12px 16px;
@@ -275,7 +276,14 @@ button.primary:active, button.secondary:active { transform: translateY(2px); box
   transition: transform .68s cubic-bezier(.2,.8,.2,1), opacity .26s ease;
 }
 #dailyStarModal.skyward-visible { opacity: 1; transform: translateY(0); }
+#dailyStarModal.arrived { transition: none; } /* straight off the ride up: already in the sky, no slide-in */
 body.daily-star-open { overflow: hidden; }
+/* first Daily Star visit: rising up through the stars (pixel canvas over everything; click to skip) */
+.star-ascent {
+  position: fixed; inset: 0; z-index: 120; width: 100%; height: 100%; object-fit: cover;
+  image-rendering: pixelated; cursor: pointer; transition: opacity .45s ease;
+}
+.star-ascent.done { opacity: 0; pointer-events: none; }
 body.daily-star-open #intro { transform: translateY(-18vh); transition: transform .68s cubic-bezier(.2,.8,.2,1); }
 #dailyStarModal .daily-star-backdrop { position: absolute; z-index: 0; inset: 0; width: 100%; height: 100%; object-fit: cover; image-rendering: pixelated; pointer-events: none; }
 #dailyStarModal .daily-star-shade {
@@ -376,6 +384,7 @@ body.daily-star-open #intro { transform: translateY(-18vh); transition: transfor
   width: 100%; min-width: 0; padding: 9px; color: var(--ink); font: .95rem var(--font);
   background: #fff; border: var(--px) solid var(--wood);
 }
+#dailyStarGuess { font-size: 16px; }
 .daily-riddle-form input:focus { outline: 2px solid var(--teal-dark); outline-offset: 2px; }
 .daily-riddle-feedback { min-height: 1.2em; margin: 0; color: var(--ink-soft); font-size: .85rem; }
 .daily-riddle-submit { margin: 0; }
@@ -432,7 +441,7 @@ body.daily-star-open #intro { transform: translateY(-18vh); transition: transfor
   border: 2px solid var(--wood-dark); background: var(--paper);
 }
 .earn .arrow { display: inline-block; transition: transform .15s; }
-.earn[open] .arrow { transform: rotate(90deg); }
+.earn[open] > summary .arrow, .see-more[open] > summary .arrow { transform: rotate(90deg); }
 .earn .card { margin-top: 8px; }
 
 /* hard (unblurred) pixel shadows everywhere, to match the art */
@@ -479,8 +488,6 @@ input, select { background: rgba(255,255,255,.7); border-width: 2px; }
 }
 .quick-add button:hover { background: var(--sun); }
 .quick-add button:active { transform: translate(2px, 2px); box-shadow: none; }
-#depAmount { margin-top: 0; }
-label[for="depAmount"] { margin-bottom: 0; }
 
 /* daily: receipts pinned to the right side, island stays playable */
 .modal.side { background: none; pointer-events: none; justify-content: flex-end; align-items: flex-start; padding: 100px 10px 150px; z-index: 12; }
@@ -549,22 +556,42 @@ body.holding .bag { outline: 3px dashed var(--sun-dark); outline-offset: 3px; }
 .bank-window { width: 680px; }
 .bank-body { display: flex; flex-direction: column; gap: 12px; }
 .bank-q { margin: 4px 0 2px; text-align: center; font-size: 1.35rem; font-weight: 400; }
-.bank-q label { margin: 0; font-size: inherit; }
-.bank-q .real { color: #d9534f; }
-.amt-tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
-/* warm peach "price tag" tiles (picked one turns green) */
-.amt-tile {
-  height: 110px; font-size: 2rem; cursor: pointer; color: var(--ink);
+/* today's savings, read from the (sandbox) bank: a big warm "price tag" with the amount */
+.bank-today {
+  display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 16px;
   background: #f6d8b0; border: 3px solid #d9a86c; box-shadow: inset 0 -6px 0 rgba(160,100,40,.15), 4px 4px 0 rgba(28,52,44,.25);
 }
-.amt-tile:hover { background: #fae3c4; transform: translateY(-2px); }
-.amt-tile.on { background: #a6d7b0; border-color: var(--sage-dark); }
-.amt-tile:active { transform: translate(2px, 2px); box-shadow: none; }
-.amt-input { font-size: 1.3rem; padding: 14px 16px; margin: 0; background: rgba(217, 217, 217, .8); border: 3px solid transparent; }
-.amt-input:focus { border-color: var(--teal-dark); background: #fff; }
+.bank-amount { font-size: 2.6rem; font-weight: 400; color: var(--ink); line-height: 1.1; }
+.bank-today small { font-size: .9rem; text-align: center; }
+.log-btn:disabled { opacity: .55; cursor: not-allowed; }
 .bank-small { display: flex; flex-direction: column; gap: 6px; margin-top: 4px; }
 .small-label { display: block; margin: 0; font-size: .9rem; color: var(--ink); }
 .small-label select { margin-top: 4px; padding: 6px 10px; font-size: .95rem; background: rgba(217, 217, 217, .8); border: 2px solid transparent; }
+/* "which account?": a cute pixel dropdown (cream card, wood border, ▸ that turns when it opens) */
+.acct-drop { position: relative; margin-top: 4px; }
+.acct-drop-btn {
+  width: 100%; display: flex; align-items: center; justify-content: space-between; gap: 8px; cursor: pointer;
+  padding: 8px 12px; min-height: 38px; font: inherit; font-size: .95rem; color: var(--ink); text-align: left;
+  background: #fff4e6; border: 3px solid #d9a86c; box-shadow: 3px 3px 0 rgba(28,52,44,.25);
+}
+.acct-drop-btn:hover { background: #fffaf2; }
+.acct-drop-btn:focus-visible { outline: 3px solid var(--teal-dark); outline-offset: 2px; }
+.acct-drop-btn .arrow { display: inline-block; color: var(--ink-soft); transition: transform .15s; }
+.acct-drop.open .acct-drop-btn .arrow { transform: rotate(90deg); }
+.acct-drop-list {
+  position: absolute; z-index: 5; left: 0; right: 0; top: calc(100% + 4px); margin: 0; padding: 4px; list-style: none;
+  max-height: 220px; overflow-y: auto;
+  background: #fff4e6; border: 3px solid #d9a86c; box-shadow: 4px 4px 0 rgba(28,52,44,.3);
+}
+.acct-drop-list li {
+  display: flex; align-items: center; gap: 8px; padding: 8px 10px; min-height: 36px; cursor: pointer; font-size: .95rem;
+  border-bottom: 2px dashed rgba(217,168,108,.45);
+}
+.acct-drop-list li:last-child { border-bottom: none; }
+.acct-drop-list li:hover, .acct-drop-list li:focus { background: #f6d8b0; outline: none; }
+.acct-drop-list li[aria-selected="true"] { background: #a6d7b0; }
+.acct-drop-list li:not([aria-selected="true"]) span { margin-left: 24px; } /* line up with the ticked one */
+.acct-drop-list li.config { color: var(--ink-soft); font-style: italic; }
 /* bank: "goal?" picker (your unfinished Goals, with mini progress bars) */
 .goal-pick { display: flex; gap: 8px; flex-wrap: wrap; }
 .goal-opt {
@@ -588,7 +615,34 @@ body.holding .bag { outline: 3px dashed var(--sun-dark); outline-offset: 3px; }
 .log-btn:active { transform: translate(3px, 3px); box-shadow: none; }
 .link-btn { align-self: center; background: none; border: none; color: var(--ink-soft); font-size: .9rem; cursor: pointer; text-decoration: underline; }
 .bank-body .earn { margin-top: 0; }
-@media (max-width: 760px) { .amt-tile { height: 70px; font-size: 1.5rem; } .log-btn { height: 54px; font-size: 1.2rem; } }
+/* "choose another savings account": a smaller, cream button under LOG MY SAVINGS */
+.choose-acct-btn {
+  align-self: center; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; padding: 8px 16px; min-height: 38px;
+  font: inherit; font-size: .95rem; color: var(--ink); background: #fff4e6; border: 3px solid var(--sage-dark); box-shadow: 3px 3px 0 rgba(28,52,44,.3);
+}
+.choose-acct-btn:hover { background: #fffaf2; }
+.choose-acct-btn:active { transform: translate(2px, 2px); box-shadow: none; }
+.choose-acct-btn:disabled { opacity: .6; cursor: wait; }
+/* demo-only: small dashed button, so it reads as "not part of the real thing" */
+.demo-save-btn {
+  align-self: center; display: inline-flex; align-items: center; gap: 6px; cursor: pointer; padding: 6px 12px; min-height: 34px;
+  font: inherit; font-size: .85rem; color: var(--ink-soft); background: transparent; border: 2px dashed #d9a86c;
+}
+.demo-save-btn:hover { color: var(--ink); background: #fff4e6; }
+.demo-save-btn:disabled { opacity: .6; cursor: wait; }
+.acct-hint { margin: -6px 0 0; text-align: center; font-size: .78rem; color: var(--ink-soft); font-style: italic; }
+/* "are you asking for my bank info rn??": the plain-words Plaid explainer */
+.logistics .card p, .logistics .card li { font-size: .9rem; line-height: 1.5; }
+.logistics .card p { margin: 0 0 8px; }
+.plain-list { margin: 0 0 8px; padding-left: 22px; display: flex; flex-direction: column; gap: 6px; }
+.see-more summary {
+  list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; padding: 4px 2px;
+  color: var(--ink-soft); text-decoration: underline dotted; text-underline-offset: 4px; user-select: none;
+}
+.see-more summary::-webkit-details-marker { display: none; }
+.see-more summary:hover { color: var(--ink); }
+.see-more h4 { margin: 12px 0 4px; font-size: .95rem; color: var(--ink); }
+@media (max-width: 760px) { .bank-amount { font-size: 2rem; } .log-btn { height: 54px; font-size: 1.2rem; } }
 
 /* ===== History & Future ===== */
 .future-body { display: flex; flex-direction: column; gap: 14px; }
@@ -1358,6 +1412,9 @@ body.intro-open { overflow: hidden; }
 .saved-text { display: flex; flex-direction: column; line-height: 1; }
 .saved-text b { font-size: 2.2rem; font-weight: 400; color: var(--paper); text-shadow: 3px 3px 0 var(--wood-dark); letter-spacing: 1px; }
 .saved-text small { margin-top: 4px; font-size: .75rem; letter-spacing: 2px; text-transform: uppercase; color: #fff3c4; text-shadow: 1px 1px 0 var(--wood-dark); }
+.saved-banner { cursor: pointer; } /* click: walk to the bank */
+.saved-banner:hover { filter: brightness(1.06); }
+.saved-banner:focus-visible { outline: 3px solid var(--teal-dark); outline-offset: 3px; }
 .saved-banner.bump { animation: savedBump .6s cubic-bezier(.3,1.8,.5,1); }
 .saved-banner.bump .saved-text b { color: #fff3c4; }
 @keyframes savedDrop { from { transform: translateY(-140%); } to { transform: none; } }
@@ -1421,7 +1478,7 @@ body.intro-open { overflow: hidden; }
 
 /* ===== Phones & touch screens: comfortable tap targets, no iOS zoom on focus (checked by scripts/mobile-check.mjs) ===== */
 @media (max-width: 760px), (pointer: coarse) {
-  input:not(.amt-input), select, textarea, .small-label select { font-size: 16px; }   /* under 16px, iPhones zoom in when you tap a field */
+  input, select, textarea, .small-label select { font-size: 16px; }   /* under 16px, iPhones zoom in when you tap a field */
   .goal-opt, .hz, .link-btn { min-height: 36px; }
   .link-btn { padding: 8px 14px; }
   .close, .chat-head button { min-width: 36px; min-height: 36px; }
