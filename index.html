@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Tomo Island</title>
 <link rel="preload" href="fonts/VCR_OSD_MONO.ttf" as="font" type="font/ttf" crossorigin>
-<link rel="stylesheet" href="style.css?v=38">
+<link rel="stylesheet" href="style.css?v=39">
 </head>
 <body>
 <div id="intro" class="intro" role="dialog" aria-label="Welcome to Tomo Island">
@@ -85,7 +85,8 @@
     <h3>Controls</h3>
     <dl>
       <dt><kbd>←↑↓→</kbd> or <kbd>WASD</kbd></dt><dd>Walk</dd>
-      <dt><kbd>Space</kbd></dt><dd>Talk to Maple / enter the shop or bank / town build info</dd>
+      <dt>Click / tap</dt><dd>Talk to Maple, enter the shop or bank, see town build info</dd>
+      <dt><kbd>Space</kbd></dt><dd>Same, when you're standing next to it</dd>
       <dt>Click bag item, then island</dt><dd>Place it</dd>
       <dt><kbd>Shift</kbd> + click</dt><dd>Pick an item back up</dd>
       <dt>Click the town island</dt><dd>Visit your town</dd>
@@ -114,7 +115,6 @@
       <button type="button" class="pad right" data-pad="ArrowRight" aria-label="Walk right">&#9654;</button>
       <button type="button" class="pad down" data-pad="ArrowDown" aria-label="Walk down">&#9660;</button>
     </div>
-    <button type="button" id="padAction" class="pad-action" aria-label="Talk or enter (same as Space)">A</button>
   </div>
 </main>
 
@@ -223,8 +223,9 @@
           <span><i class="dash" style="--c:#d9701a"></i>keep saving</span>
           <span><i class="dash" style="--c:#8a4fd0"></i>saved + invested (5%/yr)</span>
         </div>
+        <!-- readout above the graph (not a pop-up on it), so the lines are never covered -->
+        <div id="chartTip" class="chart-read" role="status" aria-live="polite"></div>
         <svg id="futureChart" role="img" aria-label="Your savings so far and projected into the future"></svg>
-        <div id="chartTip" class="chart-tip hidden" role="status"></div>
         <details class="chart-table"><summary>Show as a table</summary><table id="futureTable"></table></details>
         <figcaption class="muted">Click 1 yr, 10 yrs or 20 yrs on the graph to see your island then. Projections assume you keep saving at this pace. The invested line assumes 5% a year growth, which is an example only: real investments go up and down.</figcaption>
       </figure>
@@ -428,7 +429,7 @@
 <script src="sky.js?v=34"></script>
 <script src="intro.js?v=34"></script>
 <script src="Updated/Music%20for%20game.js?v=2"></script>
-<script src="game.js?v=44"></script>
+<script src="game.js?v=45"></script>
 <script src="Set%20goals.js?v=27"></script>
 <script src="daily-star.js?v=27"></script>
 <script type="module" src="cloud.js"></script>

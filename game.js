@@ -987,12 +987,12 @@ const draw = () => {
   ents.forEach(e => e.draw());
   if (window.SKY) atmosphere(SKY.current(), ox, oy, tx0, tx1, ty0, ty1);
 
-  if (nearVillager()) drawBubble('Space to chat', VILLAGER.x * TILE + TILE / 2, VILLAGER.y * TILE - 14 * PX);
-  else if (nearShop()) drawBubble('Space to enter shop', (SHOP_BLD.x + 1) * TILE, (SHOP_BLD.y + 2) * TILE + 2 * PX);
-  else if (nearBank()) drawBubble('Space to enter bank', (BANK_BLD.x + 2) * TILE, (BANK_BLD.y + 2) * TILE + 2 * PX);
+  if (nearVillager()) drawBubble('Click to chat', VILLAGER.x * TILE + TILE / 2, VILLAGER.y * TILE - 14 * PX);
+  else if (nearShop()) drawBubble('Click to enter shop', (SHOP_BLD.x + 1) * TILE, (SHOP_BLD.y + 2) * TILE + 2 * PX);
+  else if (nearBank()) drawBubble('Click to enter bank', (BANK_BLD.x + 2) * TILE, (BANK_BLD.y + 2) * TILE + 2 * PX);
   else {
     const b = nearBuild();
-    if (b) drawBubble(`${b.f >= 1 ? `${b.name} ✓` : `${b.name} · ${Math.floor(b.f * 100)}%`} · Space for info`, (b.x + 1) * TILE, b.y * TILE - 7 * PX);
+    if (b) drawBubble(`${b.f >= 1 ? `${b.name} ✓` : `${b.name} · ${Math.floor(b.f * 100)}%`} · Click for info`, (b.x + 1) * TILE, b.y * TILE - 7 * PX);
   }
 
   // edit mode: outline whatever is under the mouse / where paving will go
@@ -1152,9 +1152,22 @@ addEventListener('keydown', e => {
   if (e.key === 'Escape') { if (editMode) setEdit(false); selectedItem = null; renderInventory(); }
 });
 addEventListener('keyup', e => { const k = moveKey(e.key); if (k) keys[k] = false; });
-// Space / the on-screen A button: talk to Maple, enter the shop or the bank, or open a town building you're next to
+// Space (keyboard shortcut): talk to Maple, enter the shop or the bank, or open a town building you're next to
 function interact() {
   if (nearVillager()) openChat(); else if (nearShop()) openPanel('shop'); else if (nearBank()) openPanel('bank'); else if (nearBuild()) window.openBuildInfo?.(nearBuild());
+}
+// Click / tap on Maple, the shop, the bank or a town building to use it (from anywhere on screen)
+function clickTarget(x, y) {
+  const m = movableAt(x, y);
+  if (m && m.kind !== 'item') return m;
+  if (x === VILLAGER.x && y + 1 === VILLAGER.y) return { kind: 'fox' }; // Maple's ears poke into the tile above
+  return null;
+}
+function useTarget(m) {
+  if (m.kind === 'fox') openChat();
+  else if (m.kind === 'shop') openPanel('shop');
+  else if (m.kind === 'bank') openPanel('bank');
+  else if (m.kind === 'build') window.openBuildInfo?.(m.b);
 }
 
 // ---------- On-screen controls (touch screens only: shown by the (hover: none) and (pointer: coarse) rule in style.css) ----------
@@ -1170,10 +1183,6 @@ document.querySelectorAll('[data-pad]').forEach(btn => {
   });
   ['pointerup', 'pointercancel', 'lostpointercapture'].forEach(t => btn.addEventListener(t, release));
   btn.addEventListener('contextmenu', e => e.preventDefault()); // no long-press menu
-});
-document.getElementById('padAction')?.addEventListener('click', () => {
-  if (document.body.classList.contains('intro-open') || anyOpen()) return;
-  interact();
 });
 
 // ---------- Auto-walk: "Empty. Visit the shop!" walks you along the paths to the shop door ----------
@@ -1286,10 +1295,17 @@ const tileAt = e => {
   };
 };
 const canPlace = (x, y) => map[y]?.[x] > 0 && !inBuilding(x, y) && !inPlot(x, y) && !S.placed.some(p => p.x === x && p.y === y) && !(x === P.x && y === P.y) && !(x === VILLAGER.x && y === VILLAGER.y);
-cv.addEventListener('mousemove', e => { lastMouse = { clientX: e.clientX, clientY: e.clientY }; hover = tileAt(e); });
-cv.addEventListener('mouseleave', () => { lastMouse = null; hover = null; });
+cv.addEventListener('mousemove', e => {
+  lastMouse = { clientX: e.clientX, clientY: e.clientY }; hover = tileAt(e);
+  cv.style.cursor = !editMode && clickTarget(hover.x, hover.y) ? 'pointer' : '';
+});
+cv.addEventListener('mouseleave', () => { lastMouse = null; hover = null; cv.style.cursor = ''; });
 cv.addEventListener('click', e => {
   const { x, y } = tileAt(e);
+  if (!editMode && !e.shiftKey && !document.body.classList.contains('intro-open')) {
+    const target = clickTarget(x, y);
+    if (target) { selectedItem = null; renderInventory(); return useTarget(target); }
+  }
   if (e.shiftKey) { // pick up
     const i = S.placed.findIndex(p => p.x === x && p.y === y);
     if (i >= 0) { const [p] = S.placed.splice(i, 1); S.inventory[p.id] = (S.inventory[p.id] || 0) + 1; save(); renderInventory(); toast('Picked up!'); }
@@ -1413,9 +1429,10 @@ function renderEditTools() {
   if (!tools.some(t => t.id === editTool)) editTool = 'move';
   $('editTools').innerHTML = tools.map(t => `<button type="button" class="tool ${editTool === t.id ? 'active' : ''}" data-tool="${t.id}">${t.img ? `<img src="${t.img}" alt="">` : ''}${t.label}</button>`).join('');
   $('editTools').querySelectorAll('[data-tool]').forEach(b => b.onclick = () => { editTool = b.dataset.tool; renderEditTools(); });
+  const tap = matchMedia('(pointer: coarse)').matches ? 'Tap' : 'Click';
   $('editHint').innerHTML = pit(editTool === 'move' ? 'Drag anything to move it: items, the shop, town buildings, Maple. Drop items on the :backpack: bag to put them away.'
-    : editTool === 'unpave' ? 'Click or drag over a path to turn it back into grass.'
-    : 'Click or drag to pave. Paths go on grass and sand. Buy more styles in the shop.');
+    : editTool === 'unpave' ? tap + ' or drag over a path to turn it back into grass.'
+    : tap + ' or drag to pave. Paths go on grass and sand. Buy more styles in the shop.');
   document.body.classList.toggle('paving', editTool !== 'move');
 }
 function toast(msg) { const el = $('toast'); el.innerHTML = pit(msg); el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 2000); }
@@ -1627,7 +1644,10 @@ function renderFuture() {
 
 // ---- ONE graph, 20 years ahead: past (solid) + keep saving + invested (dashed), with 1 / 10 / 20 yr marked ----
 function drawFutureChart(st, rate, start) {
-  const W = 640, H = 270, L = 58, R = 120, T = 26, B = 30;
+  const svg = $('futureChart');
+  // Draw at the graph's real on-screen width, so text stays readable on phones instead of shrinking with the picture.
+  const W = Math.round(Math.min(640, Math.max(300, svg.clientWidth || 640))), narrow = W < 480;
+  const H = narrow ? 230 : 270, L = narrow ? 44 : 58, R = narrow ? 56 : 130, T = 26, B = 30;
   const now = new Date(today()), firstD = st.first ? new Date(st.first) : now;
   const pastDays = Math.max(0, (now - firstD) / 864e5), futDays = SPAN * 365;
   const x0 = -Math.max(pastDays, futDays * .04), x1 = futDays;        // x = days from today (a sliver of past is always visible)
@@ -1654,9 +1674,7 @@ function drawFutureChart(st, rate, start) {
     </g>`;
   }).join('');
   const endSave = project(start, rate, SPAN, false), endInv = project(start, rate, SPAN, true);
-  const svg = $('futureChart');
   cancelAnimationFrame(chartAnim); chartAnim = null;
-  svg.parentElement.querySelectorAll('.ms-pop').forEach(p => p.remove());
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.innerHTML = `
     ${yt.map(v => `<line x1="${L}" x2="${W - R}" y1="${sy(v)}" y2="${sy(v)}" class="grid"/><text x="${L - 8}" y="${sy(v) + 4}" class="tick" text-anchor="end">${money(v)}</text>`).join('')}
@@ -1667,10 +1685,12 @@ function drawFutureChart(st, rate, start) {
       <path d="${path(inv)}" class="ln" stroke="${FUTURE_COLORS.invest}" stroke-dasharray="6 4"/>
       <path d="${path(save)}" class="ln" stroke="${FUTURE_COLORS.save}" stroke-dasharray="6 4"/>
       <path d="${path(past)}" class="ln" stroke="${FUTURE_COLORS.past}"/>
-      <text x="${W - R + 10}" y="${sy(endInv) + 4}" class="dl">${money(endInv)} invested</text>
-      <text x="${W - R + 10}" y="${Math.max(sy(endSave) + 4, sy(endInv) + 20)}" class="dl">${money(endSave)} saved</text>
+      <text x="${W - R + 8}" y="${sy(endInv) + 4}" class="dl" fill="${FUTURE_COLORS.invest}">${money(endInv)}${narrow ? '' : ' invested'}</text>
+      <text x="${W - R + 8}" y="${Math.max(sy(endSave) + 4, sy(endInv) + 20)}" class="dl" fill="${FUTURE_COLORS.save}">${money(endSave)}${narrow ? '' : ' saved'}</text>
     </g>
     <line id="xhair" x1="0" x2="0" y1="${T}" y2="${H - B}" class="xhair" visibility="hidden"/>
+    <circle id="xdotSave" r="4" fill="${FUTURE_COLORS.save}" class="end" visibility="hidden"/>
+    <circle id="xdotInv" r="4" fill="${FUTURE_COLORS.invest}" class="end" visibility="hidden"/>
     <rect x="${L}" y="${T}" width="${W - L - R}" height="${H - T - B}" fill="transparent" id="chartHit"/>
     <g clip-path="url(#reveal)">${marks}</g>`;
   if (animateChart) { animateChart = false; playChartIntro(svg, W, L, R, sx, sy, start, rate); }
@@ -1678,50 +1698,48 @@ function drawFutureChart(st, rate, start) {
     const pick = () => { horizon = +m.dataset.y; renderFuture(); };
     m.onclick = pick; m.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(); } };
   });
-  // hover: crosshair + tooltip with both projections at that point in time
-  const hit = svg.querySelector('#chartHit'), xh = svg.querySelector('#xhair'), tip = $('chartTip');
-  hit.onpointermove = e => {
-    const r = svg.getBoundingClientRect(), px = (e.clientX - r.left) * W / r.width;
+  // Hover / touch: a crosshair and dots on the lines, with the amounts in the readout ABOVE the graph
+  // (a floating box would cover the lines). Listens on the whole svg so the milestone click areas don't block it.
+  const xh = svg.querySelector('#xhair'), dS = svg.querySelector('#xdotSave'), dI = svg.querySelector('#xdotInv'), tip = $('chartTip');
+  const sw = c => `<i style="background:${c}"></i>`;
+  const readAt = (label, s, inv) => `<b>${label}</b><span>${sw(FUTURE_COLORS.save)}keep saving ${moneyFull(s)}</span><span>${sw(FUTURE_COLORS.invest)}+ invested ${moneyFull(inv)}</span>`;
+  const resting = () => readAt(`in ${yrs(horizon)}`, project(start, rate, horizon, false), project(start, rate, horizon, true));
+  tip.innerHTML = resting(); tip.classList.remove('flash');
+  const hideTip = () => { [xh, dS, dI].forEach(el => el.setAttribute('visibility', 'hidden')); if (!chartAnim) tip.innerHTML = resting(); };
+  svg.onpointerleave = e => { if (e.pointerType !== 'touch') hideTip(); }; // on a phone, keep the last reading after the finger lifts
+  svg.onpointerdown = svg.onpointermove = e => {
+    if (chartAnim) return; // let the draw-in finish first
+    const r = svg.getBoundingClientRect(), px = (e.clientX - r.left) * W / r.width, py = (e.clientY - r.top) * H / r.height;
+    if (px < L || px > W - R || py < T - 24 || py > H - B) return hideTip();
     const d = x0 + (px - L) / (W - L - R) * (x1 - x0);
     xh.setAttribute('x1', px); xh.setAttribute('x2', px); xh.setAttribute('visibility', 'visible');
     if (d <= 0) {
       const v = past.filter(([pd]) => pd <= d).at(-1)?.[1] ?? 0;
-      tip.innerHTML = `<b>${d > -1 ? 'today' : Math.round(-d) + ' days ago'}</b><span><i style="background:${FUTURE_COLORS.past}"></i>saved ${moneyFull(v)}</span>`;
+      [dS, dI].forEach(el => el.setAttribute('visibility', 'hidden'));
+      tip.innerHTML = `<b>${d > -1 ? 'today' : Math.round(-d) + ' days ago'}</b><span>${sw(FUTURE_COLORS.past)}saved ${moneyFull(v)}</span>`;
     } else {
-      const y = d / 365;
-      tip.innerHTML = `<b>in ${y < 1 ? Math.round(d / 30.4) + ' months' : y.toFixed(1) + ' years'}</b>
-        <span><i style="background:${FUTURE_COLORS.save}"></i>keep saving: ${moneyFull(project(start, rate, y, false))}</span>
-        <span><i style="background:${FUTURE_COLORS.invest}"></i>+ invested: ${moneyFull(project(start, rate, y, true))}</span>`;
+      const y = d / 365, s = project(start, rate, y, false), inv = project(start, rate, y, true);
+      dS.setAttribute('cx', px); dS.setAttribute('cy', sy(s)); dI.setAttribute('cx', px); dI.setAttribute('cy', sy(inv));
+      [dS, dI].forEach(el => el.setAttribute('visibility', 'visible'));
+      tip.innerHTML = readAt(`in ${y < 1 ? Math.round(d / 30.4) + ' months' : y.toFixed(1) + ' years'}`, s, inv);
     }
-    tip.classList.remove('hidden');
-    const wrap = svg.parentElement.getBoundingClientRect();
-    tip.style.left = Math.min(e.clientX - wrap.left + 14, wrap.width - tip.offsetWidth - 4) + 'px';
-    tip.style.top = (e.clientY - wrap.top - 10) + 'px';
   };
-  hit.onpointerleave = () => { xh.setAttribute('visibility', 'hidden'); tip.classList.add('hidden'); };
   $('futureTable').innerHTML = `<tr><th>When</th><th>Keep saving</th><th>+ invested (5%/yr)</th></tr>` +
     MILESTONES.map(y => `<tr><td>in ${yrs(y)}</td><td>${moneyFull(project(start, rate, y, false))}</td><td>${moneyFull(project(start, rate, y, true))}</td></tr>`).join('');
 }
 
-// Line draws left→right; at each milestone it pauses and pops up "$X saved in N yrs!", then carries on.
+// Line draws left→right; at each milestone it pauses and the readout above the graph announces "$X saved in N yrs!".
 function playChartIntro(svg, W, L, R, sx, sy, start, rate) {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return; // just show the finished graph
-  const rect = svg.querySelector('#revealRect'), wrap = svg.parentElement;
+  const rect = svg.querySelector('#revealRect'), tip = $('chartTip'), rest = tip.innerHTML;
   const endX = W - R + 110, stops = MILESTONES.map(y => ({ y, x: sx(y * 365) }));
   const SPEED = (endX - L) / 2600;          // ~2.6s of drawing, plus the pauses
   let x = L, last = performance.now(), pauseUntil = 0;
   rect.setAttribute('width', x);
-  const pop = ({ y, x: mx }) => {
-    const r = svg.getBoundingClientRect(), wr = wrap.getBoundingClientRect(), k = r.width / W;
-    const p = document.createElement('div');
-    p.className = 'ms-pop';
-    p.innerHTML = `<b>${moneyFull(project(start, rate, y, false))}</b> saved in ${yrs(y)}!`;
-    p.style.left = (r.left - wr.left + mx * k) + 'px';
-    p.style.top = (r.top - wr.top + sy(project(start, rate, y, false)) * k) + 'px';
-    if (y === SPAN) p.classList.add('end');
-    wrap.append(p);
-    setTimeout(() => p.classList.add('out'), 2200);
-    setTimeout(() => p.remove(), 2700);
+  const pop = ({ y }) => {
+    tip.innerHTML = `<b>${moneyFull(project(start, rate, y, false))}</b><span>saved in ${yrs(y)}!</span>`;
+    tip.classList.remove('flash'); void tip.offsetWidth; tip.classList.add('flash'); // restart the little bounce
+    if (y === SPAN) setTimeout(() => { if (tip.isConnected && !chartAnim) { tip.innerHTML = rest; tip.classList.remove('flash'); } }, 2200);
   };
   const tick = now => {
     const dt = now - last; last = now;
@@ -1828,6 +1846,12 @@ $('rateInput').addEventListener('input', () => {
   renderFuture();
 });
 $('rateReset').onclick = () => { rateOverride = null; renderFuture(); };
+// the graph is drawn at its on-screen width, so redraw it when that changes (e.g. turning a phone sideways)
+let chartW = 0;
+addEventListener('resize', () => {
+  const w = $('futureChart').clientWidth;
+  if (w && w !== chartW && !$('panel-history').classList.contains('hidden')) { chartW = w; renderFuture(); }
+});
 
 // ---------- Shop / Inventory ----------
 function renderShop() {
@@ -1941,7 +1965,7 @@ function tickMission(li) {
   if (m.auto) {
     if (id === 'deposit') { toast('Log any amount in the bank to tick this off'); return openPanel('bank'); }
     if (id === 'goal') { toast('Add savings to a goal to tick this off'); return openPanel('goals'); }
-    if (id === 'chat') return toast('Walk up to Maple :fox: and press Space to ask a question');
+    if (id === 'chat') return toast('Click on Maple :fox: to ask her a question');
   }
   li.classList.add('striking');
   setTimeout(() => completeMission(id), 600); // let the strike animation play, then it drops to the bottom
@@ -2000,9 +2024,9 @@ function drawPortrait(canvas, rows, pal) {
   for (const [ox, oy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) paint(PAL.outline, ox, oy);
   paint(null, 0, 0);
 }
-// your portrait uses your current character (hair, skin, clothes), redrawn every time the chat opens
-const drawMyPortrait = () => drawPortrait($('chatMe'), playerRows('right', false, character), playerPalette(character));
-drawMyPortrait();
+// the player's portrait uses their custom look; redrawn each time the chat opens in case they changed it
+const drawChatMe = () => drawPortrait($('chatMe'), playerRows('right', false), playerPalette());
+drawChatMe();
 drawPortrait($('chatFox'), FOX, FOX_PAL);
 
 let typingRun = 0, skipTyping = null;
@@ -2035,8 +2059,7 @@ function addMsg(text, who) {
 $('chatLog').onclick = () => skipTyping?.();
 function openChat() {
   closePanels(); Object.keys(keys).forEach(k => keys[k] = false);
-  drawMyPortrait();
-  $('chat').classList.remove('hidden'); showChatHistory(false);
+  $('chat').classList.remove('hidden'); showChatHistory(false); drawChatMe();
   const back = S.chat?.length;
   addMsg(back
     ? `Welcome back, friend! :fox: You've saved $${S.saved} so far. What's on your mind today — a goal, a worry, or a money question?`
