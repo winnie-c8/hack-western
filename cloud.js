@@ -116,7 +116,7 @@ window.sync = {
     const snap = await getDoc(doc(db, 'islands', code));
     if (!snap.exists()) return null;
     const d = snap.data();
-    return { name: (d.name || '').trim(), saved: d.saved || 0, streak: d.streak || 0, coins: d.coins || 0 };
+    return { islandName: (d.islandName || '').trim(), name: (d.name || '').trim(), saved: d.saved || 0, streak: d.streak || 0, coins: d.coins || 0 };
   },
   // stop syncing on this device only; it keeps its current island as its own private save again
   async unlink() {
