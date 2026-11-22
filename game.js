@@ -428,7 +428,8 @@ const CHARACTER_CHOICES = {
   gender: ['girl', 'boy', 'nonbinary', 'unspecified'],
   hairStyle: ['short-straight', 'short-curly', 'spiky', 'bald', 'buzz-cut', 'mullet', 'long', 'curly', 'ponytail', 'braids', 'bun'],
   hairColor: ['brown', 'black', 'blonde', 'auburn', 'red', 'pink', 'purple', 'blue', 'teal', 'silver', 'white'],
-  skinColor: ['porcelain', 'light', 'light-medium', 'peach', 'golden', 'olive', 'medium', 'tan', 'deep-medium', 'brown', 'deep', 'dark'],
+  skinColor: ['porcelain', 'light', 'light-medium', 'peach', 'golden', 'olive', 'medium', 'tan', 'sienna', 'bronze',
+    'deep-medium', 'russet', 'brown', 'umber', 'deep', 'mahogany', 'cool-deep', 'dark', 'ebony', 'rich-deep'],
   top: ['tee', 'hoodie', 'sweater', 'jacket'], topColor: ['coral', 'teal', 'yellow', 'lavender', 'blue', 'red'],
   bottoms: ['jeans', 'charcoal-pants', 'shorts', 'skirt'], bottomsColor: ['blue', 'charcoal', 'green', 'purple', 'brown', 'pink'],
 };
@@ -501,7 +502,16 @@ const SKIN_COLORS = {
   golden: ['#e8b278', '#c88d5b'], olive: ['#d4a47b', '#ad7955'],
   medium: ['#d99b6c', '#b97851'], tan: ['#c88759', '#a76b43'],
   'deep-medium': ['#a8734c', '#815333'], brown: ['#82583d', '#65432f'],
-  deep: ['#754a36', '#553323'], dark: ['#563728', '#3f291f'],
+  // [skin, shade, eyes?, cheeks?]: deeper tones get darker eyes + a deeper rose blush so faces stay readable
+  sienna: ['#b8774c', '#97603b'], bronze: ['#a5703f', '#865a30'],
+  russet: ['#97573a', '#77432b', '#22150f', '#c4706a'],
+  umber: ['#704a33', '#573826', '#1c130e', '#ad5e56'],
+  deep: ['#754a36', '#553323', '#1c130e', '#b0605a'],
+  mahogany: ['#6b3b2b', '#522c20', '#170e0a', '#a8554e'],
+  'cool-deep': ['#5c4038', '#46302a', '#150e0c', '#a05a56'],
+  dark: ['#563728', '#3f291f', '#0a0605', '#9c524b'],
+  ebony: ['#4d3226', '#3a251c', '#000000', '#94504a'],
+  'rich-deep': ['#432a20', '#321f18', '#000000', '#8a4a43'],
 };
 const TOP_COLORS = {
   coral: ['#f2a0a8', '#d9838d', '#ffd3d8'],
@@ -529,8 +539,12 @@ const CHARACTER_COLOR_SWATCHES = {
     { value: 'light-medium', label: 'Light-medium', color: '#f3c6a0' }, { value: 'peach', label: 'Peach', color: '#f4c19b' },
     { value: 'golden', label: 'Golden', color: '#e8b278' }, { value: 'olive', label: 'Olive', color: '#d4a47b' },
     { value: 'medium', label: 'Medium', color: '#d99b6c' }, { value: 'tan', label: 'Tan', color: '#c88759' },
-    { value: 'deep-medium', label: 'Deep-medium', color: '#a8734c' }, { value: 'brown', label: 'Brown', color: '#82583d' },
-    { value: 'deep', label: 'Deep', color: '#754a36' }, { value: 'dark', label: 'Dark', color: '#563728' },
+    { value: 'sienna', label: 'Sienna', color: '#b8774c' }, { value: 'bronze', label: 'Bronze', color: '#a5703f' },
+    { value: 'deep-medium', label: 'Deep-medium', color: '#a8734c' }, { value: 'russet', label: 'Russet', color: '#97573a' },
+    { value: 'brown', label: 'Brown', color: '#82583d' }, { value: 'umber', label: 'Umber', color: '#704a33' },
+    { value: 'deep', label: 'Deep', color: '#754a36' }, { value: 'mahogany', label: 'Mahogany', color: '#6b3b2b' },
+    { value: 'cool-deep', label: 'Cool deep', color: '#5c4038' }, { value: 'dark', label: 'Dark', color: '#563728' },
+    { value: 'ebony', label: 'Ebony', color: '#4d3226' }, { value: 'rich-deep', label: 'Rich deep', color: '#432a20' },
   ],
   topColor: [
     { value: 'coral', label: 'Coral', color: '#f2a0a8' }, { value: 'teal', label: 'Teal', color: '#75b8aa' },
@@ -578,10 +592,10 @@ function playerRows(dir, step, appearance = character) {
 const PLAYER_PAL = { H: '#6b4a3a', h: '#8a634f', S: '#ffe0c2', s: '#f0c8a4', E: '#3d2b22', C: '#f4a6a6', B: '#f2a0a8', b: '#d9838d', W: '#ffd3d8', P: '#7b8fb8', F: '#5a4636' };
 function playerPalette(appearance = character) {
   const [hair, hairHighlight] = HAIR_COLORS[appearance.hairColor] || HAIR_COLORS.brown;
-  const [skin, skinShade] = SKIN_COLORS[appearance.skinColor] || SKIN_COLORS.light;
+  const [skin, skinShade, eyes, cheeks] = SKIN_COLORS[appearance.skinColor] || SKIN_COLORS.light;
   const [top, topShade, topHighlight] = TOP_COLORS[appearance.topColor] || TOP_COLORS.coral;
   return {
-    ...PLAYER_PAL, H: hair, h: hairHighlight, S: skin, s: skinShade,
+    ...PLAYER_PAL, H: hair, h: hairHighlight, S: skin, s: skinShade, E: eyes || PLAYER_PAL.E, C: cheeks || PLAYER_PAL.C,
     B: top, b: topShade, W: topHighlight, P: BOTTOM_COLORS[appearance.bottomsColor] || BOTTOM_COLORS.blue,
   };
 }
@@ -1835,7 +1849,7 @@ function completeMission(id) {
   }
   S.coins += m.reward + bonus;
   save(); renderAll();
-  window.onHabit?.(bonus ? `kept a ${S.streak}-day streak` : 'finished a daily mission', m.reward + bonus);
+  window.onHabit?.(bonus ? `kept a ${S.streak}-day streak` : 'finished a daily task', m.reward + bonus);
 }
 function renderMissions() {
   const isDone = m => S.missionsDone.includes(m.id);
@@ -1849,7 +1863,7 @@ function renderMissions() {
     li.onclick = () => tickMission(li);
     li.onkeydown = e => { if (e.key === 'Enter') tickMission(li); };
   });
-  $('streakInfo').innerHTML = `${pi('flame')} Current streak: <b>${S.streak} day${S.streak === 1 ? '' : 's'}</b>. ${S.lastStreakDay === today() ? 'Streak secured for today!' : 'Complete a mission to keep it going!'}`;
+  $('streakInfo').innerHTML = `${pi('list')} Current streak: <b>${S.streak} day${S.streak === 1 ? '' : 's'}</b>. ${S.lastStreakDay === today() ? 'Streak secured for today!' : 'Complete a task to keep it going!'}`;
 }
 
 // Ticking a task: tasks that need a real action take you there; the rest tick off with a strike-through.

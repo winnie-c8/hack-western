@@ -272,6 +272,31 @@
       P(c.G, [[3, 9], [4, 10], [5, 11], [6, 10], [7, 9], [8, 8], [9, 7]]);
       P(c.g, [[4, 9], [5, 10], [6, 9], [7, 8], [8, 7]]);
     }],
+    // music button: drawn like the "?" next to it: one plain glyph in the button's text colour,
+    // no outline, no animation ('plain' = no outline; colour comes from CSS currentColor)
+    music: ['none', ({ E, R }) => {
+      const ink = 'currentColor';
+      E(ink, 6, 12, 3.2, 2.4);                          // note head
+      R(ink, 8, 2, 2, 10);                              // stem
+      R(ink, 10, 2, 2, 2); R(ink, 11, 4, 2, 2); R(ink, 12, 6, 2, 3); R(ink, 11, 9, 2, 1); // flag
+    }, 'plain'],
+    // "?" for the controls button: same plain ink pixel style as the music note
+    question: ['none', ({ R }) => {
+      const ink = 'currentColor';
+      R(ink, 5, 2, 6, 2); R(ink, 4, 3, 2, 3); R(ink, 10, 3, 2, 4);   // top curve
+      R(ink, 9, 6, 2, 2); R(ink, 7, 7, 3, 2); R(ink, 7, 9, 2, 2);    // hook down to the middle
+      R(ink, 7, 12, 2, 2);                                           // dot
+    }, 'plain'],
+    musicOff: ['none', ({ E, R, P }) => {
+      const ink = 'currentColor';
+      E(ink, 6, 12, 3.2, 2.4);
+      R(ink, 8, 2, 2, 10);
+      R(ink, 10, 2, 2, 2); R(ink, 11, 4, 2, 2); R(ink, 12, 6, 2, 3); R(ink, 11, 9, 2, 1);
+      // a thin slash from top-left to bottom-right, with a hairline gap on one side so the note still reads
+      const line = [[1, 1], [2, 2], [3, 3], [4, 4], [5, 5], [6, 6], [7, 7], [8, 8], [9, 9], [10, 10], [11, 11], [12, 12], [13, 13], [14, 14], [15, 15]];
+      P(null, line.map(([x, y]) => [x + 1, y]));
+      P(ink, line);
+    }, 'plain'],
     check: ['pop', ({ R, P }, c) => {
       R(c.g, 1, 1, 14, 14); R(c.G, 1, 13, 14, 2);
       P(c.w, [[3, 8], [4, 9], [5, 10], [6, 11], [7, 10], [8, 9], [9, 8], [10, 7], [11, 6], [12, 5], [4, 8], [5, 9], [6, 10], [7, 9], [8, 8], [9, 7], [10, 6], [11, 5], [12, 4]]);
@@ -565,7 +590,7 @@
   // Inline pixel icon. It stays still and plays its little animation while hovered (see .pi in style.css).
   window.pi = (name, cls = '') => {
     const anim = ICONS[name]?.[0] || 'bob';
-    return `<svg class="pi pa-${anim} ${cls}" viewBox="-1 -1 18 18" shape-rendering="crispEdges" aria-hidden="true">${name === 'dots' ? dotsBody() : name === 'target' ? `<g class="tb">${svgBody('target')}</g><g class="ta">${svgBody('targetArrow')}</g>` : name === 'list' ? `${svgBody('list')}<g class="lt">${plainBody('listTick')}</g>` : svgBody(name)}</svg>`;
+    return `<svg class="pi pa-${anim} ${cls}" viewBox="-1 -1 18 18" shape-rendering="crispEdges" aria-hidden="true">${name === 'dots' ? dotsBody() : name === 'target' ? `<g class="tb">${svgBody('target')}</g><g class="ta">${svgBody('targetArrow')}</g>` : name === 'list' ? `${svgBody('list')}<g class="lt">${plainBody('listTick')}</g>` : ICONS[name]?.[2] === 'plain' ? plainBody(name) : svgBody(name)}</svg>`;
   };
   const esc = s => String(s).replace(/[&<>"']/g, ch => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
   window.pit = text => esc(text).replace(/:([a-z]+):/g, (m, n) => (ICONS[n] || ITEMS[n]) ? window.pi(n) : m);

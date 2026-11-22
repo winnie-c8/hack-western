@@ -13,16 +13,18 @@
     toggle = document.createElement('button');
     toggle.id = 'musicToggle';
     toggle.type = 'button';
-    toggle.className = 'menu-btn music-toggle';
+    toggle.className = 'help-dot music-dot';
     toggle.setAttribute('aria-label', 'Background music');
     toggle.setAttribute('aria-pressed', 'false');
     toggle.title = 'Play background music';
-    toggle.textContent = '🔇 Music';
-    (document.querySelector('.hud-right') || document.body).append(toggle);
+    (document.querySelector('.dot-stack') || document.querySelector('.hud-right') || document.body).append(toggle);
   }
 
+  // pixel music note: teal notes when playing, grey notes with a red slash when off
   function updateToggle(playing, unavailable = false) {
-    toggle.textContent = unavailable ? 'Music unavailable' : playing ? '🔊 Music' : '🔇 Music';
+    toggle.innerHTML = window.pi ? window.pi(playing && !unavailable ? 'music' : 'musicOff') : (playing ? 'on' : 'off');
+    toggle.classList.toggle('on', playing && !unavailable);
+    toggle.classList.toggle('unavailable', unavailable);
     toggle.setAttribute('aria-pressed', String(playing));
     toggle.title = unavailable
       ? 'Background music could not be played'

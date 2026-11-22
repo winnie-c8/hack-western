@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Future Me Island</title>
 <link rel="preload" href="fonts/VCR_OSD_MONO.ttf" as="font" type="font/ttf" crossorigin>
-<link rel="stylesheet" href="style.css?v=33">
+<link rel="stylesheet" href="style.css?v=36">
 </head>
 <body>
 <div id="intro" class="intro" role="dialog" aria-label="Welcome to Future Me Island">
@@ -76,7 +76,10 @@
         <button class="more-item" data-open="character" type="button" role="menuitem"><i data-pi="sparkle"></i><span>character</span></button>
       </div>
     </div>
-    <button class="help-dot" id="helpBtn" aria-label="Controls" aria-controls="helpPop">?</button>
+    <div class="dot-stack">
+      <button class="help-dot pixel-dot" id="helpBtn" aria-label="Controls" aria-controls="helpPop"><i data-pi="question"></i></button>
+      <button class="help-dot music-dot" id="musicToggle" type="button" aria-label="Background music" aria-pressed="false" title="Play background music"><i data-pi="musicOff"></i></button>
+    </div>
   </nav>
   <div id="helpPop" class="help-pop hidden" role="dialog" aria-label="Controls">
     <h3>Controls</h3>
@@ -179,11 +182,11 @@
 
 <div class="modal side hidden" id="panel-daily" role="dialog" aria-labelledby="dailyTitle">
   <div class="window">
-    <div class="window-head"><h2 id="dailyTitle"><i data-pi="flame"></i> Daily Missions</h2><button class="close" data-close aria-label="Close">✕</button></div>
+    <div class="window-head"><h2 id="dailyTitle"><i data-pi="list"></i> Daily Tasks</h2><button class="close" data-close aria-label="Close">✕</button></div>
     <div class="window-body">
       <p id="streakInfo" class="lead"></p>
       <ul id="missions" class="checklist"></ul>
-      <p class="muted">Finish any one mission each day to keep your streak. The bonus grows the longer it lasts.</p>
+      <p class="muted">Finish any one task each day to keep your streak. The bonus grows the longer it lasts.</p>
     </div>
   </div>
 </div>
@@ -421,11 +424,11 @@
   </section>
 </div>
 
-<script src="icons.js?v=33"></script>
+<script src="icons.js?v=36"></script>
 <script src="sky.js?v=33"></script>
 <script src="intro.js?v=33"></script>
-<script src="Updated/Music%20for%20game.js?v=1"></script>
-<script src="game.js?v=33"></script>
+<script src="Updated/Music%20for%20game.js?v=2"></script>
+<script src="game.js?v=35"></script>
 <script src="Set%20goals.js?v=27"></script>
 <script src="daily-star.js?v=27"></script>
 <script type="module" src="cloud.js"></script>

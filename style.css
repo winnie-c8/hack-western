@@ -91,6 +91,11 @@ kbd { font: inherit; background: var(--paper); border: 2px solid var(--wood-dark
   border: 3px solid var(--wood-dark); opacity: .5; transition: opacity .15s;
 }
 .help-dot:hover, .help-dot:focus-visible, .help-dot.active { opacity: 1; }
+/* "?" with the little round music button stacked right under it */
+.dot-stack { display: flex; flex-direction: column; align-items: center; gap: 8px; align-self: flex-start; }
+.music-dot, .pixel-dot { display: grid; place-items: center; }
+.music-dot .pi, .pixel-dot .pi { width: 17px; height: 17px; vertical-align: middle; color: var(--ink); }  /* "?" and music note: same pixel ink style */
+.music-dot.unavailable { opacity: .3; cursor: not-allowed; }
 .help-pop {
   position: fixed; top: 50px; right: 10px; z-index: 15; width: 340px; max-width: calc(100vw - 20px);
   background: var(--paper); border: var(--px) solid var(--wood-dark); box-shadow: var(--shadow); padding: 12px 16px;
