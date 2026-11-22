@@ -6,6 +6,7 @@
 <title>Tomo Island</title>
 <link rel="preload" href="fonts/VCR_OSD_MONO.ttf" as="font" type="font/ttf" crossorigin>
 <link rel="stylesheet" href="style.css?v=54">
+<link rel="stylesheet" href="style.css?v=48">
 </head>
 <body>
 <div id="intro" class="intro" role="dialog" aria-label="Welcome to Tomo Island">
@@ -94,6 +95,7 @@
       <dt><kbd>Esc</kbd></dt><dd>Close a window / cancel</dd>
     </dl>
     <p class="music-credit">Background music: “Daydream” by Massobeats via <a href="https://freetouse.com" target="_blank" rel="noopener noreferrer">Free To Use</a>.</p>
+    <button type="button" id="tutorialBtn" class="secondary help-tour"><i data-pi="fox"></i> Redo the tutorial</button>
   </div>
 
   <button class="town-isle" data-open="town" aria-label="Visit your town">
@@ -312,9 +314,24 @@
   <div class="window sync-window">
     <div class="window-head"><h2 id="syncTitle"><i data-pi="island"></i> Sync devices</h2><button class="close" data-close aria-label="Close">✕</button></div>
     <div class="window-body">
+      <!-- shown when the game was opened from a sync link / scanned QR code -->
+      <div id="syncOffer" class="sync-offer" hidden>
+        <p class="sync-offer-kicker"><i data-pi="sparkle"></i> You opened a sync link</p>
+        <h3 class="sync-offer-title">You're syncing to <span id="syncOfferName">your island</span></h3>
+        <p id="syncOfferStats" class="sync-offer-stats">Looking up the island…</p>
+        <div class="sync-code" id="syncOfferCode"></div>
+        <button class="primary sync-big" id="syncOfferGo" type="button">SYNC</button>
+        <p class="muted sync-note">This device will play that island from now on. The island on this device now will be replaced.</p>
+        <button class="link-btn sync-offer-cancel" id="syncOfferCancel" type="button">Not now</button>
+      </div>
       <div id="syncOff">
         <p>Play the same island on your phone and laptop. No account or password, and you only link each device once.</p>
-        <button class="primary sync-create" id="syncCreate" type="button">Create a sync code</button>
+        <form id="syncCreateForm" class="sync-create-form">
+          <label for="syncIslandName">First, name your island</label>
+          <input id="syncIslandName" maxlength="30" placeholder="e.g. Maple Grove" autocomplete="off">
+          <p class="muted sync-note">Your other devices will see this name when they sync.</p>
+          <button class="primary sync-create" id="syncCreate">Create a sync code</button>
+        </form>
         <form id="syncJoinForm" class="sync-join">
           <label for="syncInput">Got a code from your other device?</label>
           <div class="sync-row">
@@ -325,9 +342,11 @@
         </form>
       </div>
       <div id="syncOn" hidden>
+        <p class="sync-island-name"><i data-pi="island"></i> <b id="syncIslandShow"></b></p>
         <p>This device is synced. To add another device, scan this with its camera, or open the game there and enter the code under <b>More → Sync devices</b>.</p>
         <img id="syncQr" class="sync-qr" alt="QR code that links another device to this island" hidden>
         <div class="sync-code" id="syncCodeShow"></div>
+        <div id="syncDevices" class="sync-devices"></div>
         <div class="sync-actions">
           <button id="syncCopy" type="button">Copy link</button>
           <button id="syncUnlink" type="button" class="link-btn">Unlink this device</button>
@@ -442,6 +461,24 @@
   </div>
 </div>
 
+<!-- Maple's tour: shown the first time you enter, or from more → tutorial (tutorial.js) -->
+<section id="tutorial" class="tut hidden" aria-labelledby="tutTitle">
+  <canvas id="tutFox" class="tut-fox" width="12" height="14" aria-hidden="true"></canvas>
+  <div class="tut-main">
+    <div class="tut-top">
+      <span id="tutStep" class="tut-step"></span>
+      <h3 id="tutTitle"></h3>
+      <button id="tutSkip" class="tut-skip" type="button">skip tour</button>
+    </div>
+    <p id="tutText" aria-live="polite"></p>
+    <div class="tut-actions">
+      <button id="tutBack" class="secondary" type="button">Back</button>
+      <button id="tutAlt" class="secondary hidden" type="button"></button>
+      <button id="tutNext" class="primary" type="button">Next</button>
+    </div>
+  </div>
+</section>
+
 <div id="toast" role="status"></div>
 <div id="dailyStarModal" class="modal hidden layered-modal daily-star-modal" role="dialog" aria-modal="true" aria-labelledby="dailyStarTitle">
   <canvas id="dailyStarScene" class="daily-star-backdrop" width="320" height="180" aria-hidden="true"></canvas>
@@ -468,7 +505,11 @@
 <script src="game.js?v=52"></script>
 <script src="Set%20goals.js?v=27"></script>
 <script src="daily-star.js?v=46"></script>
+<script src="game.js?v=49"></script>
+<script src="Set%20goals.js?v=27"></script>
+<script src="daily-star.js?v=27"></script>
+<script src="tutorial.js?v=3"></script>
 <script type="module" src="cloud.js"></script>
-<script type="module" src="town.js?v=27"></script>
+<script type="module" src="town.js?v=30"></script>
 </body>
 </html>

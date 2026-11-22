@@ -578,3 +578,97 @@ body.intro-open { overflow: hidden; }
   .intro-sign { padding: 14px 16px; }
   .intro-btn { width: 100%; font-size: 1.05rem; }
 }
+
+/* ===== First-visit interactive tutorial ===== */
+.intro-btn.howto { background: var(--paper); color: var(--ink); border-color: var(--wood-dark); text-shadow: none; }
+.intro-btn.howto:hover { background: #fff; }
+
+.tutorial-panel {
+  position: fixed; z-index: 200; left: 50%; bottom: max(14px, env(safe-area-inset-bottom));
+  width: min(680px, calc(100vw - 28px)); transform: translateX(-50%);
+}
+.tutorial-card {
+  padding: 16px 20px; background: var(--paper); border: 5px solid var(--wood-dark);
+  box-shadow: 8px 8px 0 rgba(62,47,34,.35); max-height: min(58vh, calc(100vh - 28px)); overflow-y: auto;
+}
+.tutorial-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.tutorial-progress { margin: 0; color: var(--ink-soft); font-size: .9rem; }
+.tutorial-close {
+  width: 36px; height: 36px; flex: none; cursor: pointer; color: var(--ink);
+  background: var(--cream); border: 3px solid var(--wood-dark); font-size: 1rem;
+}
+.tutorial-heading { display: grid; grid-template-columns: 52px 1fr; gap: 12px; align-items: start; margin-top: 6px; }
+.tutorial-icon { font-size: 2.4rem; line-height: 1.1; }
+.tutorial-heading h2 { margin: 0; font-size: clamp(1.25rem, 3.8vw, 1.7rem); }
+.tutorial-heading p { margin: 6px 0 0; }
+.tutorial-prompt {
+  margin: 12px 0 0; padding: 9px 12px; background: #e2f0d6; border-left: 5px solid var(--sage-dark);
+}
+.tutorial-tip { margin: 8px 0 0; color: var(--ink-soft); font-size: .92rem; }
+.tutorial-tip:empty { display: none; }
+.tutorial-actions { display: flex; justify-content: flex-end; align-items: center; gap: 8px; margin-top: 14px; }
+.tutorial-actions button {
+  min-height: 40px; padding: 6px 12px; cursor: pointer; border: 3px solid var(--wood-dark); color: var(--ink);
+  background: var(--cream); font-size: .9rem;
+}
+.tutorial-actions .tutorial-primary { background: var(--sun); }
+.tutorial-actions button:disabled { opacity: .48; cursor: not-allowed; }
+.tutorial-actions #tutorialSkip { margin-right: auto; }
+.tutorial-panel:not(.preview) #tutorialSkip { display: none; }
+.tutorial-panel.preview {
+  inset: 0; left: 0; bottom: auto; width: auto; max-height: none; transform: none;
+  display: grid; place-items: center; padding: max(20px, env(safe-area-inset-top)) 18px max(20px, env(safe-area-inset-bottom));
+  background: var(--teal);
+}
+.tutorial-panel.preview .tutorial-card {
+  width: min(680px, 100%); max-height: calc(100vh - 40px); padding: clamp(22px, 5vw, 42px);
+  box-shadow: 10px 10px 0 rgba(62,47,34,.3);
+}
+.tutorial-panel.preview .tutorial-close { visibility: visible; }
+.tutorial-panel.tutorial-chat-paused { display: none !important; }
+.tutorial-preview, body.tutorial-guided { overflow: hidden !important; }
+.tutorial-preview > .intro,
+.tutorial-preview > #sea,
+.tutorial-preview > #stage,
+.tutorial-preview > .modal,
+.tutorial-preview > #toast { visibility: hidden !important; }
+
+body.tutorial-guided .hud,
+body.tutorial-guided .town-isle,
+body.tutorial-guided #helpPop,
+body.tutorial-guided #editBar,
+body.tutorial-guided #toast { display: none !important; }
+body.tutorial-guided[data-tutorial-area="menu"] .hud-right { display: flex !important; }
+body.tutorial-guided .hud-right > * { display: none !important; }
+body.tutorial-guided[data-tutorial-step="2"] .hud-right [data-open="bank"],
+body.tutorial-guided[data-tutorial-step="3"] .hud-right [data-open="goals"],
+body.tutorial-guided[data-tutorial-step="4"] .hud-right [data-open="daily"] { display: flex !important; }
+.tutorial-target {
+  position: relative; z-index: 8; outline: 4px solid var(--sun) !important;
+  outline-offset: 4px; box-shadow: 0 0 0 8px rgba(242,194,107,.32), 0 0 24px rgba(242,194,107,.8) !important;
+  animation: tutorialGlow 1.1s ease-in-out infinite alternate;
+}
+.tutorial-map-marker {
+  position: fixed; z-index: 8; width: 54px; height: 54px; border: 4px solid var(--sun);
+  border-radius: 50%; transform: translate(-50%, -50%); pointer-events: none;
+  box-shadow: 0 0 0 7px rgba(242,194,107,.28), 0 0 24px rgba(242,194,107,.8);
+  animation: tutorialGlow 1.1s ease-in-out infinite alternate;
+}
+.tutorial-map-marker::before {
+  content: attr(data-label); position: absolute; left: 50%; bottom: calc(100% + 9px); transform: translateX(-50%);
+  white-space: nowrap; padding: 4px 8px; color: var(--ink); background: var(--paper);
+  border: 2px solid var(--wood-dark); font-size: .75rem; box-shadow: 3px 3px 0 rgba(62,47,34,.25);
+}
+@keyframes tutorialGlow { from { filter: brightness(1); } to { filter: brightness(1.16); } }
+@media (max-width: 760px) {
+  .tutorial-panel { bottom: max(8px, env(safe-area-inset-bottom)); width: calc(100vw - 16px); }
+  .tutorial-card { padding: 12px 14px; max-height: min(52vh, calc(100vh - 16px)); }
+  .tutorial-heading { grid-template-columns: 38px 1fr; gap: 8px; }
+  .tutorial-icon { font-size: 1.9rem; }
+  .tutorial-actions { flex-wrap: wrap; }
+  .tutorial-actions button { padding: 5px 8px; font-size: .82rem; }
+  .tutorial-panel.preview .tutorial-card { max-height: calc(100vh - 24px); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tutorial-target, .tutorial-map-marker { animation: none; }
+}
