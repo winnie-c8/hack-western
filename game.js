@@ -1773,7 +1773,7 @@ $('acctDone').onclick = () => $('acctEditor').classList.add('hidden');
 // LOG MY SAVINGS logs whatever new deposits Plaid shows today, through logSaving like before,
 // so coins still reward the habit, not the amount. Save again later the same day and you can log again.
 const SERVER = ['localhost', '127.0.0.1'].includes(location.hostname)
-  ? 'http://localhost:3001' : 'https://hack-western.onrender.com'; // same server as Maple's chat and the Daily Star
+  ? 'http://localhost:3001' : 'https://future-me-cdzs.onrender.com'; // same server as Maple's chat and the Daily Star
 const postJSON = (path, body = {}) => fetch(`${SERVER}${path}`, {
   method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body),
 }).then(r => r.json().then(d => (r.ok ? d : Promise.reject(d))));
@@ -2321,7 +2321,7 @@ async function askVillager(question) {
   const context = `(Player info: today is ${today()}, saved $${S.saved} total, ${S.streak}-day streak, goals: ${goals})`;
   try {
     const API = ['localhost', '127.0.0.1'].includes(location.hostname)
-      ? 'http://localhost:3001' : 'https://hack-western.onrender.com';
+      ? 'http://localhost:3001' : 'https://future-me-cdzs.onrender.com';
     const res = await fetch(`${API}/api/fox`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

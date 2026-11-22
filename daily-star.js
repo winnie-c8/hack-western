@@ -7,7 +7,7 @@
   const MAX_GUESS_LENGTH = 40;
   const GIVE_UP_AFTER = 10; // "Reveal the word" appears after this many guesses
   const API = ['localhost', '127.0.0.1'].includes(location.hostname)
-    ? 'http://localhost:3001' : 'https://hack-western.onrender.com';
+    ? 'http://localhost:3001' : 'https://future-me-cdzs.onrender.com';
 
   // word: the secret keyword · also: other ways to type it that count as finding it
   // near: hand-picked closeness for related words (instant, and works without Gemini); anything else asks Gemini
