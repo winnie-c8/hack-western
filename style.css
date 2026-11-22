@@ -629,6 +629,25 @@ body.holding .bag { outline: 3px dashed var(--sun-dark); outline-offset: 3px; }
 .chart-read i { display: inline-block; width: 10px; height: 10px; margin-right: 6px; vertical-align: middle; }
 .chart-read.flash { background: var(--sun); border: 2px solid var(--ink); animation: msPop .35s cubic-bezier(.3,1.6,.5,1); }
 @keyframes msPop { from { opacity: 0; scale: .9; } to { opacity: 1; scale: 1; } }
+/* desktop draw-in: "$X saved in N yrs!" bubbles pop up on the graph, just under each milestone's dot (set in game.js) */
+.chart-pop {
+  position: absolute; z-index: 2; pointer-events: none; transform: translate(-50%, 14px);
+  display: flex; flex-direction: column; align-items: center; padding: 4px 10px; white-space: nowrap;
+  font-size: .8rem; background: var(--sun); border: 2px solid var(--ink); box-shadow: 3px 3px 0 rgba(28,52,44,.3);
+  animation: popIn .35s cubic-bezier(.3,1.6,.5,1) both;
+}
+.chart-pop b { font-size: .95rem; }
+.chart-pop::before {   /* little pixel pointer up to the dot */
+  content: ""; position: absolute; top: -8px; left: 50%; margin-left: -6px; width: 12px; height: 6px;
+  background: var(--ink); clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+.chart-pop.at-end { transform: translate(calc(-100% + 18px), 14px); }   /* 20 yrs is at the right edge: hang left */
+.chart-pop.at-end::before { left: auto; right: 12px; margin-left: 0; }
+.chart-pop.above { transform: translate(-50%, calc(-100% - 14px)); }
+.chart-pop.above.at-end { transform: translate(calc(-100% + 18px), calc(-100% - 14px)); }
+.chart-pop.above::before { top: auto; bottom: -8px; clip-path: polygon(0 0, 100% 0, 50% 100%); }
+.chart-pop.bye { opacity: 0; transition: opacity .5s ease; }
+@keyframes popIn { from { opacity: 0; scale: .6; } to { opacity: 1; scale: 1; } }
 @media (max-width: 520px) { .chart-read { min-height: 5.4em; align-content: center; } } /* fixed height so the graph doesn't jump under your finger */
 #futureChart { touch-action: pan-y; } /* sideways drags read the graph; up/down still scrolls the window */
 .chart-table summary { cursor: pointer; font-size: .85rem; color: var(--ink-soft); margin-top: 4px; }
@@ -1426,6 +1445,66 @@ body.intro-open { overflow: hidden; }
   .hud-top { justify-content: flex-start; padding-left: 10px; }   /* line the sign up with the bag, away from the town island */
 }
 
+/* ===== Maple's tour (tutorial.js): a speech card from Maple, plus a pulsing outline on what she's talking about ===== */
+.tut {
+  position: fixed; z-index: 35; left: 50%; bottom: 16px; transform: translateX(-50%);   /* above pop-ups, below the toast */
+  width: 580px; max-width: calc(100vw - 32px); box-sizing: border-box;
+  display: flex; gap: 14px; align-items: flex-start; padding: 14px 16px;
+  background: var(--paper); border: var(--px) solid var(--wood-dark); box-shadow: 8px 8px 0 rgba(28,52,44,.3);
+}
+.tut[data-pos="top"] { bottom: auto; top: 16px; }
+.tut-fox {
+  flex: none; width: 60px; height: 70px; image-rendering: pixelated;
+  background: var(--cream); border: 3px solid var(--wood); animation: tutBob 1.6s steps(2) infinite;
+}
+@keyframes tutBob { 50% { transform: translateY(-3px); } }
+.tut-main { flex: 1; min-width: 0; }
+.tut-top { display: flex; align-items: baseline; gap: 10px; }
+.tut-step { flex: none; font-size: .8rem; color: var(--ink-soft); }
+.tut h3 { flex: 1; margin: 0; font-size: 1.15rem; }
+.tut-skip { flex: none; padding: 4px; font: inherit; font-size: .85rem; color: var(--ink-soft); text-decoration: underline; background: none; border: none; cursor: pointer; }
+.tut-skip:hover { color: var(--ink); }
+.tut p { margin: 6px 0 10px; font-size: 1rem; line-height: 1.4; }
+.tut-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; }
+.tut-actions button.primary, .tut-actions button.secondary { width: auto; margin: 0; padding: 8px 16px; font-size: 1rem; }
+
+/* while the card is at the bottom, pop-ups move up and shrink so nothing hides behind it */
+body.tut-bottom .modal:not(.side):not(.bottom), body.tut-bottom .sub-modal { align-items: flex-start; padding-top: 12px; padding-bottom: calc(var(--tut-h, 200px) + 28px); }
+body.tut-bottom .modal:not(.side):not(.bottom) .window, body.tut-bottom .sub-modal .window { max-height: calc(100vh - var(--tut-h, 200px) - 52px); }
+body.tut-bottom .modal.side { padding-bottom: calc(var(--tut-h, 200px) + 28px); }
+body.tut-bottom .modal.side .window { max-height: calc(100vh - var(--tut-h, 200px) - 140px); }
+
+/* the spotlight: everything outside the hole goes dark; clicks still go through (pointer-events: none) */
+.tut-spot {
+  position: fixed; z-index: 34; pointer-events: none; box-sizing: border-box;
+  border: 4px dashed var(--sun); box-shadow: 0 0 0 200vmax rgba(20, 32, 30, .62);
+  animation: tutPulse 1s ease-in-out infinite;
+}
+@keyframes tutPulse { 50% { border-color: #fff7e6; } }
+@media (prefers-reduced-motion: reduce) { .tut-fox, .tut-spot { animation: none; } }
+@media (max-width: 520px) {
+  .tut { left: 16px; right: 16px; width: auto; max-width: none; transform: none; gap: 10px; padding: 10px 12px; bottom: 10px; }
+  .tut[data-pos="top"] { top: 10px; }
+  .tut-fox { width: 44px; height: 52px; }
+  .tut p { font-size: .95rem; }
+}
+body.tut-on:not(.tut-bottom) #toast { top: auto; bottom: 20px; }   /* card at the top: toasts pop up at the bottom instead */
+
+/* tour: labels pinned beside the more-menu options, pointing at them */
+.tut-tip {
+  position: fixed; z-index: 36; transform: translate(-100%, -50%); pointer-events: none; width: max-content; box-sizing: border-box;
+  padding: 4px 10px; font-size: .85rem; color: var(--ink); background: var(--paper);
+  border: 3px solid var(--sun-dark); box-shadow: 3px 3px 0 rgba(28,52,44,.3);
+}
+.tut-tip::after {   /* little pixel arrow pointing right, at the option */
+  content: ""; position: absolute; right: -11px; top: 50%; transform: translateY(-50%);
+  border: 6px solid transparent; border-left: 6px solid var(--sun-dark); border-right: 0;
+}
+/* "Redo the tutorial" at the bottom of the ? pop-up */
+.help-pop .help-tour { display: flex; align-items: center; justify-content: center; gap: 8px; margin-top: 12px; }
+.help-pop .help-tour .pi { width: 1.4em; height: 1.4em; }
+@media (max-width: 520px) { .tut-tip { font-size: .75rem; padding: 3px 6px; line-height: 1.25; } }
+
 /* while the top-left cards are open, the whole area (including the gaps between cards) counts as hovering */
 .hud-left.peek { pointer-events: auto; }
 
@@ -1547,3 +1626,23 @@ body.intro-open { overflow: hidden; }
 .sync-actions button { min-height: 40px; }
 .sync-status { min-height: 1.2em; margin: 10px 0 0; }
 .sync-qr[hidden], #syncOn[hidden], #syncOff[hidden] { display: none; }
+/* "You're syncing to …" screen, shown when the game opens from a sync link / QR code */
+.sync-offer { text-align: center; }
+.sync-offer[hidden] { display: none; }
+.sync-offer-kicker { margin: 0; font-size: .9rem; color: var(--teal-dark); letter-spacing: 1px; text-transform: uppercase; }
+.sync-offer-title { margin: 6px 0 4px; font-size: 1.5rem; font-weight: 400; line-height: 1.25; }
+.sync-offer-title span { color: var(--wood-dark); }
+.sync-offer-stats { margin: 0 0 6px; }
+.sync-offer .sync-code { font-size: 1.1rem; color: var(--ink-soft); }
+button.primary.sync-big { min-height: 64px; font-size: 1.8rem; letter-spacing: 6px; margin-top: 10px; }
+button.primary.sync-big:disabled { opacity: .5; cursor: not-allowed; }
+.sync-offer-cancel { display: block; margin: 10px auto 0; min-height: 36px; }
+/* "Name your island" step before creating a sync code, and the name shown once synced */
+.sync-create-form label { display: block; margin-bottom: 6px; }
+.sync-create-form input { margin-top: 0; }
+.sync-create-form .sync-note { margin-bottom: 4px; }
+.sync-island-name { text-align: center; font-size: 1.3rem; margin: 0 0 8px; }
+/* Synced devices list in the Sync window */
+.sync-devices { margin: 6px 0 10px; font-size: .95rem; }
+.sync-devices ul { list-style: none; margin: 4px 0 0; padding: 0; }
+.sync-devices li { padding: 3px 0; }

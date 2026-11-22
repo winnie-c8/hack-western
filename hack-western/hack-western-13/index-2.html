@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Future Me Island</title>
 <link rel="preload" href="fonts/VCR_OSD_MONO.ttf" as="font" type="font/ttf" crossorigin>
-<link rel="stylesheet" href="style-2.css?v=5">
+<link rel="stylesheet" href="style-2.css?v=6">
 </head>
 <body>
 <div id="intro" class="intro" role="dialog" aria-label="Welcome to Future Me Island">
@@ -17,6 +17,7 @@
     <div class="intro-buttons">
       <button id="enterWorld" class="intro-btn go">🏝️ Enter my world!</button>
       <button id="dailyStar" class="intro-btn star">⭐ Play the Daily Star</button>
+      <button id="openTutorial" class="intro-btn howto">📘 How to play</button>
     </div>
     <p id="introNote" class="intro-note" aria-live="polite"></p>
   </div>
@@ -38,6 +39,7 @@
     <button class="menu-btn" data-open="daily"><span class="ico">🔥</span>daily</button>
     <button class="menu-btn" data-open="goals"><span class="ico">🎯</span>goals</button>
     <button class="menu-btn" data-open="history"><span class="ico">📜</span>history</button>
+    <button class="help-dot guide-dot" id="tutorialAgain" type="button" aria-label="Replay tutorial" title="Replay tutorial">📘</button>
     <button class="help-dot" id="helpBtn" aria-label="Controls" aria-controls="helpPop">?</button>
   </nav>
   <div id="helpPop" class="help-pop hidden" role="dialog" aria-label="Controls">
@@ -64,6 +66,30 @@
     </div>
   </div>
 </main>
+
+<section id="tutorialPanel" class="tutorial-panel hidden" aria-labelledby="tutorialTitle">
+  <div class="tutorial-card">
+    <div class="tutorial-top">
+      <p id="tutorialProgress" class="tutorial-progress" aria-live="polite"></p>
+      <button id="tutorialClose" class="tutorial-close" type="button" aria-label="Close tutorial">✕</button>
+    </div>
+    <div class="tutorial-heading">
+      <span id="tutorialIcon" class="tutorial-icon" aria-hidden="true"></span>
+      <div>
+        <h2 id="tutorialTitle"></h2>
+        <p id="tutorialDescription"></p>
+      </div>
+    </div>
+    <p id="tutorialPrompt" class="tutorial-prompt" role="status"></p>
+    <p id="tutorialTip" class="tutorial-tip"></p>
+    <div class="tutorial-actions">
+      <button id="tutorialSkip" class="tutorial-secondary" type="button">Skip tutorial</button>
+      <button id="tutorialBack" class="tutorial-secondary" type="button">← Back</button>
+      <button id="tutorialNext" class="tutorial-primary" type="button">Start tutorial →</button>
+    </div>
+  </div>
+</section>
+<div id="tutorialMapMarker" class="tutorial-map-marker hidden" aria-hidden="true"></div>
 
 <!-- ===== Pop-up windows ===== -->
 <div class="modal hidden" id="panel-bank" role="dialog" aria-labelledby="bankTitle">
@@ -247,7 +273,8 @@
 <div id="toast" role="status"></div>
 <script src="intro.js"></script>
 <script src="Shop%20categories%20%2B%20names.js"></script>
-<script src="game-2.js?v=9"></script>
+<script src="game-2.js?v=10"></script>
+<script src="Tutorial.js?v=1"></script>
 <script src="Set%20goals.js"></script>
 <script type="module" src="cloud.js"></script>
 <script type="module" src="town-2.js?v=4"></script>

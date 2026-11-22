@@ -135,6 +135,7 @@ function normalizeDailyStarLogbook(entries) {
       (Number.isInteger(entry.accuracyScore) && entry.accuracyScore >= 0 && entry.accuracyScore <= 100)));
 }
 let S;
+let realS = null;         // while the tutorial's practice island is showing, the player's real island waits here
 let hadLocalSave = false; // a brand-new local island must never overwrite the cloud copy
 try {
   const raw = localStorage.getItem('fmi');
@@ -169,8 +170,10 @@ function migrateJars() {
 }
 migrateJars();
 // stamp=false for automatic housekeeping (e.g. daily reset) so it doesn't count as "newer" than the cloud
-const saveLocal = () => { try { localStorage.setItem('fmi', JSON.stringify(S)); } catch {} };
+// (the practice island is never saved: saveLocal always writes the real island, save() does nothing)
+const saveLocal = () => { try { localStorage.setItem('fmi', JSON.stringify(realS || S)); } catch {} };
 const save = (stamp = true) => {
+  if (realS) return;
   if (stamp) S.updatedAt = Date.now();
   saveLocal();
   window.cloudSave?.(S); // set by cloud.js once signed in
@@ -495,7 +498,18 @@ const CHARACTER_OPTION_LABELS = {
   top: { tee: 'T-shirt', hoodie: 'Hoodie', sweater: 'Sweater', jacket: 'Jacket' },
   bottoms: { jeans: 'Jeans', 'charcoal-pants': 'Pants', shorts: 'Shorts', skirt: 'Skirt' },
 };
+// The look lives on the island (S.character) so it syncs across devices; older saves kept it only in
+// this browser (CHARACTER_KEY), which is still read once as a fallback and kept as a copy.
+function cleanCharacter(saved) {
+  if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return { ...CHARACTER_DEFAULTS };
+  return Object.fromEntries(Object.keys(CHARACTER_DEFAULTS).map(key => [
+    key, key === 'hairStyle' && saved[key] === 'short'
+      ? 'short-straight'
+      : CHARACTER_CHOICES[key].includes(saved[key]) ? saved[key] : CHARACTER_DEFAULTS[key],
+  ]));
+}
 function loadCharacter() {
+  if (S.character) return cleanCharacter(S.character);
   try {
     const saved = JSON.parse(localStorage.getItem(CHARACTER_KEY) || 'null');
     if (!saved || typeof saved !== 'object' || Array.isArray(saved)) return { ...CHARACTER_DEFAULTS };
@@ -510,7 +524,9 @@ function loadCharacter() {
   }
 }
 let character = loadCharacter();
+if (!S.character) { S.character = { ...character }; saveLocal(); } // move an older browser-only look onto the island
 function saveCharacter() {
+  S.character = { ...character }; save(); // syncs to your other devices
   try {
     localStorage.setItem(CHARACTER_KEY, JSON.stringify(character));
   } catch (error) {
@@ -1041,6 +1057,7 @@ const draw = () => {
     const b = nearBuild();
     if (b) drawBubble(`${b.f >= 1 ? `${b.name} ✓` : `${b.name} · ${Math.floor(b.f * 100)}%`} · Click for info`, (b.x + 1) * TILE, b.y * TILE - 7 * PX);
   }
+  drawTutorialArrow();
 
   // edit mode: outline whatever is under the mouse / where paving will go
   if (editMode && !held && hover && editTool === 'move') {
@@ -1078,6 +1095,49 @@ const draw = () => {
     ctx.globalAlpha = 1;
   }
   ctx.setTransform(1, 0, 0, 1, 0, 0);
+};
+
+// ---------- Tutorial: a bouncing arrow over whatever Maple is pointing at ('shop' | 'bank' | 'fox' | 'build') ----------
+let tutorialArrow = null;
+window.setTutorialArrow = target => { tutorialArrow = target; };
+const ARROW = ['..XXX..', '..XXX..', '..XXX..', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...'];
+function drawTutorialArrow() {
+  let cx, top;
+  if (tutorialArrow === 'shop' && !nearShop()) { cx = (SHOP_BLD.x + 1) * TILE; top = SHOP_BLD.y * TILE - 8 * PX; }
+  else if (tutorialArrow === 'bank' && !nearBank()) { cx = (BANK_BLD.x + 2) * TILE; top = BANK_BLD.y * TILE - 25 * PX; }
+  else if (tutorialArrow === 'fox' && !nearVillager()) { cx = VILLAGER.x * TILE + TILE / 2; top = VILLAGER.y * TILE - 2 * PX; }
+  else if (tutorialArrow === 'build' && !nearBuild()) {
+    const b = townBuilds.find(b => b.f < 1) || townBuilds[0];
+    if (!b) return;
+    cx = (b.x + 1) * TILE; top = b.y * TILE - 6 * PX;
+  } else return;
+  const bob = Math.round(Math.abs(Math.sin(t / 12)) * 3) * PX;
+  drawSprite(ARROW, { X: '#f2c26b' }, cx, top - bob);
+}
+// Where Maple / the town build (plus its arrow) is on the screen, in page pixels: the tutorial cuts its spotlight here
+window.tutorialWorldRect = target => {
+  const b = townBuilds.find(b => b.f < 1) || townBuilds[0];
+  let [x, y, w, h] = target === 'fox' ? [VILLAGER.x - .2, VILLAGER.y - 1.1, 1.4, 2.1]
+    : target.startsWith('build') && b ? [b.x - .3, b.y - 1.5, 2.6, 3.5] : [];
+  if (x === undefined) return null;
+  if (target === 'buildPlayer') { // the build and you, so you can see yourself walk up to it
+    const x2 = Math.max(x + w, P.rx + 1.2), y2 = Math.max(y + h, P.ry + 1.1);
+    x = Math.min(x, P.rx - .2); y = Math.min(y, P.ry - .6); w = x2 - x; h = y2 - y;
+  }
+  const r = cv.getBoundingClientRect(), k = r.width / cv.width;
+  return { left: r.left + (x * TILE - Math.round(cam.x)) * k, top: r.top + (y * TILE - Math.round(cam.y)) * k, width: w * TILE * k, height: h * TILE * k };
+};
+// Practice island only: hop the player a couple of tiles from the town build / Maple, so it's on screen with its arrow
+// (beside the build, one step away from being next to it: the tour has you walk up and press Space)
+window.tutorialHopTo = target => {
+  if (!realS) return;
+  const b = townBuilds.find(b => b.f < 1) || townBuilds[0], V = VILLAGER;
+  const spots = target === 'build' && b ? [[b.x - 2, b.y + 1], [b.x + 3, b.y + 1], [b.x, b.y + 3], [b.x + 1, b.y + 3]]
+    : target === 'fox' ? [[V.x - 2, V.y], [V.x, V.y + 2], [V.x + 2, V.y], [V.x - 2, V.y + 1]] : [];
+  const spot = spots.find(([x, y]) => walkable(x, y) && !(x === P.x && y === P.y));
+  if (!spot) return;
+  Object.assign(P, { x: spot[0], y: spot[1], rx: spot[0], ry: spot[1], dir: 'up', moving: false });
+  S.player = { x: P.x, y: P.y };
 };
 
 // ---------- Time of day (sky.js): tint the island, cloud shadows, lamp glow, fireflies, stars on the sea ----------
@@ -1360,13 +1420,17 @@ cv.addEventListener('click', e => {
   }
   if (!selectedItem) return;
   if (!canPlace(x, y)) return toast("Can't place there");
-  S.placed.push({ id: selectedItem, x, y });
+  const placed = selectedItem;
+  S.placed.push({ id: placed, x, y });
   if (--S.inventory[selectedItem] <= 0) { delete S.inventory[selectedItem]; selectedItem = null; }
   save(); renderInventory();
+  emit('placed', placed);
 });
 
 // ---------- UI helpers ----------
 const $ = id => document.getElementById(id);
+// little events other scripts can listen for (the tutorial waits on these): 'fmi:panel', 'fmi:saved', 'fmi:task', 'fmi:bought', 'fmi:placed'
+const emit = (type, detail) => dispatchEvent(new CustomEvent('fmi:' + type, { detail }));
 
 // ---------- Edit mode: drag items around your island, or drop them on the bag to put them away ----------
 function setEdit(on) {
@@ -1494,7 +1558,7 @@ function renderEditTools() {
     : tap + ' or drag to pave. Paths go on grass and sand. Buy more styles in the shop.');
   document.body.classList.toggle('paving', editTool !== 'move');
 }
-function toast(msg) { const el = $('toast'); el.innerHTML = pit(msg); el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), 2000); }
+function toast(msg, ms = 2000) { const el = $('toast'); el.innerHTML = pit(msg); el.classList.add('show'); clearTimeout(el._t); el._t = setTimeout(() => el.classList.remove('show'), ms); }
 function renderStats() {
   $('coins').textContent = S.coins.toLocaleString();
   const savedTxt = `$${S.saved.toLocaleString()}`, savedEl = $('saved');
@@ -1537,6 +1601,7 @@ function openPanel(name) {
   }
   if (name === 'history') { animateChart = true; renderFuture(); } // draw the graph in, line by line
   if (name === 'sync') renderSync();
+  emit('panel', name);
 }
 document.querySelectorAll('[data-open]').forEach(b => b.onclick = () => openPanel(b.dataset.open));
 paintTownIsle();
@@ -1576,6 +1641,7 @@ function logSaving(amt, type, goalIdx) {
   toast(coins ? `+${coins} :coin: · ${rewards.map(r => r[0]).join(' · ')}` : `$${amt} added to your progress. Coins come from showing up — see you tomorrow!`);
   // share the habit (never the amount or goal name) with the town
   if (coins) window.onHabit?.(rewards.map(r => r[0].startsWith('Goal "') ? 'reached a goal' : r[0].toLowerCase()).join(' · '), coins);
+  emit('saved', { amt, goal: g?.name });
   completeMission('deposit');
   if (g) completeMission('goal');
 }
@@ -1735,6 +1801,7 @@ function drawFutureChart(st, rate, start) {
   }).join('');
   const endSave = project(start, rate, SPAN, false), endInv = project(start, rate, SPAN, true);
   cancelAnimationFrame(chartAnim); chartAnim = null;
+  svg.parentElement.querySelectorAll('.chart-pop').forEach(p => p.remove()); // bubbles from the last draw-in
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.innerHTML = `
     ${yt.map(v => `<line x1="${L}" x2="${W - R}" y1="${sy(v)}" y2="${sy(v)}" class="grid"/><text x="${L - 8}" y="${sy(v) + 4}" class="tick" text-anchor="end">${money(v)}</text>`).join('')}
@@ -1788,7 +1855,9 @@ function drawFutureChart(st, rate, start) {
     MILESTONES.map(y => `<tr><td>in ${yrs(y)}</td><td>${moneyFull(project(start, rate, y, false))}</td><td>${moneyFull(project(start, rate, y, true))}</td></tr>`).join('');
 }
 
-// Line draws left→right; at each milestone it pauses and the readout above the graph announces "$X saved in N yrs!".
+// Line draws left→right; at each milestone it pauses and announces "$X saved in N yrs!".
+// Desktop: a bubble pops up on the graph, right under that milestone's dot. Phones: the readout above the graph says it
+// (a bubble would cover most of a small graph).
 function playChartIntro(svg, W, L, R, sx, sy, start, rate) {
   if (matchMedia('(prefers-reduced-motion: reduce)').matches) return; // just show the finished graph
   const rect = svg.querySelector('#revealRect'), tip = $('chartTip'), rest = tip.innerHTML;
@@ -1796,7 +1865,21 @@ function playChartIntro(svg, W, L, R, sx, sy, start, rate) {
   const SPEED = (endX - L) / 2600;          // ~2.6s of drawing, plus the pauses
   let x = L, last = performance.now(), pauseUntil = 0;
   rect.setAttribute('width', x);
-  const pop = ({ y }) => {
+  const onGraph = matchMedia('(hover: hover) and (pointer: fine) and (min-width: 521px)').matches;
+  const pop = ({ y, x: mx }) => {
+    if (onGraph) {
+      const wrap = svg.parentElement, k = svg.clientWidth / W, b = document.createElement('div');
+      const dotY = sy(project(start, rate, y, false));
+      // under the dot, or above it when the dot is low (so the bubble doesn't hang over the axis labels)
+      b.className = 'chart-pop' + (y === SPAN ? ' at-end' : '') + (dotY > svg.viewBox.baseVal.height * .55 ? ' above' : '');
+      b.innerHTML = `<b>${moneyFull(project(start, rate, y, false))}</b><span>saved in ${yrs(y)}!</span>`;
+      const sr = svg.getBoundingClientRect(), wr = wrap.getBoundingClientRect(); // (an <svg> has no offsetLeft/Top)
+      b.style.left = `${sr.left - wr.left + mx * k}px`;
+      b.style.top = `${sr.top - wr.top + dotY * k}px`;
+      wrap.append(b);
+      if (y === SPAN) setTimeout(() => wrap.querySelectorAll('.chart-pop').forEach(p => p.classList.add('bye')), 2600);
+      return;
+    }
     tip.innerHTML = `<b>${moneyFull(project(start, rate, y, false))}</b><span>saved in ${yrs(y)}!</span>`;
     tip.classList.remove('flash'); void tip.offsetWidth; tip.classList.add('flash'); // restart the little bounce
     if (y === SPAN) setTimeout(() => { if (tip.isConnected && !chartAnim) { tip.innerHTML = rest; tip.classList.remove('flash'); } }, 2200);
@@ -1941,12 +2024,14 @@ function renderShop() {
     if (S.coins < k.price) return toast(`Need ${k.price - S.coins} more :coin: — keep your saving streak going!`);
     S.coins -= k.price; S.pathKits = [...(S.pathKits || ['dirt']), k.id];
     save(); renderAll(); toast(`Bought ${k.name}! Open :pencil: edit mode to start paving.`);
+    emit('bought', k.id);
   });
   $('shop').querySelectorAll('[data-id]').forEach(el => el.onclick = () => {
     const s = SHOP.find(i => i.id === el.dataset.id);
     if (S.coins < s.price) return toast(`Need ${s.price - S.coins} more :coin: — keep your saving streak going!`);
     S.coins -= s.price; S.inventory[s.id] = (S.inventory[s.id] || 0) + 1;
     save(); renderAll(); toast(`Bought ${s.name}! It's in your bag at the bottom.`);
+    emit('bought', s.id);
   });
 }
 function renderInventory() {
@@ -2002,6 +2087,7 @@ function completeMission(id) {
   S.coins += m.reward + bonus;
   save(); renderAll();
   window.onHabit?.(bonus ? `kept a ${S.streak}-day streak` : 'finished a daily task', m.reward + bonus);
+  emit('task', id);
 }
 function renderMissions() {
   const isDone = m => S.missionsDone.includes(m.id);
@@ -2120,6 +2206,7 @@ $('chatLog').onclick = () => skipTyping?.();
 function openChat() {
   closePanels(); Object.keys(keys).forEach(k => keys[k] = false);
   $('chat').classList.remove('hidden'); showChatHistory(false); drawChatMe();
+  emit('panel', 'chat');
   const back = S.chat?.length;
   addMsg(back
     ? `Welcome back, friend! :fox: You've saved $${S.saved} so far. What's on your mind today — a goal, a worry, or a money question?`
@@ -2167,14 +2254,20 @@ $('chatInput').addEventListener('keydown', e => { if (e.key === 'Escape') closeC
 function renderAll() { if (editMode) renderEditTools(); renderAccounts(); renderStats(); renderHistory(); renderRules(); renderShop(); renderInventory(); window.renderPersonalGoals?.(); renderGoalPick(); renderMissions(); }
 renderAll();
 
+// First time through "Enter my world!": Maple's tour (tutorial.js); after that, the bank says hello
+const firstEntry = () => {
+  if (window.tutorial?.shouldRun()) window.tutorial.start();
+  else { openPanel('bank'); showWelcome(); }
+};
 if (document.body.classList.contains('intro-open')) {
   new MutationObserver((_, obs) => {
     if (!document.body.classList.contains('intro-open')) {
       obs.disconnect();
-      openPanel('bank'); showWelcome();
+      firstEntry();
     }
   }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 } else { openPanel('bank'); showWelcome(); }
+window.showBankWelcome = () => { openPanel('bank'); showWelcome(); };
 
 // A warm hello at the top of the bank, the first time it pops up after entering the island
 function showWelcome() {
@@ -2191,21 +2284,52 @@ function showWelcome() {
   box.hidden = false;
 }
 
+// Redraw everything (map, buildings, player, panels) for whichever island S is now
+function showIsland(swap = false) {
+  if (swap) { setEdit(false); selectedItem = null; closePanels(); } // swapping islands: start clean
+  Object.assign(P, { x: S.player.x, y: S.player.y, rx: S.player.x, ry: S.player.y, moving: false });
+  Object.keys(keys).forEach(k => keys[k] = false);
+  applyLayout(); applySavedPaths(); paintAll(); window.setTownBuilds(lastBuildList);
+  followCam(true);
+  rollDay(); renderAll();
+}
+
 // Called by cloud.js when the cloud copy is newer than this browser's copy.
+let pendingCloud = null; // arrived during the tutorial: applied once the practice island is put away
 window.loadCloudState = data => {
+  if (realS) { pendingCloud = data; return; }
+  const here = S?.player; // your spot isn't synced: stay where you are on this device
   S = Object.assign(defaultState(), data);
   S.dailyStar = normalizeDailyStar(S.dailyStar);
   S.dailyStarLogbook = normalizeDailyStarLogbook(S.dailyStarLogbook);
   if (!data.worldV) S.worldV = 0;
   migrateWorld(); migrateJars();
+  if (here && onLand(here.x, here.y)) S.player = { x: here.x, y: here.y };
   try { localStorage.setItem('fmi', JSON.stringify(S)); } catch {}
-  Object.assign(P, { x: S.player.x, y: S.player.y, rx: S.player.x, ry: S.player.y, moving: false });
-  applyLayout(); applySavedPaths(); paintAll(); window.setTownBuilds(lastBuildList);
-  followCam(true);
-  rollDay(); renderAll();
+  character = cleanCharacter(S.character || character); S.character ||= { ...character }; // the synced look
+  try { localStorage.setItem(CHARACTER_KEY, JSON.stringify(character)); } catch {}
+  syncCharacterSelections?.(); drawCharacterPreview();
+  showIsland();
   window.onIslandLoaded?.(); // e.g. town.js re-checks which towns this island is in
 };
-window.getState = () => S;
+
+// ---------- Tutorial sandbox: a practice island shown in place of the real one, never saved ----------
+let realBuildList = [];
+window.enterPracticeIsland = practice => {
+  if (realS) return;
+  realS = S; realBuildList = lastBuildList;
+  S = Object.assign(defaultState(), practice);
+  showIsland(true);
+};
+window.leavePracticeIsland = () => {
+  if (!realS) return;
+  S = realS; realS = null; lastBuildList = realBuildList;
+  showIsland(true);
+  if (pendingCloud) { const data = pendingCloud; pendingCloud = null; window.loadCloudState(data); }
+};
+
+// getState / saveGame always mean the player's real island (cloud.js and town.js use them), even mid-tutorial
+window.getState = () => realS || S;
 
 // ---------- Sync devices: same island on phone + laptop, no login (cloud.js provides window.sync) ----------
 const syncURL = code => `${location.origin}${location.pathname}#sync=${code}`;
@@ -2219,10 +2343,15 @@ const loadQr = () => qrLib ||= new Promise((resolve, reject) => {
   s.onerror = () => { qrLib = null; reject(new Error('QR library failed to load')); };
   document.head.append(s);
 });
+let syncOffer = null; // code from a sync link / QR, waiting for the player to tap SYNC
 function renderSync() {
-  const code = window.sync?.code();
-  $('syncOff').hidden = !!code; $('syncOn').hidden = !code;
-  if (!code) return;
+  const code = window.sync?.code(), offer = syncOffer && syncOffer !== code ? syncOffer : null;
+  $('syncOffer').hidden = !offer;
+  $('syncOff').hidden = !!code || !!offer; $('syncOn').hidden = !code || !!offer;
+  if (!code && !offer && !$('syncIslandName').value) $('syncIslandName').value = suggestIslandName();
+  if (!code || offer) return;
+  $('syncIslandShow').textContent = S.islandName || 'Your island';
+  renderSyncDevices();
   $('syncCodeShow').textContent = fmtSync(code);
   $('syncQr').hidden = true;
   loadQr().then(qrcode => {
@@ -2235,8 +2364,14 @@ const cloudReady = () => {
   syncStatus("Syncing isn't available right now. Check your connection and try again.");
   return false;
 };
-$('syncCreate').onclick = async () => {
+// The island needs a name before it's shared, so the other device sees "You're syncing to <name>"
+const suggestIslandName = () => S.islandName || ((S.name || '').trim() ? `${S.name.trim()}'s Island` : '');
+$('syncCreateForm').onsubmit = async e => {
+  e.preventDefault();
   if (!cloudReady()) return;
+  const name = $('syncIslandName').value.trim().slice(0, 30);
+  if (!name) { syncStatus('Give your island a name first!'); return $('syncIslandName').focus(); }
+  S.islandName = name; save(); // saved before the code is made, so the synced copy has it
   syncStatus('Creating your code…');
   try { await window.sync.create(); syncStatus(''); renderSync(); }
   catch (e) { console.warn('[sync] create failed', e); syncStatus('Could not create a code. Check your connection and try again.'); }
@@ -2263,17 +2398,73 @@ $('syncUnlink').onclick = async () => {
   await window.sync.unlink(); syncStatus(''); renderSync();
   toast('This device is no longer synced');
 };
-// Opened from a scanned QR code / copied link (…#sync=CODE): show the Sync window with the code filled in
+// The devices synced with this island (from cloud.js), shown in the Sync window
+function renderSyncDevices() {
+  const { me, list } = window.sync?.devices?.() || { list: {} };
+  const ids = Object.keys(list).sort((a, b) => (a === me ? -1 : b === me ? 1 : 0));
+  const box = $('syncDevices');
+  box.innerHTML = ids.length ? `<b>Synced devices</b><ul>${ids.map(id =>
+    `<li>${/iPhone|Android phone/.test(list[id]) ? '📱' : '💻'} ${esc(list[id])}${id === me ? ' <span class="muted">(this device)</span>' : ''}</li>`).join('')}</ul>`
+    + (ids.length < 2 ? '<p class="muted sync-note">No other devices yet. Scan the QR code on your other device.</p>' : '') : '';
+}
+window.onSyncDevicesList = () => { if (!$('panel-sync').classList.contains('hidden')) renderSyncDevices(); };
+// Another device joined or stopped syncing (also noticed when this device opens later)
+window.onSyncDevicesChanged = ({ added, removed, others }) => {
+  const lines = [ // toast() escapes the text itself (device labels come from other browsers)
+    ...removed.map(l => `:island: Your ${l} stopped syncing with this island.${others ? '' : ' No other devices are synced now.'}`),
+    ...added.map(l => `:sparkle: ${l} is now synced with your island.`),
+  ];
+  toast(lines.join(' '), 7000);
+};
+// "You're syncing to Sam's island · $120 saved · 5-day streak": look up the island behind a sync link
+async function peekOffer(code) {
+  for (let i = 0; i < 40 && !window.sync; i++) await new Promise(r => setTimeout(r, 250)); // cloud.js may still be loading
+  try {
+    const info = await window.sync?.peek(code);
+    if (syncOffer !== code) return;
+    if (!info) {
+      $('syncOfferStats').textContent = "We couldn't find an island with this code. Ask for a new link from your other device.";
+      $('syncOfferGo').disabled = true;
+      return;
+    }
+    $('syncOfferName').textContent = info.islandName || (info.name ? `${info.name}'s island` : 'your island');
+    $('syncOfferStats').innerHTML = pit(`:piggy: $${info.saved.toLocaleString()} saved · :flame: ${info.streak}-day streak · :coin: ${info.coins.toLocaleString()} coins`);
+  } catch (e) {
+    console.warn('[sync] peek failed', e);
+    if (syncOffer === code) $('syncOfferStats').textContent = "Couldn't look up the island right now, but you can still tap SYNC.";
+  }
+}
+$('syncOfferGo').onclick = async () => {
+  if (!cloudReady()) return;
+  const hasProgress = S.saved > 0 || (S.history || []).length > 0 || (S.placed || []).length > 0;
+  if (hasProgress && !confirm('This device already has an island with progress on it. Replace it with the synced island?')) return;
+  $('syncOfferGo').disabled = true; syncStatus('Syncing…');
+  try {
+    if (!(await window.sync.join(syncOffer))) { $('syncOfferGo').disabled = false; return syncStatus('No island found with that code. Ask for a new link.'); }
+    syncOffer = null; syncStatus(''); renderSync();
+    toast("Synced! You're playing your island on this device now.");
+  } catch (e) {
+    console.warn('[sync] join failed', e);
+    $('syncOfferGo').disabled = false; syncStatus('Could not sync. Check your connection and try again.');
+  }
+};
+$('syncOfferCancel').onclick = () => { syncOffer = null; syncStatus(''); closePanels(); };
+// Opened from a scanned QR code / copied link (…#sync=CODE): show "You're syncing to …" with a big SYNC button
 (function syncFromLink() {
   const m = location.hash.match(/sync=([A-Za-z0-9-]{12,16})/);
   if (!m) return;
   history.replaceState(null, '', location.pathname + location.search); // don't leave the code in the address bar
   const code = m[1].toUpperCase().replace(/[^A-Z0-9]/g, '');
   const show = () => {
-    openPanel('sync');
-    if (window.sync?.code() === code) return syncStatus('This device is already synced with that island.');
-    $('syncInput').value = fmtSync(code);
-    syncStatus('Tap Link to play your synced island on this device.');
+    syncOffer = code;
+    $('syncOfferCode').textContent = fmtSync(code);
+    $('syncOfferName').textContent = 'your island';
+    $('syncOfferStats').textContent = 'Looking up the island…';
+    $('syncOfferGo').disabled = false;
+    syncStatus('');
+    openPanel('sync'); // renderSync() shows the "You're syncing to …" screen
+    if (window.sync?.code() === code) { syncOffer = null; renderSync(); return syncStatus('This device is already synced with that island.'); }
+    peekOffer(code);
   };
   if (!document.body.classList.contains('intro-open')) return show();
   new MutationObserver((_, obs) => {
@@ -2282,7 +2473,12 @@ $('syncUnlink').onclick = async () => {
   }).observe(document.body, { attributes: true, attributeFilter: ['class'] });
 })();
 window.hasLocalSave = () => hadLocalSave;
-window.saveGame = () => save();
+window.saveGame = () => {
+  const s = realS || S;
+  s.updatedAt = Date.now();
+  saveLocal();
+  window.cloudSave?.(s);
+};
 window.toast = toast;
 
 // Header title goes back to the entrance screen
