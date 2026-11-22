@@ -1057,7 +1057,7 @@ body.intro-open { overflow: hidden; }
 
 /* ===== Phones & touch screens: comfortable tap targets, no iOS zoom on focus (checked by scripts/mobile-check.mjs) ===== */
 @media (max-width: 760px), (pointer: coarse) {
-  input:not(.amt-input), select, textarea { font-size: 16px; }   /* under 16px, iPhones zoom in when you tap a field */
+  input:not(.amt-input), select, textarea, .small-label select { font-size: 16px; }   /* under 16px, iPhones zoom in when you tap a field */
   .goal-opt, .hz, .link-btn { min-height: 36px; }
   .link-btn { padding: 8px 14px; }
   .close, .chat-head button { min-width: 36px; min-height: 36px; }
