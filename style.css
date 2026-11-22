@@ -1207,7 +1207,7 @@ body.intro-open { overflow: hidden; }
 @media (hover: none) and (pointer: coarse) {
   .touch-controls { display: block; }
   .dpad {
-    position: fixed; z-index: 6; left: 12px; bottom: 150px;   /* above the bag and the 'money saved' sign (which sits at the bottom on phones) */
+    position: fixed; z-index: 6; left: 12px; bottom: 160px;   /* above the bag and the 'money saved' sign (which sits at the bottom on phones) */
     display: grid; grid-template-columns: repeat(3, 50px); grid-template-rows: repeat(3, 50px); gap: 2px;
     touch-action: none; user-select: none; -webkit-user-select: none;
   }
@@ -1236,4 +1236,17 @@ body.intro-open { overflow: hidden; }
   /* touch screens can't hover, so the slim HUD stays fully on screen instead of tucking past the edge */
   .hud-left.tucked:not(:hover) .stats, .hud-left.tucked:not(:hover) .sky-clock { transform: none; }
   .saved-banner.compact:not(:hover) .saved-text small { font-size: .7rem; }   /* 11.2px: still readable when slim */
+  .saved-text small { white-space: nowrap; }   /* one line, so the sign stays short and clear of the D-pad */
+  .hud-top { left: 0; right: 0; transform: none; display: flex; justify-content: center; }   /* centre the sign on the full width (left:50% capped it at half the screen) */
+}
+
+/* very narrow phones (e.g. iPhone SE): keep the bag to 2 lines so it stays below the money-saved sign */
+@media (max-width: 400px) {
+  .bag-word { display: none; }                          /* icon only, no "Bag" word */
+  .bag-items .empty { font-size: .85rem; }
+  .saved-banner { padding: 6px 12px; gap: 8px; }        /* a more compact sign, so it ends before the town island */
+  .saved-text b { font-size: 1.4rem; }
+  .saved-text small { letter-spacing: 1px; font-size: .7rem; }
+  .saved-ico .pi { width: 1.6rem; height: 1.6rem; }
+  .hud-top { justify-content: flex-start; padding-left: 10px; }   /* line the sign up with the bag, away from the town island */
 }
