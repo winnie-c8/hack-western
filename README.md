@@ -31,3 +31,9 @@ Built in 36 hours at Hack Western 13.
 
 ## Running the program
 Open [tomoisland.garden](https://tomoisland.garden/)
+
+## Team
+- Winnie ([@winnie-c8](https://github.com/winnie-c8))
+- Allie ([@alyssallie](https://github.com/alyssallie))
+- Ava ([@avayeung08-svg](https://github.com/avayeung08-svg))
+- Lina ([@houtlina](https://github.com/houtlina))
