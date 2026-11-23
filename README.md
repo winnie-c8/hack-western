@@ -8,7 +8,6 @@ Built in 36 hours at Hack Western 13.
 
 <img width="1917" height="867" alt="homescreen" src="https://github.com/user-attachments/assets/1c22a349-29ad-4bcc-bfc6-2bc80b72e114" />
 
----
 ## Features
 **Savings and Rewards**
 - Daily savings log: connect a bank through Plaid to automatically log how much you saved each day. Coins are rewarded based on consistency (daily streak), not the amount
@@ -23,7 +22,6 @@ Built in 36 hours at Hack Western 13.
 - Sync devices: use a code to sync accounts across mobile & desktop
 - Maple AI Chatbot: ask Maple finance questions or about life in general
 
----
 ## Built with
 - Frontend: HTML, CSS, JavaScript
 - Backend: Node.js and Express
@@ -31,6 +29,5 @@ Built in 36 hours at Hack Western 13.
 - Banking: Plaid
 - Database: Firebase/Firestore
 
----
 ## Running the program
 Open [tomoisland.garden](https://tomoisland.garden/)
