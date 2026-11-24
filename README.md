@@ -1,5 +1,7 @@
 # Tomo Island
 
+🥈 2nd Place, Canada Life Track, Hack Western 2026
+
 What if you could foresee the future? Welcome to Tomo Island; a video game that encourages people to save money, and see their island come to life by doing so. 
 
 Here's how it works: Every time you put real money into savings, you log it at the island bank, and your island rewards you for showing up. Coins come from consistency, not the size of your deposit, so five dollars a day beats one giant transfer every time. Spend those coins in the shop on palm trees, lanterns, cottages and more, and slowly turn a little patch of sand into a place that's completely yours. Stuck on a money question? Maple, the island's fox, is always around to chat about TFSAs, budgeting, or that thing you really want to buy right now. Every day there's a new Daily Star, a hot-or-cold word game where each hidden star word unlocks a real, niche way to save. Team up with friends in a town, cheer each other on, and build something bigger together.
