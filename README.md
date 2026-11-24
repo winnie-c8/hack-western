@@ -34,6 +34,10 @@ Built in 36 hours at Hack Western 13.
 ## Running the program
 Open [tomoisland.garden](https://tomoisland.garden/)
 
+<img width="1916" height="867" alt="main screen" src="https://github.com/user-attachments/assets/14799807-35cd-4bc4-98de-f69b3ed38a2d" />
+<img width="1915" height="867" alt="towns" src="https://github.com/user-attachments/assets/3067263d-9ead-4e21-a138-25fd4ea8eaf3" />
+<img width="1895" height="861" alt="daily star" src="https://github.com/user-attachments/assets/d2037131-f847-41b0-b97a-df2a52d98e53" />
+
 ## Team
 - Winnie ([@winnie-c8](https://github.com/winnie-c8))
 - Allie ([@alyssallie](https://github.com/alyssallie))
